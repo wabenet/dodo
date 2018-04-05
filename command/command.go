@@ -42,5 +42,17 @@ func (command *Command) Run() error {
 		errors.New("No build and no image!")
 	}
 
+	container, err := command.createContainer("dodo-testing") // TODO: get actual image id
+	if err != nil {
+		return err
+	}
+
+	defer command.removeContainer(container)
+
+	err = command.startContainer(container)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

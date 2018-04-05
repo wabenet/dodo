@@ -35,10 +35,10 @@ func (command *Command) pullImage() error {
 	}()
 
 	err = command.Client.PullImage(docker.PullImageOptions{
-		Repository: ref.Name(),
-		Tag: tagged.Tag(),
-		OutputStream: wpipe,
-		RawJSONStream: true,
+		Repository:     ref.Name(),
+		Tag:            tagged.Tag(),
+		OutputStream:   wpipe,
+		RawJSONStream:  true,
 	}, authConfig)
 
 	wpipe.Close()

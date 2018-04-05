@@ -33,18 +33,18 @@ func (command *Command) buildImage() error {
 	}()
 
 	err = command.Client.BuildImage(docker.BuildImageOptions{
-		Name: "dodo-testing", // TODO: should have no name, figure out id
-		Dockerfile: config.Dockerfile,
-		NoCache: false, // TODO no cache mode
-		CacheFrom: []string{}, // TODO implement cache_from
+		Name:           "dodo-testing", // TODO: should have no name, figure out id
+		Dockerfile:     config.Dockerfile,
+		NoCache:        false, // TODO no cache mode
+		CacheFrom:      []string{}, // TODO implement cache_from
 		SuppressOutput: false, // TODO: quiet mode
-		Pull: true, // TODO: force pull option
+		Pull:           true, // TODO: force pull option
 		RmTmpContainer: true,
-		RawJSONStream: true,
-		OutputStream: wpipe,
-		AuthConfigs: *authConfigs,
-		ContextDir: config.Context,
-		BuildArgs: args,
+		RawJSONStream:  true,
+		OutputStream:   wpipe,
+		AuthConfigs:    *authConfigs,
+		ContextDir:     config.Context,
+		BuildArgs:      args,
 	})
 
 	wpipe.Close()
