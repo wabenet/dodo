@@ -1,11 +1,11 @@
-package command
+package main
 
 import (
 	"errors"
 
 	"github.com/oclaussen/dodo/config"
-	"github.com/oclaussen/dodo/command/image"
-	"github.com/oclaussen/dodo/command/container"
+	"github.com/oclaussen/dodo/image"
+	"github.com/oclaussen/dodo/container"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
