@@ -24,14 +24,13 @@ func (command *Command) pullImage() error {
 	}
 	authConfig := authConfigs.Configs[reference.Domain(ref)]
 
-	outFd, isTTY := term.GetFdInfo(os.Stdout)
 	rpipe, wpipe := io.Pipe()
 	defer rpipe.Close()
 
 	errChan := make(chan error)
 	go func() {
-		err := jsonmessage.DisplayJSONMessagesStream(rpipe, os.Stdout, outFd, isTTY, nil)
-		errChan <- err
+		outFd, isTerminal := term.GetFdInfo(os.Stdout)
+		errChan <- jsonmessage.DisplayJSONMessagesStream(rpipe, os.Stdout, outFd, isTerminal, nil)
 	}()
 
 	err = command.Client.PullImage(docker.PullImageOptions{

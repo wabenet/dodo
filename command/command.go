@@ -26,12 +26,14 @@ func (command *Command) Run() error {
 	command.Client = client
 
 	// TODO: check if pulling/building is necessary, implement force pull
+	image := ""
 	if command.Config.Build != nil {
-		err = command.buildImage()
+		image, err = command.buildImage()
 		if err != nil {
 			return err
 		}
 	} else if command.Config.Image != "" {
+		image = command.Config.Image
 		err = command.pullImage()
 		if err != nil {
 			return err
@@ -41,8 +43,9 @@ func (command *Command) Run() error {
 		// TODO: nicer errors
 		errors.New("No build and no image!")
 	}
+	// TODO: check if we have an image
 
-	container, err := command.createContainer("dodo-testing") // TODO: get actual image id
+	container, err := command.createContainer(image)
 	if err != nil {
 		return err
 	}

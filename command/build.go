@@ -3,13 +3,15 @@ package command
 import (
 	"io"
 	"os"
+	"encoding/json"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func (command *Command) buildImage() error {
+func (command *Command) buildImage() (string, error) {
 	config := command.Config.Build
 
 	args := []docker.BuildArg{}
@@ -19,21 +21,28 @@ func (command *Command) buildImage() error {
 
 	authConfigs, err := docker.NewAuthConfigurationsFromDockerCfg()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	outFd, isTTY := term.GetFdInfo(os.Stdout)
 	rpipe, wpipe := io.Pipe()
 	defer rpipe.Close()
 
+	imageID := ""
+	aux := func(auxJSON *json.RawMessage) {
+		var result types.BuildResult
+		// TODO: handle parse error
+		if err := json.Unmarshal(*auxJSON, &result); err == nil {
+			imageID = result.ID
+		}
+	}
+
 	errChan := make(chan error)
 	go func() {
-		err := jsonmessage.DisplayJSONMessagesStream(rpipe, os.Stdout, outFd, isTTY, nil)
-		errChan <- err
+		outFd, isTerminal := term.GetFdInfo(os.Stdout)
+		errChan <- jsonmessage.DisplayJSONMessagesStream(rpipe, os.Stdout, outFd, isTerminal, aux)
 	}()
 
 	err = command.Client.BuildImage(docker.BuildImageOptions{
-		Name:           "dodo-testing", // TODO: should have no name, figure out id
 		Dockerfile:     config.Dockerfile,
 		NoCache:        false, // TODO no cache mode
 		CacheFrom:      []string{}, // TODO implement cache_from
@@ -50,7 +59,7 @@ func (command *Command) buildImage() error {
 	wpipe.Close()
 	if err != nil {
 		<-errChan
-		return err
+		return "", err
 	}
-	return <-errChan
+	return imageID, <-errChan
 }
