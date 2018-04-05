@@ -1,26 +1,27 @@
-package command
+package image
 
 import (
 	"io"
 	"os"
 
+	"github.com/oclaussen/dodo/config"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/distribution/reference"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func (command *Command) pullImage() error {
+func PullImage(client *docker.Client, config *config.CommandConfig) (string, error) {
 	// TODO: validate that the image is actually normalized named
-	ref, err := reference.ParseNormalizedNamed(command.Config.Image)
+	ref, err := reference.ParseNormalizedNamed(config.Image)
 	if err != nil {
-		return err
+		return "", err
 	}
 	tagged := reference.TagNameOnly(ref).(reference.Tagged)
 
 	authConfigs, err := docker.NewAuthConfigurationsFromDockerCfg()
 	if err != nil {
-		return err
+		return "", err
 	}
 	authConfig := authConfigs.Configs[reference.Domain(ref)]
 
@@ -33,7 +34,7 @@ func (command *Command) pullImage() error {
 		errChan <- jsonmessage.DisplayJSONMessagesStream(rpipe, os.Stdout, outFd, isTerminal, nil)
 	}()
 
-	err = command.Client.PullImage(docker.PullImageOptions{
+	err = client.PullImage(docker.PullImageOptions{
 		Repository:     ref.Name(),
 		Tag:            tagged.Tag(),
 		OutputStream:   wpipe,
@@ -43,7 +44,8 @@ func (command *Command) pullImage() error {
 	wpipe.Close()
 	if err != nil {
 		<-errChan
-		return err
+		return "", err
 	}
-	return <-errChan
+
+	return tagged.String(), <-errChan
 }

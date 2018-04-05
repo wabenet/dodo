@@ -1,18 +1,19 @@
-package command
+package container
 
 import (
+	"github.com/oclaussen/dodo/config"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func (command *Command) createContainer(image string) (*docker.Container, error) {
-	return command.Client.CreateContainer(docker.CreateContainerOptions{
-		Name:   command.Config.ContainerName,
+func CreateContainer(client *docker.Client, image string, config *config.CommandConfig) (*docker.Container, error) {
+	return client.CreateContainer(docker.CreateContainerOptions{
+		Name:   config.ContainerName,
 		Config: &docker.Config{
-			User:         command.Config.User,
-			Env:          command.Config.Environment, // TODO: support env_file
+			User:         config.User,
+			Env:          config.Environment, // TODO: support env_file
 			Cmd:          []string{}, // TODO: command
 			Image:        image,
-			WorkingDir:   command.Config.WorkingDir,
+			WorkingDir:   config.WorkingDir,
 			Entrypoint:   []string{"/bin/sh"}, // TODO: entrypoint
 			AttachStdin:  true,
 			AttachStdout: true,
@@ -23,7 +24,7 @@ func (command *Command) createContainer(image string) (*docker.Container, error)
 		},
 		HostConfig: &docker.HostConfig{
 			Binds:        []string{}, // TODO: bind mounts
-			VolumesFrom:  command.Config.VolumesFrom,
+			VolumesFrom:  config.VolumesFrom,
 		},
 	})
 }

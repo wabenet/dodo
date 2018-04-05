@@ -1,21 +1,21 @@
-package command
+package image
 
 import (
 	"io"
 	"os"
 	"encoding/json"
+	"errors"
 
+	"github.com/oclaussen/dodo/config"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func (command *Command) buildImage() (string, error) {
-	config := command.Config.Build
-
+func BuildImage(client *docker.Client, config *config.CommandConfig) (string, error) {
 	args := []docker.BuildArg{}
-	for key, value := range config.Args {
+	for key, value := range config.Build.Args {
 		args = append(args, docker.BuildArg{Name: key, Value: *value})
 	}
 
@@ -27,12 +27,12 @@ func (command *Command) buildImage() (string, error) {
 	rpipe, wpipe := io.Pipe()
 	defer rpipe.Close()
 
-	imageID := ""
+	image := ""
 	aux := func(auxJSON *json.RawMessage) {
 		var result types.BuildResult
 		// TODO: handle parse error
 		if err := json.Unmarshal(*auxJSON, &result); err == nil {
-			imageID = result.ID
+			image = result.ID
 		}
 	}
 
@@ -42,8 +42,8 @@ func (command *Command) buildImage() (string, error) {
 		errChan <- jsonmessage.DisplayJSONMessagesStream(rpipe, os.Stdout, outFd, isTerminal, aux)
 	}()
 
-	err = command.Client.BuildImage(docker.BuildImageOptions{
-		Dockerfile:     config.Dockerfile,
+	err = client.BuildImage(docker.BuildImageOptions{
+		Dockerfile:     config.Build.Dockerfile,
 		NoCache:        false, // TODO no cache mode
 		CacheFrom:      []string{}, // TODO implement cache_from
 		SuppressOutput: false, // TODO: quiet mode
@@ -52,7 +52,7 @@ func (command *Command) buildImage() (string, error) {
 		RawJSONStream:  true,
 		OutputStream:   wpipe,
 		AuthConfigs:    *authConfigs,
-		ContextDir:     config.Context,
+		ContextDir:     config.Build.Context,
 		BuildArgs:      args,
 	})
 
@@ -61,5 +61,9 @@ func (command *Command) buildImage() (string, error) {
 		<-errChan
 		return "", err
 	}
-	return imageID, <-errChan
+
+	if image == "" {
+		return "", errors.New("Build complete, but the server did not send an image id.")
+	}
+	return image, <-errChan
 }

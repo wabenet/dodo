@@ -1,4 +1,4 @@
-package command
+package container
 
 import (
 	"os"
@@ -7,8 +7,8 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func (command *Command) startContainer(container *docker.Container) error {
-	_, err := command.Client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
+func RunContainer(client *docker.Client, container *docker.Container) error {
+	_, err := client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
 		Container:    container.ID,
 		InputStream:  os.Stdin,
 		OutputStream: os.Stdout,
@@ -30,8 +30,8 @@ func (command *Command) startContainer(container *docker.Container) error {
 	}
 	defer term.RestoreTerminal(inFd, state)
 
-	err = command.Client.StartContainer(container.ID, nil)
-	_, err = command.Client.WaitContainer(container.ID)
+	err = client.StartContainer(container.ID, nil)
+	_, err = client.WaitContainer(container.ID)
 	// TODO: handle exit code
 	if err != nil {
 		return err
