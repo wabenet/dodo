@@ -1,17 +1,18 @@
 package state
 
 import (
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/docker/client"
+	"golang.org/x/net/context"
 )
 
-func (state *state) ensureClient() error {
+func (state *State) EnsureClient(ctx context.Context) (*client.Client, error) {
 	if state.Client != nil {
-		return nil
+		return state.Client, nil
 	}
-	client, err := docker.NewClientFromEnv()
+	client, err := client.NewEnvClient()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	state.Client = client
-	return nil
+	return client, nil
 }

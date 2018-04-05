@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/oclaussen/dodo/config"
+	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 )
 
@@ -22,26 +23,26 @@ var (
 	}
 )
 
-func (state *state) ensureConfig() error {
+func (state *State) EnsureConfig(ctx context.Context) (*config.BackdropConfig, error) {
 	if state.Config != nil {
-		return nil
+		return state.Config, nil
 	}
 	if state.Options.Filename != "" {
 		config, err := findConfigInFile(state.Name, state.Options.Filename)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		state.Options.UpdateConfiguration(config)
 		state.Config = config
-		return nil
+		return config, nil
 	}
 	config, err := findConfigAnywhere(state.Name)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	state.Options.UpdateConfiguration(config)
 	state.Config = config
-	return nil
+	return config, nil
 }
 
 func findConfigDirectories() ([]string, error) {
