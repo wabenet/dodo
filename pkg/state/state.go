@@ -2,14 +2,11 @@ package state
 
 import (
 	"github.com/docker/docker/client"
-	"github.com/oclaussen/dodo/config"
-	"github.com/oclaussen/dodo/options"
+	"github.com/oclaussen/dodo/pkg/config"
 	"golang.org/x/net/context"
 )
 
 type State struct {
-	Name        string
-	Options     *options.Options
 	Config      *config.BackdropConfig
 	Client      *client.Client
 	Entrypoint  string
@@ -17,11 +14,10 @@ type State struct {
 	ContainerID string
 }
 
-func NewState(name string, options *options.Options) *State {
+func NewState(config *config.BackdropConfig) *State {
 	// TODO: generate a temp file in the container for the entrypoint
 	return &State{
-		Name:       name,
-		Options:    options,
+		Config:     config,
 		Entrypoint: "/tmp/dodo-entrypoint",
 	}
 }

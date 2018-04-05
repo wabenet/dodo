@@ -13,11 +13,7 @@ func (state *State) EnsureCleanup(ctx context.Context) {
 	if err != nil {
 		return
 	}
-	config, err := state.EnsureConfig(ctx)
-	if err != nil {
-		return
-	}
-	if config.Remove != nil && !*config.Remove {
+	if state.Config.Remove != nil && !*state.Config.Remove {
 		return
 	}
 

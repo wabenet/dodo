@@ -7,14 +7,11 @@ import (
 )
 
 func (state *State) EnsureContainer(ctx context.Context) (string, error) {
+	config := state.Config
 	if state.ContainerID != "" {
 		return state.ContainerID, nil
 	}
 	client, err := state.EnsureClient(ctx)
-	if err != nil {
-		return "", err
-	}
-	config, err := state.EnsureConfig(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -34,7 +31,7 @@ func (state *State) EnsureContainer(ctx context.Context) (string, error) {
 			OpenStdin:    true,
 			StdinOnce:    true,
 			Env:          config.Environment,
-			Cmd:          state.Options.Arguments,
+			Cmd:          config.Command,
 			Image:        image,
 			WorkingDir:   config.WorkingDir,
 			Entrypoint:   state.getEntrypoint(),
@@ -59,7 +56,7 @@ func (state *State) getEntrypoint() []string {
 	if len(state.Config.Interpreter) > 0 {
 		entrypoint = state.Config.Interpreter
 	}
-	if !state.Options.Interactive {
+	if !state.Config.Interactive {
 		entrypoint = append(entrypoint, state.Entrypoint)
 	}
 	return entrypoint

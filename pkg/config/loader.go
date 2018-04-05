@@ -1,4 +1,4 @@
-package state
+package config
 
 import (
 	"fmt"
@@ -7,8 +7,6 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/oclaussen/dodo/config"
-	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
 )
 
@@ -23,29 +21,15 @@ var (
 	}
 )
 
-func (state *State) EnsureConfig(ctx context.Context) (*config.BackdropConfig, error) {
-	if state.Config != nil {
-		return state.Config, nil
+func LoadConfiguration(backdrop string, configfile string) (*BackdropConfig, error) {
+	if configfile == "" {
+		return FindConfigAnywhere(backdrop)
+	} else {
+		return FindConfigInFile(backdrop, configfile)
 	}
-	if state.Options.Filename != "" {
-		config, err := findConfigInFile(state.Name, state.Options.Filename)
-		if err != nil {
-			return nil, err
-		}
-		state.Options.UpdateConfiguration(config)
-		state.Config = config
-		return config, nil
-	}
-	config, err := findConfigAnywhere(state.Name)
-	if err != nil {
-		return nil, err
-	}
-	state.Options.UpdateConfiguration(config)
-	state.Config = config
-	return config, nil
 }
 
-func findConfigDirectories() ([]string, error) {
+func FindConfigDirectories() ([]string, error) {
 	var configDirectories []string
 
 	workingDir, err := os.Getwd()
@@ -69,14 +53,14 @@ func findConfigDirectories() ([]string, error) {
 	return configDirectories, nil
 }
 
-func findConfigAnywhere(backdrop string) (*config.BackdropConfig, error) {
-	directories, err := findConfigDirectories()
+func FindConfigAnywhere(backdrop string) (*BackdropConfig, error) {
+	directories, err := FindConfigDirectories()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, directory := range directories {
-		config, err := findConfigInDirectory(backdrop, directory)
+		config, err := FindConfigInDirectory(backdrop, directory)
 		if err == nil {
 			return config, err
 		}
@@ -85,11 +69,11 @@ func findConfigAnywhere(backdrop string) (*config.BackdropConfig, error) {
 	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in any configuration file", backdrop)
 }
 
-func findConfigInDirectory(backdrop string, directory string) (*config.BackdropConfig, error) {
+func FindConfigInDirectory(backdrop string, directory string) (*BackdropConfig, error) {
 	for _, filename := range configFileNames {
 		path, _ := filepath.Abs(filepath.Join(directory, filename))
 		// TODO: log error
-		config, err := findConfigInFile(backdrop, path)
+		config, err := FindConfigInFile(backdrop, path)
 		if err == nil {
 			return config, err
 		}
@@ -100,13 +84,13 @@ func findConfigInDirectory(backdrop string, directory string) (*config.BackdropC
 
 // TODO: validation
 // TODO: check if there are unknown keys
-func findConfigInFile(backdrop string, filename string) (*config.BackdropConfig, error) {
+func FindConfigInFile(backdrop string, filename string) (*BackdropConfig, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read file %q", filename)
 	}
 
-	config := &config.Config{}
+	config := &Config{}
 	err = yaml.Unmarshal(bytes, config)
 	if err != nil {
 		return nil, fmt.Errorf("Could not load config from %q: %s", filename, err)

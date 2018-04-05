@@ -9,11 +9,8 @@ import (
 )
 
 func (state *State) EnsureEntrypoint(ctx context.Context) error {
+	config := state.Config
 	client, err := state.EnsureClient(ctx)
-	if err != nil {
-		return err
-	}
-	config, err := state.EnsureConfig(ctx)
 	if err != nil {
 		return err
 	}

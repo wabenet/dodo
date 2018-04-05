@@ -6,21 +6,18 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/oclaussen/dodo/config"
+	"github.com/oclaussen/dodo/pkg/config"
 	"golang.org/x/net/context"
 )
 
 // TODO: authentication
 
 func (state *State) EnsureImage(ctx context.Context) (string, error) {
+	config := state.Config
 	if state.Image != "" {
 		return state.Image, nil
 	}
 	client, err := state.EnsureClient(ctx)
-	if err != nil {
-		return "", err
-	}
-	config, err := state.EnsureConfig(ctx)
 	if err != nil {
 		return "", err
 	}

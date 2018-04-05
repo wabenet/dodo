@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
-	"github.com/oclaussen/dodo/config"
+	"github.com/oclaussen/dodo/pkg/config"
 	"golang.org/x/net/context"
 )
 
