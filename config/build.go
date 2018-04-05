@@ -9,10 +9,11 @@ import (
 
 // TODO: add inline dockerfile steps
 type BuildConfig struct {
-	Context    string
-	Dockerfile string
-	Args       map[string]*string
-	NoCache    bool
+	Context       string
+	Dockerfile    string
+	Args          map[string]*string
+	NoCache       bool
+	ForceRebuild  bool
 }
 
 // TODO: clean up, this is copied from libcompose
@@ -30,6 +31,9 @@ func (b BuildConfig) MarshalYAML() (interface{}, error) {
 	}
 	if b.NoCache {
 		m["cache"] = false
+	}
+	if b.ForceRebuild {
+		m["force_rebuild"] = true
 	}
 	return m, nil
 }
@@ -57,6 +61,8 @@ func (b *BuildConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				b.Args = args
 			case "cache":
 				b.NoCache = !mapValue.(bool)
+			case "force_rebuild":
+				b.ForceRebuild = mapValue.(bool)
 			default:
 				// Ignore unknown keys
 				continue

@@ -15,7 +15,6 @@ func (context *Context) ensureImage() error {
 	if err := context.ensureClient(); err != nil {
 		return err;
 	}
-	// TODO: check if pulling/building is necessary, implement force pull
 
 	if context.Config.Build != nil {
 		image, err := image.BuildImage(context.Client, context.Config)

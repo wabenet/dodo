@@ -12,7 +12,16 @@ import (
 )
 
 func PullImage(client *docker.Client, config *config.ContextConfig) (string, error) {
-	// TODO: validate that the image is actually normalized named
+	if !config.Pull {
+		images, err := client.ListImages(docker.ListImagesOptions{
+			Filter: config.Image,
+		})
+		if err == nil && len(images) > 0 {
+			// TODO: log error
+			return config.Image, nil
+		}
+	}
+
 	ref, err := reference.ParseNormalizedNamed(config.Image)
 	if err != nil {
 		return "", err

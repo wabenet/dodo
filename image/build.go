@@ -14,6 +14,16 @@ import (
 )
 
 func BuildImage(client *docker.Client, config *config.ContextConfig) (string, error) {
+	if config.Image != "" && !config.Build.ForceRebuild {
+		images, err := client.ListImages(docker.ListImagesOptions{
+			Filter: config.Image,
+		})
+		if err == nil && len(images) > 0 {
+			// TODO: log error
+			return config.Image, nil
+		}
+	}
+
 	args := []docker.BuildArg{}
 	for key, value := range config.Build.Args {
 		args = append(args, docker.BuildArg{Name: key, Value: *value})
