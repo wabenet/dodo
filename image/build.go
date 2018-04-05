@@ -43,11 +43,12 @@ func BuildImage(client *docker.Client, config *config.ContextConfig) (string, er
 	}()
 
 	err = client.BuildImage(docker.BuildImageOptions{
+		Name:           config.Image,
 		Dockerfile:     config.Build.Dockerfile,
-		NoCache:        false, // TODO no cache mode
+		NoCache:        config.Build.NoCache,
 		CacheFrom:      []string{}, // TODO implement cache_from
 		SuppressOutput: false, // TODO: quiet mode
-		Pull:           true, // TODO: force pull option
+		Pull:           config.Pull,
 		RmTmpContainer: true,
 		RawJSONStream:  true,
 		OutputStream:   wpipe,

@@ -25,3 +25,16 @@ func (context *Context) ensureContainer(command []string) error {
 	context.Container = container
 	return nil
 }
+
+func (context *Context) ensureCleanup() {
+	if context.Container == nil {
+		return
+	}
+	if err := context.ensureClient(); err != nil {
+		return
+	}
+	if context.Config.Remove != nil && !*context.Config.Remove {
+		return
+	}
+	container.RemoveContainer(context.Client, context.Container)
+}

@@ -6,6 +6,14 @@ import (
 )
 
 func CreateContainer(client *docker.Client, image string, command []string, config *config.ContextConfig) (*docker.Container, error) {
+	// TODO: volumes: allow variables (HOME, PWD, ...)
+	volumes := []string{}
+	if config.Volumes != nil {
+		for _, volume := range config.Volumes.Volumes {
+			volumes = append(volumes, volume.String())
+		}
+	}
+
 	return client.CreateContainer(docker.CreateContainerOptions{
 		Name:   config.ContainerName,
 		Config: &docker.Config{
@@ -23,7 +31,7 @@ func CreateContainer(client *docker.Client, image string, command []string, conf
 			StdinOnce:    true,
 		},
 		HostConfig: &docker.HostConfig{
-			Binds:        []string{}, // TODO: bind mounts
+			Binds:        volumes,
 			VolumesFrom:  config.VolumesFrom,
 		},
 	})

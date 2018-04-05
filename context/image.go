@@ -17,10 +17,7 @@ func (context *Context) ensureImage() error {
 	}
 	// TODO: check if pulling/building is necessary, implement force pull
 
-	if context.Config.Build != nil && context.Config.Image != "" {
-		return errors.New("You can specifiy either image or build, not both.")
-
-	} else if context.Config.Build != nil {
+	if context.Config.Build != nil {
 		image, err := image.BuildImage(context.Client, context.Config)
 		if err != nil {
 			return err

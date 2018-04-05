@@ -11,10 +11,12 @@ import (
 // TODO: include other stuff (resources/networking)?
 // TODO: inline dockerfile
 // TODO: powerful entrypoint
-// TODO: remove config
 type ContextConfig struct {
 	Build         *BuildConfig    `yaml:"build,omitempty"`
 	ContainerName string          `yaml:"container_name,omitempty"`
+	// TODO: the type *bool sounds wrong. Is there optional or something?
+	Remove        *bool           `yaml:"remove,omitempty"`
+	Pull          bool            `yaml:"pull,omitempty"`
 	EnvFile       Stringorslice   `yaml:"env_file,omitempty"`
 	Environment   MaporEqualSlice `yaml:"environment,omitempty"`
 	Image         string          `yaml:"image,omitempty"`

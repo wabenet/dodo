@@ -28,7 +28,7 @@ func (context *Context) Run(arguments []string) error {
 		return err
 	}
 
-	defer container.RemoveContainer(context.Client, context.Container)
+	defer context.ensureCleanup()
 
 	if err := container.RunContainer(context.Client, context.Container); err != nil {
 		return err

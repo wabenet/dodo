@@ -29,15 +29,32 @@ func (context *Context) ensureConfig() error {
 		if err != nil {
 			return err
 		}
-		context.Config = config
+		context.Config = context.applyOptionsToConfig(config)
 		return nil
 	}
 	config, err := findConfigAnywhere(context.Name)
 	if err != nil {
 		return err
 	}
-	context.Config = config
+	context.Config = context.applyOptionsToConfig(config)
 	return nil
+}
+
+// TODO: this is a weird location for this
+func (context *Context) applyOptionsToConfig(config *config.ContextConfig) *config.ContextConfig {
+	if context.Options.Pull {
+		config.Pull = true
+	}
+	if context.Options.Remove {
+		remove := true
+		config.Remove = &remove
+	}
+	if config.Build != nil {
+		if context.Options.NoCache {
+			config.Build.NoCache = true
+		}
+	}
+	return config
 }
 
 func findConfigDirectories() ([]string, error) {
