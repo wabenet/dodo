@@ -18,7 +18,7 @@ type Options struct {
 	Workdir     string
 }
 
-func (options *Options) UpdateConfiguration(config *config.ContextConfig) {
+func (options *Options) UpdateConfiguration(config *config.BackdropConfig) {
 	if options.Remove {
 		remove := true
 		config.Remove = &remove

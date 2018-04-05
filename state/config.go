@@ -1,4 +1,4 @@
-package context
+package state
 
 import (
 	"fmt"
@@ -22,25 +22,25 @@ var (
 	}
 )
 
-func (context *Context) ensureConfig() error {
-	if context.Config != nil {
+func (state *state) ensureConfig() error {
+	if state.Config != nil {
 		return nil
 	}
-	if context.Options.Filename != "" {
-		config, err := findConfigInFile(context.Name, context.Options.Filename)
+	if state.Options.Filename != "" {
+		config, err := findConfigInFile(state.Name, state.Options.Filename)
 		if err != nil {
 			return err
 		}
-		context.Options.UpdateConfiguration(config)
-		context.Config = config
+		state.Options.UpdateConfiguration(config)
+		state.Config = config
 		return nil
 	}
-	config, err := findConfigAnywhere(context.Name)
+	config, err := findConfigAnywhere(state.Name)
 	if err != nil {
 		return err
 	}
-	context.Options.UpdateConfiguration(config)
-	context.Config = config
+	state.Options.UpdateConfiguration(config)
+	state.Config = config
 	return nil
 }
 
@@ -68,38 +68,38 @@ func findConfigDirectories() ([]string, error) {
 	return configDirectories, nil
 }
 
-func findConfigAnywhere(contextName string) (*config.ContextConfig, error) {
+func findConfigAnywhere(backdrop string) (*config.BackdropConfig, error) {
 	directories, err := findConfigDirectories()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, directory := range directories {
-		config, err := findConfigInDirectory(contextName, directory)
+		config, err := findConfigInDirectory(backdrop, directory)
 		if err == nil {
 			return config, err
 		}
 		// TODO: log error
 	}
-	return nil, fmt.Errorf("Could not find configuration for context '%s' in any configuration file", contextName)
+	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in any configuration file", backdrop)
 }
 
-func findConfigInDirectory(contextName string, directory string) (*config.ContextConfig, error) {
+func findConfigInDirectory(backdrop string, directory string) (*config.BackdropConfig, error) {
 	for _, filename := range configFileNames {
 		path, _ := filepath.Abs(filepath.Join(directory, filename))
 		// TODO: log error
-		config, err := findConfigInFile(contextName, path)
+		config, err := findConfigInFile(backdrop, path)
 		if err == nil {
 			return config, err
 		}
 		// TODO: log error
 	}
-	return nil, fmt.Errorf("Could not find configuration for context '%s' in directory '%s'", directory)
+	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in directory '%s'", directory)
 }
 
 // TODO: validation
 // TODO: check if there are unknown keys
-func findConfigInFile(contextName string, filename string) (*config.ContextConfig, error) {
+func findConfigInFile(backdrop string, filename string) (*config.BackdropConfig, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read file %q", filename)
@@ -111,13 +111,13 @@ func findConfigInFile(contextName string, filename string) (*config.ContextConfi
 		return nil, fmt.Errorf("Could not load config from %q: %s", filename, err)
 	}
 
-	if config.Contexts == nil {
-		return nil, fmt.Errorf("File '%s' does not contain any context configurations", filename)
+	if config.Backdrops == nil {
+		return nil, fmt.Errorf("File '%s' does not contain any backdrop configurations", filename)
 	}
 
-	if contextConfig, ok := config.Contexts[contextName]; ok {
-		return &contextConfig, nil
+	if backdropConfig, ok := config.Backdrops[backdrop]; ok {
+		return &backdropConfig, nil
 	}
 
-	return nil, fmt.Errorf("File '%s' does not contain configuration for context '%s'", filename, contextName)
+	return nil, fmt.Errorf("File '%s' does not contain configuration for backdrop '%s'", filename, backdrop)
 }

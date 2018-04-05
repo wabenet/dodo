@@ -1,4 +1,4 @@
-package context
+package state
 
 import (
 	"archive/tar"
@@ -7,11 +7,11 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func (context *Context) ensureEntrypoint() error {
-	if err := context.ensureConfig(); err != nil {
+func (state *state) ensureEntrypoint() error {
+	if err := state.ensureConfig(); err != nil {
 		return err
 	}
-	if err := context.ensureContainer(); err != nil {
+	if err := state.ensureContainer(); err != nil {
 		return err
 	}
 
@@ -19,21 +19,21 @@ func (context *Context) ensureEntrypoint() error {
 	defer reader.Close()
 
 	// TODO: handle errors
-	go context.Client.UploadToContainer(context.Container.ID, docker.UploadToContainerOptions{
+	go state.Client.UploadToContainer(state.Container.ID, docker.UploadToContainerOptions{
 		InputStream:  reader,
 		Path:         "/",
 	})
 
 	tarWriter := tar.NewWriter(writer)
 	err := tarWriter.WriteHeader(&tar.Header{
-		Name: context.Entrypoint,
+		Name: state.Entrypoint,
 		Mode: 0600,
-		Size: int64(len(context.Config.Script)),
+		Size: int64(len(state.Config.Script)),
 	})
 	if err != nil {
 		return err
 	}
-	_, err = tarWriter.Write([]byte(context.Config.Script))
+	_, err = tarWriter.Write([]byte(state.Config.Script))
 	if err != nil {
 		return err
 	}

@@ -1,4 +1,4 @@
-package context
+package state
 
 import (
 	"os"
@@ -9,36 +9,40 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-type Context struct {
+type Run interface {
+	Run() error
+}
+
+type state struct {
 	Name        string
 	Options     *options.Options
-	Config      *config.ContextConfig
+	Config      *config.BackdropConfig
 	Client      *docker.Client
 	Entrypoint  string
 	Image       string
 	Container   *docker.Container
 }
 
-func NewContext(name string, options *options.Options) *Context {
+func NewState(name string, options *options.Options) Run {
 	// TODO: generate a temp file in the container for the entrypoint
-	return &Context{
+	return &state{
 		Name:       name,
 		Options:    options,
 		Entrypoint: "/tmp/dodo-entrypoint",
 	}
 }
 
-func (context *Context) Run() error {
-	if err := context.ensureContainer(); err != nil {
+func (state *state) Run() error {
+	if err := state.ensureContainer(); err != nil {
 		return err
 	}
-	defer context.ensureCleanup()
-	if err := context.ensureEntrypoint(); err != nil {
+	defer state.ensureCleanup()
+	if err := state.ensureEntrypoint(); err != nil {
 		return err
 	}
 
-	_, err := context.Client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
-		Container:    context.Container.ID,
+	_, err := state.Client.AttachToContainerNonBlocking(docker.AttachToContainerOptions{
+		Container:    state.Container.ID,
 		InputStream:  os.Stdin,
 		OutputStream: os.Stdout,
 		ErrorStream:  os.Stderr,
@@ -53,14 +57,14 @@ func (context *Context) Run() error {
 	}
 
 	inFd, _ := term.GetFdInfo(os.Stdin)
-	state, err := term.SetRawTerminal(inFd)
+	terminalState, err := term.SetRawTerminal(inFd)
 	if err != nil {
 		return err
 	}
-	defer term.RestoreTerminal(inFd, state)
+	defer term.RestoreTerminal(inFd, terminalState)
 
-	err = context.Client.StartContainer(context.Container.ID, nil)
-	_, err = context.Client.WaitContainer(context.Container.ID)
+	err = state.Client.StartContainer(state.Container.ID, nil)
+	_, err = state.Client.WaitContainer(state.Container.ID)
 	// TODO: handle exit code
 	if err != nil {
 		return err

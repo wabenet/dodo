@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/oclaussen/dodo/context"
+	"github.com/oclaussen/dodo/state"
 	"github.com/oclaussen/dodo/options"
 	"github.com/spf13/cobra"
 )
@@ -13,15 +13,15 @@ import (
 func main() {
 	var opts options.Options
 	cmd := &cobra.Command{
-		Use:              "dodo [OPTIONS] CONTEXT [CMD...]",
+		Use:              "dodo [OPTIONS] NAME [CMD...]",
 		Short:            "Run commands in a Docker context",
 		Version:          "0.0.1", // TODO: fix help/version/errors
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE:             func(cmd *cobra.Command, args []string) error {
 			opts.Arguments = args[1:]
-			context := context.NewContext(args[0], &opts)
-			return context.Run()
+			state := state.NewState(args[0], &opts)
+			return state.Run()
 		},
 	}
 

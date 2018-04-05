@@ -7,10 +7,10 @@ package config
 // - builds args as key=value list or as map
 
 type Config struct {
-	Contexts map[string]ContextConfig `yaml:"contexts,omitempty"`
+	Backdrops map[string]BackdropConfig `yaml:"backdrops,omitempty"`
 }
 
-type ContextConfig struct {
+type BackdropConfig struct {
 	Build         *BuildConfig    `yaml:"build,omitempty"`
 	ContainerName string          `yaml:"container_name,omitempty"`
 	// TODO: the type *bool sounds wrong. Is there optional or something?
