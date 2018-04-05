@@ -11,7 +11,7 @@ import (
 // TODO: do we need logging?
 // TODO: tests, linting
 func main() {
-	var opts options.Options
+	opts := options.NewOptions()
 	cmd := &cobra.Command{
 		Use:              "dodo [OPTIONS] CONTEXT [CMD...]",
 		Short:            "Run commands in a Docker context",
@@ -19,19 +19,10 @@ func main() {
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE:             func(cmd *cobra.Command, args []string) error {
-			context := context.NewContext(args[0], &opts)
+			context := context.NewContext(args[0], opts)
 			return context.Run(args[1:])
 		},
 	}
-
-	// TODO: move this part to the options module
-	// TODO: add some --no-rm option?
-	flags := cmd.Flags()
-	flags.StringVarP(&opts.Filename, "file", "f", "", "Specify a dodo configuration file")
-	flags.BoolVarP(&opts.Remove, "rm", "", false, "Automatically remove the container when it exits")
-	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
-	flags.BoolVarP(&opts.Pull, "pull", "", false, "Always attempt to pull a newer version of the image")
-	flags.SetInterspersed(false)
-
+	opts.CreateFlags(cmd)
 	cmd.Execute()
 }
