@@ -24,7 +24,11 @@ type ContextConfig struct {
 	Volumes       *Volumes        `yaml:"volumes,omitempty"`
 	VolumesFrom   []string        `yaml:"volumes_from,omitempty"`
 	WorkingDir    string          `yaml:"working_dir,omitempty"`
+	Interpreter   ShellCommand    `yaml:"interpreter,omitempty"`
+	Script        string          `yaml:"script,omitempty"`
 }
+
+type ShellCommand []string
 
 type Stringorslice strslice.StrSlice
 

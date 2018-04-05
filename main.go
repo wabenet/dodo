@@ -19,8 +19,9 @@ func main() {
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE:             func(cmd *cobra.Command, args []string) error {
+			opts.Arguments = args[1:]
 			context := context.NewContext(args[0], &opts)
-			return context.Run(args[1:])
+			return context.Run()
 		},
 	}
 
@@ -30,6 +31,7 @@ func main() {
 	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
 	flags.BoolVarP(&opts.Pull, "pull", "", false, "Always attempt to pull a newer version of the image")
 	flags.BoolVarP(&opts.Build, "build", "", false, "Always build an image, even if already exists")
+	flags.StringVarP(&opts.Workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.SetInterspersed(false)
 
 	cmd.Execute()

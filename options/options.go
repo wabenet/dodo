@@ -4,14 +4,18 @@ import (
 	"github.com/oclaussen/dodo/config"
 )
 
-// TODO: add all all the options
 // TODO: add some --no-rm option?
+// TODO: missing environment, user, volumes, volumes_from
+// TODO: go through options of docker, docker-compose and sudo
+// TODO: --interactive
 type Options struct {
+	Arguments   []string
 	Filename    string
 	Remove      bool
 	NoCache     bool
 	Pull        bool
 	Build       bool
+	Workdir     string
 }
 
 func (options *Options) UpdateConfiguration(config *config.ContextConfig) {
@@ -27,5 +31,8 @@ func (options *Options) UpdateConfiguration(config *config.ContextConfig) {
 	}
 	if config.Build != nil && options.Build {
 		config.Build.ForceRebuild = true
+	}
+	if options.Workdir != "" {
+		config.WorkingDir = options.Workdir
 	}
 }
