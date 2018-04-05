@@ -12,7 +12,7 @@ import (
 // TODO: inline dockerfile
 // TODO: powerful entrypoint
 // TODO: remove config
-type CommandConfig struct {
+type ContextConfig struct {
 	Build         *BuildConfig    `yaml:"build,omitempty"`
 	ContainerName string          `yaml:"container_name,omitempty"`
 	EnvFile       Stringorslice   `yaml:"env_file,omitempty"`

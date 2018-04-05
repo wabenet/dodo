@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	Filename string                   `yaml:"-"`
-	Commands map[string]CommandConfig `yaml:"tasks,omitempty"`
+	Contexts map[string]ContextConfig `yaml:"contexts,omitempty"`
 }
 
 // TODO: error handling

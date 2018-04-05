@@ -1,48 +1,29 @@
 package main
 
 import (
-	"github.com/oclaussen/dodo/config"
+	"github.com/oclaussen/dodo/context"
+	"github.com/oclaussen/dodo/options"
 	"github.com/spf13/cobra"
 )
-
-type dodoOptions struct {
-	file        string
-	command     string
-	arguments   []string
-}
 
 // TODO: do we need logging?
 // TODO: tests, linting
 func main() {
-	var opts dodoOptions
-
+	var opts options.Options
 	cmd := &cobra.Command{
-		Use:              "dodo [OPTIONS] CMD [ARG...]",
+		Use:              "dodo [OPTIONS] CONTEXT [CMD...]",
 		Short:            "blub", // TODO: description
 		Version:          "0.0.1", // TODO: fix help/version/errors
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.command = args[0]
-			opts.arguments = args[1:]
-			config, err := config.Load(opts.file)
-			if err != nil {
-			  return err
-			}
-
-			command := NewCommand(config.Commands[opts.command])
-
-			err = command.Run()
-			if err != nil {
-				return err
-			}
-
-			return nil
+			context := context.NewContext(args[0], &opts)
+			return context.Run(args[1:])
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.file, "file", "f", "dodo.yaml", "Specify an alternate dodo file")
+	flags.StringVarP(&opts.Filename, "file", "f", "dodo.yaml", "Specify an alternate dodo file")
 	flags.SetInterspersed(false)
 
 	cmd.Execute()

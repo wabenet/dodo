@@ -11,7 +11,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func PullImage(client *docker.Client, config *config.CommandConfig) (string, error) {
+func PullImage(client *docker.Client, config *config.ContextConfig) (string, error) {
 	// TODO: validate that the image is actually normalized named
 	ref, err := reference.ParseNormalizedNamed(config.Image)
 	if err != nil {

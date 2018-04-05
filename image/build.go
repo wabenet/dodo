@@ -13,7 +13,7 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-func BuildImage(client *docker.Client, config *config.CommandConfig) (string, error) {
+func BuildImage(client *docker.Client, config *config.ContextConfig) (string, error) {
 	args := []docker.BuildArg{}
 	for key, value := range config.Build.Args {
 		args = append(args, docker.BuildArg{Name: key, Value: *value})
