@@ -10,7 +10,6 @@ import (
 
 // TODO: include other stuff (resources/networking)?
 // TODO: inline dockerfile
-// TODO: powerful entrypoint
 type ContextConfig struct {
 	Build         *BuildConfig    `yaml:"build,omitempty"`
 	ContainerName string          `yaml:"container_name,omitempty"`

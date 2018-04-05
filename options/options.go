@@ -7,10 +7,10 @@ import (
 // TODO: add some --no-rm option?
 // TODO: missing environment, user, volumes, volumes_from
 // TODO: go through options of docker, docker-compose and sudo
-// TODO: --interactive
 type Options struct {
 	Arguments   []string
 	Filename    string
+	Interactive bool
 	Remove      bool
 	NoCache     bool
 	Pull        bool

@@ -27,6 +27,7 @@ func main() {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.Filename, "file", "f", "", "Specify a dodo configuration file")
+	flags.BoolVarP(&opts.Interactive, "interactive", "i", false, "Run an interactive session")
 	flags.BoolVarP(&opts.Remove, "rm", "", false, "Automatically remove the container when it exits")
 	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
 	flags.BoolVarP(&opts.Pull, "pull", "", false, "Always attempt to pull a newer version of the image")

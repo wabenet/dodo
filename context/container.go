@@ -26,8 +26,12 @@ func (context *Context) ensureContainer() error {
 		}
 	}
 
-	if len(context.Config.Interpreter) == 0 {
-		context.Config.Interpreter = []string{"/bin/sh", "-eux", context.Entrypoint}
+	entrypoint := []string{"/bin/sh"}
+	if len(context.Config.Interpreter) > 0 {
+		entrypoint = context.Config.Interpreter
+	}
+	if !context.Options.Interactive {
+		entrypoint = append(entrypoint, context.Entrypoint)
 	}
 
 	container, err := context.Client.CreateContainer(docker.CreateContainerOptions{
@@ -37,7 +41,7 @@ func (context *Context) ensureContainer() error {
 			Env:          context.Config.Environment, // TODO: support env_file
 			Image:        context.Image,
 			WorkingDir:   context.Config.WorkingDir,
-			Entrypoint:   context.Config.Interpreter,
+			Entrypoint:   entrypoint,
 			Cmd:          context.Options.Arguments,
 			AttachStdin:  true,
 			AttachStdout: true,
