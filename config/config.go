@@ -12,8 +12,8 @@ type Config struct {
 	Contexts map[string]ContextConfig `yaml:"contexts,omitempty"`
 }
 
-// TODO: error handling
 // TODO: validation
+// TODO: check if there are unknown keys
 func Load(filename string) (*Config, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {

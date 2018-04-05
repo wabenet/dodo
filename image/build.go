@@ -62,8 +62,12 @@ func BuildImage(client *docker.Client, config *config.ContextConfig) (string, er
 		return "", err
 	}
 
+	err = <-errChan
+	if err != nil {
+		return "", err
+	}
 	if image == "" {
 		return "", errors.New("Build complete, but the server did not send an image id.")
 	}
-	return image, <-errChan
+	return image, nil
 }

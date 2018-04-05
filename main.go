@@ -16,14 +16,14 @@ func main() {
 		Version:          "0.0.1", // TODO: fix help/version/errors
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE:             func(cmd *cobra.Command, args []string) error {
 			context := context.NewContext(args[0], &opts)
 			return context.Run(args[1:])
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.Filename, "file", "f", "dodo.yaml", "Specify an alternate dodo file")
+	flags.StringVarP(&opts.Filename, "file", "f", "", "Specify a dodo configuration file")
 	flags.SetInterspersed(false)
 
 	cmd.Execute()
