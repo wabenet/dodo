@@ -2,11 +2,13 @@ package context
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 
 	"github.com/oclaussen/dodo/config"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -95,16 +97,27 @@ func findConfigInDirectory(contextName string, directory string) (*config.Contex
 	return nil, fmt.Errorf("Could not find configuration for context '%s' in directory '%s'", directory)
 }
 
+// TODO: validation
+// TODO: check if there are unknown keys
 func findConfigInFile(contextName string, filename string) (*config.ContextConfig, error) {
-	config, err := config.Load(filename)
+	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Could not read file %q", filename)
 	}
+
+	config := &config.Config{}
+	err = yaml.Unmarshal(bytes, config)
+	if err != nil {
+		return nil, fmt.Errorf("Could not load config from %q: %s", filename, err)
+	}
+
 	if config.Contexts == nil {
 		return nil, fmt.Errorf("File '%s' does not contain any context configurations", filename)
 	}
+
 	if contextConfig, ok := config.Contexts[contextName]; ok {
 		return &contextConfig, nil
 	}
+
 	return nil, fmt.Errorf("File '%s' does not contain configuration for context '%s'", filename, contextName)
 }

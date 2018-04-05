@@ -5,6 +5,7 @@ import (
 	"os"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/oclaussen/dodo/config"
 	"github.com/docker/docker/api/types"
@@ -25,8 +26,13 @@ func BuildImage(client *docker.Client, config *config.ContextConfig) (string, er
 	}
 
 	args := []docker.BuildArg{}
-	for key, value := range config.Build.Args {
-		args = append(args, docker.BuildArg{Name: key, Value: *value})
+	for _, arg := range config.Build.Args {
+		switch values := strings.SplitN(arg, "=", 2); len(values) {
+		case 1:
+			args = append(args, docker.BuildArg{Name: values[0], Value: "\x00"})
+		case 2:
+			args = append(args, docker.BuildArg{Name: values[0], Value: values[1]})
+		}
 	}
 
 	authConfigs, err := docker.NewAuthConfigurationsFromDockerCfg()

@@ -18,30 +18,14 @@ func (context *Context) ensureContainer() error {
 		return err
 	}
 
-	// TODO: volumes: allow variables (HOME, PWD, ...)
-	volumes := []string{}
-	if context.Config.Volumes != nil {
-		for _, volume := range context.Config.Volumes.Volumes {
-			volumes = append(volumes, volume.String())
-		}
-	}
-
-	entrypoint := []string{"/bin/sh"}
-	if len(context.Config.Interpreter) > 0 {
-		entrypoint = context.Config.Interpreter
-	}
-	if !context.Options.Interactive {
-		entrypoint = append(entrypoint, context.Entrypoint)
-	}
-
 	container, err := context.Client.CreateContainer(docker.CreateContainerOptions{
 		Name:   context.Config.ContainerName,
 		Config: &docker.Config{
 			User:         context.Config.User,
-			Env:          context.Config.Environment, // TODO: support env_file
+			Env:          context.Config.Environment,
 			Image:        context.Image,
 			WorkingDir:   context.Config.WorkingDir,
-			Entrypoint:   entrypoint,
+			Entrypoint:   context.getEntrypoint(),
 			Cmd:          context.Options.Arguments,
 			AttachStdin:  true,
 			AttachStdout: true,
@@ -51,7 +35,7 @@ func (context *Context) ensureContainer() error {
 			StdinOnce:    true,
 		},
 		HostConfig: &docker.HostConfig{
-			Binds:        volumes,
+			Binds:        context.Config.Volumes,
 			VolumesFrom:  context.Config.VolumesFrom,
 		},
 	})
@@ -79,4 +63,15 @@ func (context *Context) ensureCleanup() {
 		Force:         true,
 	})
 	context.Container = nil
+}
+
+func (context *Context) getEntrypoint() []string {
+	entrypoint := []string{"/bin/sh"}
+	if len(context.Config.Interpreter) > 0 {
+		entrypoint = context.Config.Interpreter
+	}
+	if !context.Options.Interactive {
+		entrypoint = append(entrypoint, context.Entrypoint)
+	}
+	return entrypoint
 }
