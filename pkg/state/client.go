@@ -2,17 +2,20 @@ package state
 
 import (
 	"github.com/docker/docker/client"
-	"golang.org/x/net/context"
 )
 
-func (state *State) EnsureClient(ctx context.Context) (*client.Client, error) {
+// TODO: read docker configuration
+
+// EnsureClient makes sure a client is present on the state.
+func (state *State) EnsureClient() (*client.Client, error) {
 	if state.Client != nil {
 		return state.Client, nil
 	}
-	client, err := client.NewEnvClient()
+
+	newClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}
-	state.Client = client
-	return client, nil
+	state.Client = newClient
+	return state.Client, nil
 }

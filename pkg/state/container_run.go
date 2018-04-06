@@ -7,11 +7,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/term"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
+// EnsureRun makes sure the command is performed.
 func (state *State) EnsureRun(ctx context.Context) error {
-	client, err := state.EnsureClient(ctx)
+	client, err := state.EnsureClient()
 	if err != nil {
 		return err
 	}
@@ -49,7 +51,11 @@ func (state *State) EnsureRun(ctx context.Context) error {
 			streamErrorChannel <- err
 			return
 		}
-		defer term.RestoreTerminal(inFd, inState)
+		defer func() {
+			if err := term.RestoreTerminal(inFd, inState); err != nil {
+				log.Error(err)
+			}
+		}()
 
 		outFd, _ := term.GetFdInfo(os.Stdout)
 		outState, err := term.SetRawTerminal(outFd)
@@ -57,7 +63,11 @@ func (state *State) EnsureRun(ctx context.Context) error {
 			streamErrorChannel <- err
 			return
 		}
-		defer term.RestoreTerminal(outFd, outState)
+		defer func() {
+			if err := term.RestoreTerminal(outFd, outState); err != nil {
+				log.Error(err)
+			}
+		}()
 
 		outputDone := make(chan error)
 		go func() {
@@ -67,8 +77,12 @@ func (state *State) EnsureRun(ctx context.Context) error {
 
 		inputDone := make(chan struct{})
 		go func() {
-			io.Copy(attach.Conn, os.Stdin)
-			attach.CloseWrite()
+			if _, err := io.Copy(attach.Conn, os.Stdin); err != nil {
+				log.Error(err)
+			}
+			if err := attach.CloseWrite(); err != nil {
+				log.Error(err)
+			}
 			close(inputDone)
 		}()
 
@@ -107,7 +121,7 @@ func (state *State) EnsureRun(ctx context.Context) error {
 	}
 
 	select {
-	case _ = <-waitChannel:
+	case <-waitChannel:
 		return nil
 	case err := <-waitErrorChannel:
 		return err

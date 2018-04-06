@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/oclaussen/dodo/pkg/config"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -75,14 +76,19 @@ func buildImage(ctx context.Context, client *client.Client, config *config.Backd
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	image := ""
 	aux := func(auxJSON *json.RawMessage) {
 		var result types.BuildResult
-		// TODO: handle parse error
 		if err := json.Unmarshal(*auxJSON, &result); err == nil {
 			image = result.ID
+		} else {
+			log.Error(err)
 		}
 	}
 
@@ -92,7 +98,7 @@ func buildImage(ctx context.Context, client *client.Client, config *config.Backd
 		return "", err
 	}
 	if image == "" {
-		return "", errors.New("Build complete, but the server did not send an image id.")
+		return "", errors.New("build complete, but the server did not send an image id")
 	}
 	return image, nil
 }
@@ -155,7 +161,11 @@ func getDockerignore(contextDir string, dockerfile string) ([]string, error) {
 		}
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	excludes, err := dockerignore.ReadAll(file)
 	if err != nil {

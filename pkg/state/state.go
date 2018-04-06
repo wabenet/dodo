@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// State represents the state of a command run.
 type State struct {
 	Config      *config.BackdropConfig
 	Client      *client.Client
@@ -14,6 +15,7 @@ type State struct {
 	ContainerID string
 }
 
+// NewState creates a new state base on a backdrop configuration.
 func NewState(config *config.BackdropConfig) *State {
 	// TODO: generate a temp file in the container for the entrypoint
 	return &State{
@@ -22,6 +24,7 @@ func NewState(config *config.BackdropConfig) *State {
 	}
 }
 
+// Run runs the command.
 func (state *State) Run() error {
 	ctx := context.Background()
 	return state.EnsureRun(ctx)

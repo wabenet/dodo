@@ -7,17 +7,19 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/config"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
 // TODO: authentication
 
+// EnsureImage makes sure the image for the run is present.
 func (state *State) EnsureImage(ctx context.Context) (string, error) {
 	config := state.Config
 	if state.Image != "" {
 		return state.Image, nil
 	}
-	client, err := state.EnsureClient(ctx)
+	client, err := state.EnsureClient()
 	if err != nil {
 		return "", err
 	}
@@ -39,7 +41,7 @@ func (state *State) EnsureImage(ctx context.Context) (string, error) {
 		return state.Image, nil
 
 	} else {
-		return "", errors.New("You need to specify either image or build.")
+		return "", errors.New("you need to specify either image or build")
 	}
 }
 
@@ -51,9 +53,8 @@ func useExistingImage(ctx context.Context, client *client.Client, config *config
 		},
 	)
 	if err == nil && len(images) > 0 {
-		// TODO: log error
 		return config.Image
-	} else {
-		return ""
 	}
+	log.Debug("Specified image does not exist locally")
+	return ""
 }

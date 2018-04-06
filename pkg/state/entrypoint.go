@@ -5,12 +5,15 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
+// EnsureEntrypoint makes sure the entrypoint script ist uploaded to the
+// container.
 func (state *State) EnsureEntrypoint(ctx context.Context) error {
 	config := state.Config
-	client, err := state.EnsureClient(ctx)
+	client, err := state.EnsureClient()
 	if err != nil {
 		return err
 	}
@@ -20,16 +23,24 @@ func (state *State) EnsureEntrypoint(ctx context.Context) error {
 	}
 
 	reader, writer := io.Pipe()
-	defer reader.Close()
+	defer func() {
+		if err := reader.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
 
-	// TODO: handle errors
-	go client.CopyToContainer(
-		ctx,
-		container,
-		"/",
-		reader,
-		types.CopyToContainerOptions{},
-	)
+	go func() {
+		err := client.CopyToContainer(
+			ctx,
+			container,
+			"/",
+			reader,
+			types.CopyToContainerOptions{},
+		)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
 
 	tarWriter := tar.NewWriter(writer)
 	err = tarWriter.WriteHeader(&tar.Header{
@@ -48,10 +59,5 @@ func (state *State) EnsureEntrypoint(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	err = writer.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return writer.Close()
 }

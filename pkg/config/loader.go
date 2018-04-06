@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -21,14 +22,18 @@ var (
 	}
 )
 
+// LoadConfiguration tries to find a backdrop configuration by name in any of
+// the supported locations. If given, will only look in the supplied config
+// file.
 func LoadConfiguration(backdrop string, configfile string) (*BackdropConfig, error) {
-	if configfile == "" {
-		return FindConfigAnywhere(backdrop)
-	} else {
+	if configfile != "" {
 		return FindConfigInFile(backdrop, configfile)
 	}
+	return FindConfigAnywhere(backdrop)
 }
 
+// FindConfigDirectories provides a list of directories on the file system
+// that should be search for config files.
 func FindConfigDirectories() ([]string, error) {
 	var configDirectories []string
 
@@ -53,6 +58,8 @@ func FindConfigDirectories() ([]string, error) {
 	return configDirectories, nil
 }
 
+// FindConfigAnywhere tries to find a backdrop configuration by name in any of
+// the supported locations.
 func FindConfigAnywhere(backdrop string) (*BackdropConfig, error) {
 	directories, err := FindConfigDirectories()
 	if err != nil {
@@ -64,26 +71,41 @@ func FindConfigAnywhere(backdrop string) (*BackdropConfig, error) {
 		if err == nil {
 			return config, err
 		}
-		// TODO: log error
+		log.WithFields(log.Fields{
+			"name":      backdrop,
+			"directory": directory,
+			"reason":    err,
+		}).Debug("No valid config found in directory")
 	}
 	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in any configuration file", backdrop)
 }
 
+// FindConfigInDirectory tries to find a backdrop configuration by name in
+// any of the default files in a specified directory.
 func FindConfigInDirectory(backdrop string, directory string) (*BackdropConfig, error) {
 	for _, filename := range configFileNames {
-		path, _ := filepath.Abs(filepath.Join(directory, filename))
-		// TODO: log error
+		path, err := filepath.Abs(filepath.Join(directory, filename))
+		if err != nil {
+			log.Error(err)
+		}
 		config, err := FindConfigInFile(backdrop, path)
 		if err == nil {
 			return config, err
 		}
-		// TODO: log error
+		log.WithFields(log.Fields{
+			"name":   backdrop,
+			"file":   path,
+			"reason": err,
+		}).Debug("No valid config found in file")
 	}
-	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in directory '%s'", directory)
+	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in directory '%s'", backdrop, directory)
 }
 
 // TODO: validation
 // TODO: check if there are unknown keys
+
+// FindConfigInFile tries to find a backdrop configuration by name in a specific
+// file.
 func FindConfigInFile(backdrop string, filename string) (*BackdropConfig, error) {
 	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {

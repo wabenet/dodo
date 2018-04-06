@@ -3,6 +3,7 @@ package command
 import (
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/state"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -11,6 +12,7 @@ import (
 // TODO: go through options of docker, docker-compose and sudo
 type options struct {
 	Filename    string
+	Debug       bool
 	Interactive bool
 	Remove      bool
 	NoCache     bool
@@ -21,8 +23,9 @@ type options struct {
 
 // TODO: no error message when bind mount fails
 
-// TODO: do we need logging?
-// TODO: tests, linting
+// TODO: tests
+
+// NewCommand creates a new command instance
 func NewCommand() *cobra.Command {
 	var opts options
 	cmd := &cobra.Command{
@@ -38,6 +41,7 @@ func NewCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.Filename, "file", "f", "", "Specify a dodo configuration file")
+	flags.BoolVarP(&opts.Debug, "debug", "", false, "Show additional debug output")
 	flags.BoolVarP(&opts.Interactive, "interactive", "i", false, "Run an interactive session")
 	flags.BoolVarP(&opts.Remove, "rm", "", false, "Automatically remove the container when it exits")
 	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
@@ -58,11 +62,15 @@ func runCommand(opts *options, name string, command []string) error {
 	if len(command) > 0 {
 		config.Command = command
 	}
+	if opts.Debug {
+		log.SetLevel(log.DebugLevel)
+	}
 	if opts.Remove {
 		remove := true
 		config.Remove = &remove
 	}
 	if opts.Workdir != "" {
+		// TODO: this does not seem to work?
 		config.WorkingDir = opts.Workdir
 	}
 	if opts.Interactive {
