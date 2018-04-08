@@ -86,10 +86,14 @@ func runContainer(ctx context.Context, containerID string, options Options) erro
 		}
 	}()
 
+	condition := container.WaitConditionNextExit
+	if options.Remove {
+		condition = container.WaitConditionRemoved
+	}
 	waitChannel, waitErrorChannel := options.Client.ContainerWait(
 		ctx,
 		containerID,
-		container.WaitConditionRemoved,
+		condition,
 	)
 
 	err = options.Client.ContainerStart(

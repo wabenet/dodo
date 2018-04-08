@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// TODO: add some --no-rm option?
 // TODO: missing environment, user, volumes, volumes_from
 // TODO: go through options of docker, docker-compose and sudo
 type options struct {
@@ -20,6 +19,8 @@ type options struct {
 	NoCache     bool
 	Pull        bool
 	Build       bool
+	Remove      bool
+	NoRemove    bool
 	Workdir     string
 }
 
@@ -48,6 +49,8 @@ func NewCommand() *cobra.Command {
 	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
 	flags.BoolVarP(&opts.Pull, "pull", "", false, "Always attempt to pull a newer version of the image")
 	flags.BoolVarP(&opts.Build, "build", "", false, "Always build an image, even if already exists")
+	flags.BoolVarP(&opts.Remove, "rm", "", false, "Automatically remove the container when it exits")
+	flags.BoolVarP(&opts.NoRemove, "no-rm", "", false, "Keep the container after it exits")
 	flags.StringVarP(&opts.Workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.SetInterspersed(false)
 
@@ -113,6 +116,7 @@ func containerOptions(options *options, config *config.BackdropConfig) container
 	result := container.Options{
 		Name:        config.ContainerName,
 		Interactive: config.Interactive,
+		Remove:      true,
 		Interpreter: config.Interpreter,
 		Entrypoint:  "/tmp/dodo-entrypoint",
 		Script:      config.Script,
@@ -128,6 +132,15 @@ func containerOptions(options *options, config *config.BackdropConfig) container
 	}
 	if options.Interactive {
 		result.Interactive = true
+	}
+	if config.Remove != nil {
+		result.Remove = *config.Remove
+	}
+	if options.Remove {
+		result.Remove = true
+	}
+	if options.NoRemove {
+		result.Remove = false
 	}
 	return result
 }

@@ -24,7 +24,7 @@ func createContainer(ctx context.Context, options Options) (string, error) {
 			Entrypoint:   getEntrypoint(options),
 		},
 		&container.HostConfig{
-			AutoRemove:  true,
+			AutoRemove:  options.Remove,
 			Binds:       options.Volumes,
 			VolumesFrom: options.VolumesFrom,
 		},

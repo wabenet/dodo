@@ -13,6 +13,7 @@ type Options struct {
 	Client      *client.Client
 	Image       string
 	Name        string
+	Remove      bool
 	Interactive bool
 	Interpreter []string
 	Entrypoint  string
