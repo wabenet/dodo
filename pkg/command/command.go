@@ -34,7 +34,6 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:              "dodo [OPTIONS] NAME [CMD...]",
 		Short:            "Run commands in a Docker context",
-		Version:          "0.0.1", // TODO: fix help/version/errors
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
