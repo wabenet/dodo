@@ -2,11 +2,11 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 
+	"github.com/a8m/envsubst"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -107,7 +107,7 @@ func FindConfigInDirectory(backdrop string, directory string) (*BackdropConfig, 
 // FindConfigInFile tries to find a backdrop configuration by name in a specific
 // file.
 func FindConfigInFile(backdrop string, filename string) (*BackdropConfig, error) {
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := envsubst.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read file %q", filename)
 	}
