@@ -17,7 +17,6 @@ type options struct {
 	Filename    string
 	Debug       bool
 	Interactive bool
-	Remove      bool
 	NoCache     bool
 	Pull        bool
 	Build       bool
@@ -46,7 +45,6 @@ func NewCommand() *cobra.Command {
 	flags.StringVarP(&opts.Filename, "file", "f", "", "Specify a dodo configuration file")
 	flags.BoolVarP(&opts.Debug, "debug", "", false, "Show additional debug output")
 	flags.BoolVarP(&opts.Interactive, "interactive", "i", false, "Run an interactive session")
-	flags.BoolVarP(&opts.Remove, "rm", "", false, "Automatically remove the container when it exits")
 	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
 	flags.BoolVarP(&opts.Pull, "pull", "", false, "Always attempt to pull a newer version of the image")
 	flags.BoolVarP(&opts.Build, "build", "", false, "Always build an image, even if already exists")
@@ -56,37 +54,15 @@ func NewCommand() *cobra.Command {
 	return cmd
 }
 
-func runCommand(opts *options, name string, command []string) error {
-	config, err := config.LoadConfiguration(name, opts.Filename)
-	if err != nil {
-		return err
-	}
-
-	if len(command) > 0 {
-		config.Command = command
-	}
-	if opts.Debug {
+func runCommand(options *options, name string, command []string) error {
+	if options.Debug {
+		// TODO: this does not seem to work?
 		log.SetLevel(log.DebugLevel)
 	}
-	if opts.Remove {
-		remove := true
-		config.Remove = &remove
-	}
-	if opts.Workdir != "" {
-		// TODO: this does not seem to work?
-		config.WorkingDir = opts.Workdir
-	}
-	if opts.Interactive {
-		config.Interactive = true
-	}
-	if opts.Pull {
-		config.Pull = true
-	}
-	if config.Build != nil && opts.NoCache {
-		config.Build.NoCache = true
-	}
-	if config.Build != nil && opts.Build {
-		config.Build.ForceRebuild = true
+
+	config, err := config.LoadConfiguration(name, options.Filename)
+	if err != nil {
+		return err
 	}
 
 	// TODO: read docker configuration
@@ -97,21 +73,44 @@ func runCommand(opts *options, name string, command []string) error {
 
 	ctx := context.Background()
 
-	imageID, err := image.Get(ctx, image.Options{
-		Client:    dockerClient,
-		Name:      config.Image,
-		Build:     config.Build,
-		ForcePull: config.Pull,
-	})
+	imageOptions := imageOptions(options, config)
+	imageOptions.Client = dockerClient
+	imageID, err := image.Get(ctx, imageOptions)
 	if err != nil {
 		return err
 	}
 
 	// TODO: generate a temp file in the container for the entrypoint
 	// TODO feels inefficient to stupid all of config
-	return container.Run(ctx, container.Options{
-		Client:      dockerClient,
-		Image:       imageID,
+	containerOptions := containerOptions(options, config)
+	containerOptions.Client = dockerClient
+	containerOptions.Image = imageID
+	if len(command) > 0 {
+		containerOptions.Command = command
+	}
+	return container.Run(ctx, containerOptions)
+}
+
+func imageOptions(options *options, config *config.BackdropConfig) image.Options {
+	result := image.Options{
+		Name:      config.Image,
+		Build:     config.Build,
+		ForcePull: config.Pull,
+	}
+	if options.Pull {
+		result.ForcePull = options.Pull
+	}
+	if config.Build != nil && options.NoCache {
+		result.Build.NoCache = true
+	}
+	if config.Build != nil && options.Build {
+		result.Build.ForceRebuild = true
+	}
+	return result
+}
+
+func containerOptions(options *options, config *config.BackdropConfig) container.Options {
+	result := container.Options{
 		Name:        config.ContainerName,
 		Interactive: config.Interactive,
 		Interpreter: config.Interpreter,
@@ -123,5 +122,12 @@ func runCommand(opts *options, name string, command []string) error {
 		VolumesFrom: config.VolumesFrom,
 		User:        config.User,
 		WorkingDir:  config.WorkingDir,
-	})
+	}
+	if options.Workdir != "" {
+		result.WorkingDir = options.Workdir
+	}
+	if options.Interactive {
+		result.Interactive = true
+	}
+	return result
 }
