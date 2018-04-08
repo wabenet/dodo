@@ -1,27 +1,19 @@
-package state
+package image
 
 import (
 	"os"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
-	"github.com/oclaussen/dodo/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-func pullImage(ctx context.Context, client *client.Client, config *config.BackdropConfig) (string, error) {
-	if !config.Pull {
-		if image := useExistingImage(ctx, client, config); image != "" {
-			return config.Image, nil
-		}
-	}
-
-	response, err := client.ImagePull(
+func pull(ctx context.Context, options Options) (string, error) {
+	response, err := options.Client.ImagePull(
 		ctx,
-		config.Image,
+		options.Name,
 		types.ImagePullOptions{},
 	)
 	if err != nil {
@@ -39,5 +31,5 @@ func pullImage(ctx context.Context, client *client.Client, config *config.Backdr
 		return "", err
 	}
 
-	return config.Image, nil
+	return options.Name, nil
 }

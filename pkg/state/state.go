@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/config"
+	"github.com/oclaussen/dodo/pkg/image"
 	"golang.org/x/net/context"
 )
 
@@ -27,5 +28,21 @@ func NewState(config *config.BackdropConfig) *State {
 // Run runs the command.
 func (state *State) Run() error {
 	ctx := context.Background()
+
+	client, err := state.EnsureClient()
+	if err != nil {
+		return err
+	}
+
+	state.Image, err = image.Get(ctx, image.Options{
+		Client:    client,
+		Name:      state.Config.Image,
+		Build:     state.Config.Build,
+		ForcePull: state.Config.Pull,
+	})
+	if err != nil {
+		return err
+	}
+
 	return state.EnsureRun(ctx)
 }

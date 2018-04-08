@@ -6,19 +6,13 @@ import (
 	"golang.org/x/net/context"
 )
 
-// EnsureContainer makes sure the docker container for the run exists.
+// EnsureContainer will soon be moved anyway
 func (state *State) EnsureContainer(ctx context.Context) (string, error) {
 	config := state.Config
+	client := state.Client
+	image := state.Image
 	if state.ContainerID != "" {
 		return state.ContainerID, nil
-	}
-	client, err := state.EnsureClient()
-	if err != nil {
-		return "", err
-	}
-	image, err := state.EnsureImage(ctx)
-	if err != nil {
-		return "", err
 	}
 
 	response, err := client.ContainerCreate(

@@ -1,4 +1,4 @@
-package state
+package image
 
 import (
 	"encoding/json"
@@ -10,26 +10,18 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder/dockerignore"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
-	"github.com/oclaussen/dodo/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
-func buildImage(ctx context.Context, client *client.Client, config *config.BackdropConfig) (string, error) {
-	if config.Image != "" && !config.Build.ForceRebuild {
-		if image := useExistingImage(ctx, client, config); image != "" {
-			return config.Image, nil
-		}
-	}
-
+func build(ctx context.Context, options Options) (string, error) {
 	args := map[string]*string{}
-	for _, arg := range config.Build.Args {
+	for _, arg := range options.Build.Args {
 		switch values := strings.SplitN(arg, "=", 2); len(values) {
 		case 1:
 			args[values[0]] = nil
@@ -38,11 +30,11 @@ func buildImage(ctx context.Context, client *client.Client, config *config.Backd
 		}
 	}
 
-	contextDir, err := getContextDir(config.Build.Context)
+	contextDir, err := getContextDir(options.Build.Context)
 	if err != nil {
 		return "", err
 	}
-	dockerfile, err := getDockerfile(config.Build.Dockerfile, contextDir)
+	dockerfile, err := getDockerfile(options.Build.Dockerfile, contextDir)
 	if err != nil {
 		return "", err
 	}
@@ -60,16 +52,16 @@ func buildImage(ctx context.Context, client *client.Client, config *config.Backd
 		return "", err
 	}
 
-	response, err := client.ImageBuild(
+	response, err := options.Client.ImageBuild(
 		ctx,
 		tarStream,
 		types.ImageBuildOptions{
 			SuppressOutput: false, // TODO: quiet mode
-			NoCache:        config.Build.NoCache,
+			NoCache:        options.Build.NoCache,
 			Remove:         true,
 			ForceRemove:    true,
-			PullParent:     config.Pull,
-			Dockerfile:     config.Build.Dockerfile,
+			PullParent:     options.ForcePull,
+			Dockerfile:     options.Build.Dockerfile,
 			BuildArgs:      args,
 		},
 	)
@@ -82,11 +74,11 @@ func buildImage(ctx context.Context, client *client.Client, config *config.Backd
 		}
 	}()
 
-	image := ""
+	name := ""
 	aux := func(auxJSON *json.RawMessage) {
 		var result types.BuildResult
 		if err := json.Unmarshal(*auxJSON, &result); err == nil {
-			image = result.ID
+			name = result.ID
 		} else {
 			log.Error(err)
 		}
@@ -97,10 +89,10 @@ func buildImage(ctx context.Context, client *client.Client, config *config.Backd
 	if err != nil {
 		return "", err
 	}
-	if image == "" {
+	if name == "" {
 		return "", errors.New("build complete, but the server did not send an image id")
 	}
-	return image, nil
+	return name, nil
 }
 
 func getContextDir(givenContext string) (string, error) {
