@@ -1,4 +1,4 @@
-package state
+package container
 
 import (
 	"io"
@@ -11,23 +11,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-// EnsureRun makes sure the command is performed.
-func (state *State) EnsureRun(ctx context.Context) error {
-	client, err := state.EnsureClient()
-	if err != nil {
-		return err
-	}
-	containerID, err := state.EnsureContainer(ctx)
-	if err != nil {
-		return err
-	}
-	defer state.EnsureCleanup(ctx)
-	err = state.EnsureEntrypoint(ctx)
-	if err != nil {
-		return err
-	}
-
-	attach, err := client.ContainerAttach(
+func runContainer(ctx context.Context, containerID string, options Options) error {
+	attach, err := options.Client.ContainerAttach(
 		ctx,
 		containerID,
 		types.ContainerAttachOptions{
@@ -101,13 +86,13 @@ func (state *State) EnsureRun(ctx context.Context) error {
 		}
 	}()
 
-	waitChannel, waitErrorChannel := client.ContainerWait(
+	waitChannel, waitErrorChannel := options.Client.ContainerWait(
 		ctx,
 		containerID,
 		container.WaitConditionRemoved,
 	)
 
-	err = client.ContainerStart(
+	err = options.Client.ContainerStart(
 		ctx,
 		containerID,
 		types.ContainerStartOptions{},

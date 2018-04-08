@@ -12,6 +12,9 @@ import (
 // TODO: provide some context to all of the error messages
 // (both in logging and return values)
 
+// TODO automatically guess image name based on backdrop name
+// TODO automatically set image name for caching
+
 func main() {
 	cmd := command.NewCommand()
 	if err := cmd.Execute(); err != nil {

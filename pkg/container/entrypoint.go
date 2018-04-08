@@ -1,4 +1,4 @@
-package state
+package container
 
 import (
 	"archive/tar"
@@ -9,19 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// EnsureEntrypoint makes sure the entrypoint script ist uploaded to the
-// container.
-func (state *State) EnsureEntrypoint(ctx context.Context) error {
-	config := state.Config
-	client, err := state.EnsureClient()
-	if err != nil {
-		return err
-	}
-	container, err := state.EnsureContainer(ctx)
-	if err != nil {
-		return err
-	}
-
+func uploadEntrypoint(ctx context.Context, containerID string, options Options) error {
 	reader, writer := io.Pipe()
 	defer func() {
 		if err := reader.Close(); err != nil {
@@ -30,9 +18,9 @@ func (state *State) EnsureEntrypoint(ctx context.Context) error {
 	}()
 
 	go func() {
-		err := client.CopyToContainer(
+		err := options.Client.CopyToContainer(
 			ctx,
-			container,
+			containerID,
 			"/",
 			reader,
 			types.CopyToContainerOptions{},
@@ -43,15 +31,15 @@ func (state *State) EnsureEntrypoint(ctx context.Context) error {
 	}()
 
 	tarWriter := tar.NewWriter(writer)
-	err = tarWriter.WriteHeader(&tar.Header{
-		Name: state.Entrypoint,
+	err := tarWriter.WriteHeader(&tar.Header{
+		Name: options.Entrypoint,
 		Mode: 0600,
-		Size: int64(len(config.Script)),
+		Size: int64(len(options.Script)),
 	})
 	if err != nil {
 		return err
 	}
-	_, err = tarWriter.Write([]byte(state.Config.Script))
+	_, err = tarWriter.Write([]byte(options.Script))
 	if err != nil {
 		return err
 	}

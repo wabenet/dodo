@@ -1,10 +1,13 @@
 package command
 
 import (
+	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/config"
-	"github.com/oclaussen/dodo/pkg/state"
+	"github.com/oclaussen/dodo/pkg/container"
+	"github.com/oclaussen/dodo/pkg/image"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 // TODO: add some --no-rm option?
@@ -86,6 +89,39 @@ func runCommand(opts *options, name string, command []string) error {
 		config.Build.ForceRebuild = true
 	}
 
-	state := state.NewState(config)
-	return state.Run()
+	// TODO: read docker configuration
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+
+	imageID, err := image.Get(ctx, image.Options{
+		Client:    dockerClient,
+		Name:      config.Image,
+		Build:     config.Build,
+		ForcePull: config.Pull,
+	})
+	if err != nil {
+		return err
+	}
+
+	// TODO: generate a temp file in the container for the entrypoint
+	// TODO feels inefficient to stupid all of config
+	return container.Run(ctx, container.Options{
+		Client:      dockerClient,
+		Image:       imageID,
+		Name:        config.ContainerName,
+		Interactive: config.Interactive,
+		Interpreter: config.Interpreter,
+		Entrypoint:  "/tmp/dodo-entrypoint",
+		Script:      config.Script,
+		Command:     config.Command,
+		Environment: config.Environment,
+		Volumes:     config.Volumes,
+		VolumesFrom: config.VolumesFrom,
+		User:        config.User,
+		WorkingDir:  config.WorkingDir,
+	})
 }
