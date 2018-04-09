@@ -12,7 +12,6 @@ type Config struct {
 }
 
 // TODO: support env_file as well
-// TODO: the type *bool sounds wrong. Is there optional or something?
 
 // BackdropConfig represents the configuration for a backdrop
 // (possible target for running a command)

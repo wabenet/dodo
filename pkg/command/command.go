@@ -42,16 +42,35 @@ func NewCommand() *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.Filename, "file", "f", "", "Specify a dodo configuration file")
-	flags.BoolVarP(&opts.Debug, "debug", "", false, "Show additional debug output")
-	flags.BoolVarP(&opts.Interactive, "interactive", "i", false, "Run an interactive session")
-	flags.BoolVarP(&opts.NoCache, "no-cache", "", false, "Do not use cache when building the image")
-	flags.BoolVarP(&opts.Pull, "pull", "", false, "Always attempt to pull a newer version of the image")
-	flags.BoolVarP(&opts.Build, "build", "", false, "Always build an image, even if already exists")
-	flags.BoolVarP(&opts.Remove, "rm", "", false, "Automatically remove the container when it exits")
-	flags.BoolVarP(&opts.NoRemove, "no-rm", "", false, "Keep the container after it exits")
-	flags.StringVarP(&opts.Workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.SetInterspersed(false)
+
+	flags.StringVarP(
+		&opts.Filename, "file", "f", "",
+		"Specify a dodo configuration file")
+	flags.BoolVarP(
+		&opts.Debug, "debug", "", false,
+		"Show additional debug output")
+	flags.BoolVarP(
+		&opts.Interactive, "interactive", "i", false,
+		"Run an interactive session")
+	flags.BoolVarP(
+		&opts.NoCache, "no-cache", "", false,
+		"Do not use cache when building the image")
+	flags.BoolVarP(
+		&opts.Pull, "pull", "", false,
+		"Always attempt to pull a newer version of the image")
+	flags.BoolVarP(
+		&opts.Build, "build", "", false,
+		"Always build an image, even if already exists")
+	flags.BoolVarP(
+		&opts.Remove, "rm", "", false,
+		"Automatically remove the container when it exits")
+	flags.BoolVarP(
+		&opts.NoRemove, "no-rm", "", false,
+		"Keep the container after it exits")
+	flags.StringVarP(
+		&opts.Workdir, "workdir", "w", "",
+		"Working directory inside the container")
 
 	return cmd
 }
@@ -83,7 +102,6 @@ func runCommand(options *options, name string, command []string) error {
 	}
 
 	// TODO: generate a temp file in the container for the entrypoint
-	// TODO feels inefficient to stupid all of config
 	containerOptions := containerOptions(options, config)
 	containerOptions.Client = dockerClient
 	containerOptions.Image = imageID
@@ -93,7 +111,10 @@ func runCommand(options *options, name string, command []string) error {
 	return container.Run(ctx, containerOptions)
 }
 
-func imageOptions(options *options, config *config.BackdropConfig) image.Options {
+func imageOptions(
+	options *options,
+	config *config.BackdropConfig,
+) image.Options {
 	result := image.Options{
 		Name:      config.Image,
 		Build:     config.Build,
@@ -111,7 +132,10 @@ func imageOptions(options *options, config *config.BackdropConfig) image.Options
 	return result
 }
 
-func containerOptions(options *options, config *config.BackdropConfig) container.Options {
+func containerOptions(
+	options *options,
+	config *config.BackdropConfig,
+) container.Options {
 	result := container.Options{
 		Name:        config.ContainerName,
 		Interactive: config.Interactive,

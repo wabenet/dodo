@@ -1,8 +1,6 @@
 package image
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,8 +11,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/term"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -44,10 +40,12 @@ func build(ctx context.Context, options Options) (string, error) {
 	}
 
 	// TODO: validate that all files in the context are ok
-	tarStream, err := archive.TarWithOptions(contextDir, &archive.TarOptions{
-		ExcludePatterns: excludes,
-		ChownOpts:       &idtools.IDPair{UID: 0, GID: 0},
-	})
+	tarStream, err := archive.TarWithOptions(
+		contextDir,
+		&archive.TarOptions{
+			ExcludePatterns: excludes,
+			ChownOpts:       &idtools.IDPair{UID: 0, GID: 0},
+		})
 	if err != nil {
 		return "", err
 	}
@@ -68,30 +66,12 @@ func build(ctx context.Context, options Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			log.Error(err)
-		}
-	}()
 
-	name := ""
-	aux := func(auxJSON *json.RawMessage) {
-		var result types.BuildResult
-		if err := json.Unmarshal(*auxJSON, &result); err == nil {
-			name = result.ID
-		} else {
-			log.Error(err)
-		}
-	}
-
-	outFd, isTerminal := term.GetFdInfo(os.Stdout)
-	err = jsonmessage.DisplayJSONMessagesStream(response.Body, os.Stdout, outFd, isTerminal, aux)
+	name, err := handleImageResult(response.Body, true)
 	if err != nil {
 		return "", err
 	}
-	if name == "" {
-		return "", errors.New("build complete, but the server did not send an image id")
-	}
+
 	return name, nil
 }
 
@@ -113,7 +93,8 @@ func getContextDir(givenContext string) (string, error) {
 		return "", err
 	}
 	if !stat.IsDir() {
-		return "", fmt.Errorf("context must be a directory: %s", contextDir)
+		return "", fmt.Errorf(
+			"context must be a directory: %s", contextDir)
 	}
 	return contextDir, nil
 }
@@ -154,8 +135,8 @@ func getDockerignore(contextDir string, dockerfile string) ([]string, error) {
 		return nil, err
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			log.Error(err)
+		if closeErr := file.Close(); closeErr != nil {
+			log.Error(closeErr)
 		}
 	}()
 

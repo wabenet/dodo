@@ -1,12 +1,7 @@
 package image
 
 import (
-	"os"
-
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/term"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -19,14 +14,8 @@ func pull(ctx context.Context, options Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := response.Close(); err != nil {
-			log.Error(err)
-		}
-	}()
 
-	outFd, isTerminal := term.GetFdInfo(os.Stdout)
-	err = jsonmessage.DisplayJSONMessagesStream(response, os.Stdout, outFd, isTerminal, nil)
+	_, err = handleImageResult(response, false)
 	if err != nil {
 		return "", err
 	}

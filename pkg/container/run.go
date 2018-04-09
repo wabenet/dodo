@@ -11,7 +11,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func runContainer(ctx context.Context, containerID string, options Options) error {
+func runContainer(
+	ctx context.Context, containerID string, options Options,
+) error {
 	attach, err := options.Client.ContainerAttach(
 		ctx,
 		containerID,
@@ -29,62 +31,7 @@ func runContainer(ctx context.Context, containerID string, options Options) erro
 	defer attach.Close()
 
 	streamErrorChannel := make(chan error, 1)
-	go func() {
-		inFd, _ := term.GetFdInfo(os.Stdin)
-		inState, err := term.SetRawTerminal(inFd)
-		if err != nil {
-			streamErrorChannel <- err
-			return
-		}
-		defer func() {
-			if err := term.RestoreTerminal(inFd, inState); err != nil {
-				log.Error(err)
-			}
-		}()
-
-		outFd, _ := term.GetFdInfo(os.Stdout)
-		outState, err := term.SetRawTerminal(outFd)
-		if err != nil {
-			streamErrorChannel <- err
-			return
-		}
-		defer func() {
-			if err := term.RestoreTerminal(outFd, outState); err != nil {
-				log.Error(err)
-			}
-		}()
-
-		outputDone := make(chan error)
-		go func() {
-			_, err := io.Copy(os.Stdout, attach.Reader)
-			outputDone <- err
-		}()
-
-		inputDone := make(chan struct{})
-		go func() {
-			if _, err := io.Copy(attach.Conn, os.Stdin); err != nil {
-				log.Error(err)
-			}
-			if err := attach.CloseWrite(); err != nil {
-				log.Error(err)
-			}
-			close(inputDone)
-		}()
-
-		select {
-		case err := <-outputDone:
-			streamErrorChannel <- err
-		case <-inputDone:
-			select {
-			case err := <-outputDone:
-				streamErrorChannel <- err
-			case <-ctx.Done():
-				streamErrorChannel <- ctx.Err()
-			}
-		case <-ctx.Done():
-			streamErrorChannel <- ctx.Err()
-		}
-	}()
+	go streamContainer(ctx, streamErrorChannel, attach)
 
 	condition := container.WaitConditionNextExit
 	if options.Remove {
@@ -114,5 +61,64 @@ func runContainer(ctx context.Context, containerID string, options Options) erro
 		return nil
 	case err := <-waitErrorChannel:
 		return err
+	}
+}
+
+func streamContainer(
+	ctx context.Context, errChan chan<- error, attach types.HijackedResponse,
+) {
+	inFd, _ := term.GetFdInfo(os.Stdin)
+	inState, err := term.SetRawTerminal(inFd)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	defer func() {
+		if err := term.RestoreTerminal(inFd, inState); err != nil {
+			log.Error(err)
+		}
+	}()
+
+	outFd, _ := term.GetFdInfo(os.Stdout)
+	outState, err := term.SetRawTerminal(outFd)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	defer func() {
+		if err := term.RestoreTerminal(outFd, outState); err != nil {
+			log.Error(err)
+		}
+	}()
+
+	outputDone := make(chan error)
+	go func() {
+		_, err := io.Copy(os.Stdout, attach.Reader)
+		outputDone <- err
+	}()
+
+	inputDone := make(chan struct{})
+	go func() {
+		if _, err := io.Copy(attach.Conn, os.Stdin); err != nil {
+			log.Error(err)
+		}
+		if err := attach.CloseWrite(); err != nil {
+			log.Error(err)
+		}
+		close(inputDone)
+	}()
+
+	select {
+	case err := <-outputDone:
+		errChan <- err
+	case <-inputDone:
+		select {
+		case err := <-outputDone:
+			errChan <- err
+		case <-ctx.Done():
+			errChan <- ctx.Err()
+		}
+	case <-ctx.Done():
+		errChan <- ctx.Err()
 	}
 }

@@ -25,7 +25,9 @@ var (
 // LoadConfiguration tries to find a backdrop configuration by name in any of
 // the supported locations. If given, will only look in the supplied config
 // file.
-func LoadConfiguration(backdrop string, configfile string) (*BackdropConfig, error) {
+func LoadConfiguration(
+	backdrop string, configfile string,
+) (*BackdropConfig, error) {
 	if configfile != "" {
 		return FindConfigInFile(backdrop, configfile)
 	}
@@ -35,6 +37,7 @@ func LoadConfiguration(backdrop string, configfile string) (*BackdropConfig, err
 // FindConfigDirectories provides a list of directories on the file system
 // that should be search for config files.
 func FindConfigDirectories() ([]string, error) {
+	// TODO: make / and /etc and ~/.config work on other platforms
 	var configDirectories []string
 
 	workingDir, err := os.Getwd()
@@ -82,7 +85,9 @@ func FindConfigAnywhere(backdrop string) (*BackdropConfig, error) {
 
 // FindConfigInDirectory tries to find a backdrop configuration by name in
 // any of the default files in a specified directory.
-func FindConfigInDirectory(backdrop string, directory string) (*BackdropConfig, error) {
+func FindConfigInDirectory(
+	backdrop string, directory string,
+) (*BackdropConfig, error) {
 	for _, filename := range configFileNames {
 		path, err := filepath.Abs(filepath.Join(directory, filename))
 		if err != nil {
@@ -106,7 +111,9 @@ func FindConfigInDirectory(backdrop string, directory string) (*BackdropConfig, 
 
 // FindConfigInFile tries to find a backdrop configuration by name in a specific
 // file.
-func FindConfigInFile(backdrop string, filename string) (*BackdropConfig, error) {
+func FindConfigInFile(
+	backdrop string, filename string,
+) (*BackdropConfig, error) {
 	bytes, err := envsubst.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read file %q", filename)

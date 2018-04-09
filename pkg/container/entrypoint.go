@@ -9,7 +9,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func uploadEntrypoint(ctx context.Context, containerID string, options Options) error {
+func uploadEntrypoint(
+	ctx context.Context, containerID string, options Options,
+) error {
 	reader, writer := io.Pipe()
 	defer func() {
 		if err := reader.Close(); err != nil {
