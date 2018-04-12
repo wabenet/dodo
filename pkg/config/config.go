@@ -5,6 +5,7 @@ package config
 // - environment as key=value list or as map
 // - volumes as source:dest:type list or as special structs
 // - builds args as key=value list or as map
+// - steps as string or slice
 
 // Config represents a full configuration file
 type Config struct {
@@ -32,12 +33,11 @@ type BackdropConfig struct {
 	Command       []string     `yaml:"command,omitempty"`
 }
 
-// TODO: add inline dockerfile steps
-
 // BuildConfig represents the build configuration for a docker image
 type BuildConfig struct {
 	Context      string   `yaml:"context,omitempty"`
 	Dockerfile   string   `yaml:"dockerfile,omitempty"`
+	Steps        []string `yaml:"steps,omitempty"`
 	Args         []string `yaml:"args,omitempty"`
 	NoCache      bool     `yaml:"no_cache,omitempty"`
 	ForceRebuild bool     `yaml:"force_rebuild,omitempty"`
