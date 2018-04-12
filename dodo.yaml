@@ -1,0 +1,17 @@
+backdrops:
+  make:
+    build:
+      steps:
+        - |
+          FROM golang:1.9.1-alpine
+          RUN apk add -U git bash curl tree make
+          RUN git config --global http.https://gopkg.in.followRedirects true
+          RUN go get github.com/mitchellh/gox
+          RUN go get github.com/alecthomas/gometalinter && gometalinter --install
+          RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+    environment:
+      - CGO_ENABLED=0
+    volumes:
+      - ${PWD}:/go/src/github.com/oclaussen/dodo
+    working_dir: /go/src/github.com/oclaussen/dodo
+    script: make $@
