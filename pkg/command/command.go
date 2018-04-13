@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// TODO: missing environment, user, volumes, volumes_from
 // TODO: go through options of docker, docker-compose and sudo
 type options struct {
 	Filename    string
@@ -23,6 +22,10 @@ type options struct {
 	Remove      bool
 	NoRemove    bool
 	Workdir     string
+	User        string
+	Volumes     []string
+	VolumesFrom []string
+	Environment []string
 }
 
 // TODO: no error message when bind mount fails
@@ -77,6 +80,18 @@ func NewCommand() *cobra.Command {
 	flags.StringVarP(
 		&opts.Workdir, "workdir", "w", "",
 		"working directory inside the container")
+	flags.StringVarP(
+		&opts.User, "user", "u", "",
+		"Username or UID (format: <name|uid>[:<group|gid>])")
+	flags.StringArrayVarP(
+		&opts.Volumes, "volume", "v", []string{},
+		"Bind mount a volume")
+	flags.StringArrayVarP(
+		&opts.VolumesFrom, "volumes-from", "", []string{},
+		"Mount volumes from the specified container(s)")
+	flags.StringArrayVarP(
+		&opts.Environment, "env", "e", []string{},
+		"Set environment variables")
 
 	return cmd
 }
@@ -156,9 +171,9 @@ func containerOptions(
 		Entrypoint:  "/tmp/dodo-entrypoint",
 		Script:      config.Script,
 		Command:     config.Command,
-		Environment: config.Environment,
-		Volumes:     config.Volumes,
-		VolumesFrom: config.VolumesFrom,
+		Environment: append(config.Environment, options.Environment...),
+		Volumes:     append(config.Volumes, options.Volumes...),
+		VolumesFrom: append(config.VolumesFrom, options.VolumesFrom...),
 		User:        config.User,
 		WorkingDir:  config.WorkingDir,
 	}
@@ -176,6 +191,9 @@ func containerOptions(
 	}
 	if options.NoRemove {
 		result.Remove = false
+	}
+	if options.User != "" {
+		result.User = options.User
 	}
 	return result
 }
