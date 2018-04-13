@@ -32,13 +32,13 @@ func Get(ctx context.Context, options Options) (string, error) {
 		return name, nil
 	} else if options.Build != nil {
 		if options.Name != "" {
-			log.Info(fmt.Sprintf("Image %s not found, building...", name))
+			log.Info(fmt.Sprintf("Image %s not found, building...", options.Name))
 		} else {
 			log.Info("Building image...")
 		}
 		return build(ctx, options)
 	} else if options.Name != "" {
-		log.Info(fmt.Sprintf("Image %s not found locally, pulling...", name))
+		log.Info(fmt.Sprintf("Image %s not found locally, pulling...", options.Name))
 		return pull(ctx, options)
 	} else {
 		return "", errors.New("you need to specify either image name or build")

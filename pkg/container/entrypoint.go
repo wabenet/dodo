@@ -48,8 +48,5 @@ func uploadEntrypoint(
 		return err
 	}
 	_, err = tarWriter.Write([]byte(options.Script))
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

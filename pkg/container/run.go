@@ -74,8 +74,8 @@ func streamContainer(
 		return
 	}
 	defer func() {
-		if err := term.RestoreTerminal(inFd, inState); err != nil {
-			log.Error(err)
+		if restErr := term.RestoreTerminal(inFd, inState); err != nil {
+			log.Error(restErr)
 		}
 	}()
 
@@ -86,8 +86,8 @@ func streamContainer(
 		return
 	}
 	defer func() {
-		if err := term.RestoreTerminal(outFd, outState); err != nil {
-			log.Error(err)
+		if restErr := term.RestoreTerminal(outFd, outState); err != nil {
+			log.Error(restErr)
 		}
 	}()
 

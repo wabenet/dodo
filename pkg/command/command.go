@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
@@ -38,6 +39,7 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:              "dodo [OPTIONS] NAME [CMD...]",
 		Short:            "Run commands in a Docker context",
+		SilenceUsage:     true,
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -128,7 +130,6 @@ func runCommand(options *options, name string, command []string) error {
 		return err
 	}
 
-	// TODO: generate a temp file in the container for the entrypoint
 	containerOptions := containerOptions(options, config)
 	containerOptions.Client = dockerClient
 	containerOptions.Image = imageID
@@ -163,12 +164,13 @@ func containerOptions(
 	options *options,
 	config *config.BackdropConfig,
 ) container.Options {
+	entrypoint := "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20]
 	result := container.Options{
 		Name:        config.ContainerName,
 		Interactive: config.Interactive,
 		Remove:      true,
 		Interpreter: config.Interpreter,
-		Entrypoint:  "/tmp/dodo-entrypoint",
+		Entrypoint:  entrypoint,
 		Script:      config.Script,
 		Command:     config.Command,
 		Environment: append(config.Environment, options.Environment...),

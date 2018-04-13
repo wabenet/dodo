@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/a8m/envsubst"
+	"github.com/docker/distribution/reference"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -31,7 +32,15 @@ func LoadConfiguration(
 	if configfile != "" {
 		return FindConfigInFile(backdrop, configfile)
 	}
-	return FindConfigAnywhere(backdrop)
+	config, err := FindConfigAnywhere(backdrop)
+	if err == nil {
+		return config, nil
+	}
+	log.WithFields(log.Fields{
+		"name":   backdrop,
+		"reason": err,
+	}).Debug("No valid config found anywhere")
+	return FallbackConfig(backdrop)
 }
 
 // FindConfigDirectories provides a list of directories on the file system
@@ -134,4 +143,33 @@ func FindConfigInFile(
 	}
 
 	return nil, fmt.Errorf("File '%s' does not contain configuration for backdrop '%s'", filename, backdrop)
+}
+
+// FallbackConfig guesses a general-purpose backdrop configuration based
+// on the name, that can be used in case no better configuration was found.
+func FallbackConfig(backdrop string) (*BackdropConfig, error) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	user, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+	ref, err := reference.ParseNormalizedNamed(backdrop)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &BackdropConfig{
+		Image:       ref.String(),
+		Interpreter: []string{},
+		User:        fmt.Sprintf("%s:%s", user.Uid, user.Gid),
+		WorkingDir:  workingDir,
+		Volumes: []string{
+			fmt.Sprintf("%s:%s", workingDir, workingDir),
+		},
+	}
+
+	return config, nil
 }

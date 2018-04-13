@@ -39,10 +39,10 @@ func createContainer(ctx context.Context, options Options) (string, error) {
 
 func getEntrypoint(options Options) []string {
 	entrypoint := []string{"/bin/sh"}
-	if len(options.Interpreter) > 0 {
+	if options.Interpreter != nil {
 		entrypoint = options.Interpreter
 	}
-	if !options.Interactive {
+	if !options.Interactive && len(options.Script) > 0 {
 		entrypoint = append(entrypoint, options.Entrypoint)
 	}
 	return entrypoint

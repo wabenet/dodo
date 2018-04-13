@@ -9,7 +9,6 @@ import (
 
 // TODO: add a readme and license
 
-// TODO automatically guess image name based on backdrop name
 // TODO automatically set image name for caching
 
 func main() {
