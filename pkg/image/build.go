@@ -29,7 +29,7 @@ func build(ctx context.Context, options Options) (string, error) {
 		ctx,
 		buildContext,
 		types.ImageBuildOptions{
-			SuppressOutput: false, // TODO: quiet mode
+			SuppressOutput: false,
 			NoCache:        options.Build.NoCache,
 			Remove:         true,
 			ForceRemove:    true,

@@ -14,6 +14,7 @@ import (
 // TODO: go through options of docker, docker-compose and sudo
 type options struct {
 	Filename    string
+	Quiet       bool
 	Debug       bool
 	Interactive bool
 	NoCache     bool
@@ -37,6 +38,7 @@ func NewCommand() *cobra.Command {
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			initLogging(&opts)
 			return runCommand(&opts, args[0], args[1:])
 		},
 	}
@@ -46,41 +48,51 @@ func NewCommand() *cobra.Command {
 
 	flags.StringVarP(
 		&opts.Filename, "file", "f", "",
-		"Specify a dodo configuration file")
+		"specify a dodo configuration file")
+	flags.BoolVarP(
+		&opts.Quiet, "quiet", "q", false,
+		"suppress informational output",
+	)
 	flags.BoolVarP(
 		&opts.Debug, "debug", "", false,
-		"Show additional debug output")
+		"show additional debug output")
 	flags.BoolVarP(
 		&opts.Interactive, "interactive", "i", false,
-		"Run an interactive session")
+		"run an interactive session")
 	flags.BoolVarP(
 		&opts.NoCache, "no-cache", "", false,
-		"Do not use cache when building the image")
+		"do not use cache when building the image")
 	flags.BoolVarP(
 		&opts.Pull, "pull", "", false,
-		"Always attempt to pull a newer version of the image")
+		"always attempt to pull a newer version of the image")
 	flags.BoolVarP(
 		&opts.Build, "build", "", false,
-		"Always build an image, even if already exists")
+		"always build an image, even if already exists")
 	flags.BoolVarP(
 		&opts.Remove, "rm", "", false,
-		"Automatically remove the container when it exits")
+		"automatically remove the container when it exits")
 	flags.BoolVarP(
 		&opts.NoRemove, "no-rm", "", false,
-		"Keep the container after it exits")
+		"keep the container after it exits")
 	flags.StringVarP(
 		&opts.Workdir, "workdir", "w", "",
-		"Working directory inside the container")
+		"working directory inside the container")
 
 	return cmd
 }
 
-func runCommand(options *options, name string, command []string) error {
-	if options.Debug {
-		// TODO: this does not seem to work?
+func initLogging(options *options) {
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp: true,
+	})
+	if options.Quiet {
+		log.SetLevel(log.WarnLevel)
+	} else if options.Debug {
 		log.SetLevel(log.DebugLevel)
 	}
+}
 
+func runCommand(options *options, name string, command []string) error {
 	config, err := config.LoadConfiguration(name, options.Filename)
 	if err != nil {
 		return err

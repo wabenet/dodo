@@ -8,8 +8,6 @@ import (
 )
 
 // TODO: add a readme and license
-// TODO: provide some context to all of the error messages
-// (both in logging and return values)
 
 // TODO automatically guess image name based on backdrop name
 // TODO automatically set image name for caching
@@ -17,8 +15,7 @@ import (
 func main() {
 	cmd := command.NewCommand()
 	if err := cmd.Execute(); err != nil {
-		// TODO: printing the error is done by both cobra and logrus
-		log.Error(err)
+		log.Debug(err)
 		os.Exit(1)
 	}
 }

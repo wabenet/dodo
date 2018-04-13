@@ -18,21 +18,27 @@ func uploadEntrypoint(
 			log.Error(err)
 		}
 	}()
-
-	go func() {
-		err := options.Client.CopyToContainer(
-			ctx,
-			containerID,
-			"/",
-			reader,
-			types.CopyToContainerOptions{},
-		)
-		if err != nil {
+	defer func() {
+		if err := writer.Close(); err != nil {
 			log.Error(err)
 		}
 	}()
 
+	go options.Client.CopyToContainer(
+		ctx,
+		containerID,
+		"/",
+		reader,
+		types.CopyToContainerOptions{},
+	)
+
 	tarWriter := tar.NewWriter(writer)
+	defer func() {
+		if err := tarWriter.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
+
 	err := tarWriter.WriteHeader(&tar.Header{
 		Name: options.Entrypoint,
 		Mode: 0600,
@@ -45,9 +51,5 @@ func uploadEntrypoint(
 	if err != nil {
 		return err
 	}
-	err = tarWriter.Close()
-	if err != nil {
-		return err
-	}
-	return writer.Close()
+	return nil
 }

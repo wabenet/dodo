@@ -2,11 +2,13 @@ package image
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/config"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -26,10 +28,17 @@ func Get(ctx context.Context, options Options) (string, error) {
 	if options.Client == nil {
 		return "", errors.New("client may not be nil")
 	} else if name, ok := existsLocally(ctx, options); ok {
+		log.Info(fmt.Sprintf("Using image %s", name))
 		return name, nil
 	} else if options.Build != nil {
+		if options.Name != "" {
+			log.Info(fmt.Sprintf("Image %s not found, building...", name))
+		} else {
+			log.Info("Building image...")
+		}
 		return build(ctx, options)
 	} else if options.Name != "" {
+		log.Info(fmt.Sprintf("Image %s not found locally, pulling...", name))
 		return pull(ctx, options)
 	} else {
 		return "", errors.New("you need to specify either image name or build")

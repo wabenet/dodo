@@ -116,13 +116,13 @@ func FindConfigInFile(
 ) (*BackdropConfig, error) {
 	bytes, err := envsubst.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("Could not read file %q", filename)
+		return nil, fmt.Errorf("Could not read file '%s'", filename)
 	}
 
 	config := &Config{}
 	err = yaml.Unmarshal(bytes, config)
 	if err != nil {
-		return nil, fmt.Errorf("Could not load config from %q: %s", filename, err)
+		return nil, fmt.Errorf("Could not load config from '%s': %s", filename, err)
 	}
 
 	if config.Backdrops == nil {
