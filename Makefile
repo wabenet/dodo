@@ -14,7 +14,7 @@ lint:
 
 .PHONY: test
 test:
-	go test ./...
+	go test -cover ./...
 
 .PHONY: dep
 dep:

@@ -12,6 +12,7 @@ import (
 func uploadEntrypoint(
 	ctx context.Context, containerID string, options Options,
 ) error {
+	// TODO: missing eol in entrypoint?
 	reader, writer := io.Pipe()
 	defer func() {
 		if err := reader.Close(); err != nil {

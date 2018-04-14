@@ -10,7 +10,7 @@ import (
 
 func build(ctx context.Context, options Options) (string, error) {
 	args := map[string]*string{}
-	for _, arg := range options.Build.Args {
+	for _, arg := range options.Args {
 		switch values := strings.SplitN(arg, "=", 2); len(values) {
 		case 1:
 			args[values[0]] = nil
@@ -30,7 +30,7 @@ func build(ctx context.Context, options Options) (string, error) {
 		buildContext,
 		types.ImageBuildOptions{
 			SuppressOutput: false,
-			NoCache:        options.Build.NoCache,
+			NoCache:        options.NoCache,
 			Remove:         true,
 			ForceRemove:    true,
 			PullParent:     options.ForcePull,

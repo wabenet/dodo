@@ -81,17 +81,25 @@ func imageOptions(
 ) image.Options {
 	result := image.Options{
 		Name:      config.Image,
-		Build:     config.Build,
 		ForcePull: config.Pull,
 	}
 	if options.Pull {
 		result.ForcePull = options.Pull
 	}
-	if config.Build != nil && options.NoCache {
-		result.Build.NoCache = true
-	}
-	if config.Build != nil && options.Build {
-		result.Build.ForceRebuild = true
+	if config.Build != nil {
+		result.DoBuild = true
+		result.Context = config.Build.Context
+		result.Dockerfile = config.Build.Dockerfile
+		result.Steps = config.Build.Steps
+		result.Args = config.Build.Args
+		result.ForceBuild = config.Build.ForceRebuild
+		if options.Build {
+			result.ForceBuild = true
+		}
+		result.NoCache = config.Build.NoCache
+		if options.NoCache {
+			result.NoCache = true
+		}
 	}
 	return result
 }

@@ -3,11 +3,10 @@ package image
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
-	"github.com/oclaussen/dodo/pkg/config"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -17,10 +16,24 @@ import (
 // Options represents the configuration for a docker image that can be
 // either built or pulled.
 type Options struct {
-	Client    *client.Client
-	Name      string
-	Build     *config.BuildConfig
-	ForcePull bool
+	Client     Client
+	Name       string
+	ForcePull  bool
+	DoBuild    bool
+	ForceBuild bool
+	NoCache    bool
+	Context    string
+	Dockerfile string
+	Steps      []string
+	Args       []string
+}
+
+// Client represents a docker client that can do everything this package
+// needs
+type Client interface {
+	ImageList(context.Context, types.ImageListOptions) ([]types.ImageSummary, error)
+	ImagePull(context.Context, string, types.ImagePullOptions) (io.ReadCloser, error)
+	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)
 }
 
 // Get gets a valid image id, and builds or pulls the image if necessary.
@@ -30,7 +43,7 @@ func Get(ctx context.Context, options Options) (string, error) {
 	} else if name, ok := existsLocally(ctx, options); ok {
 		log.Info(fmt.Sprintf("Using image %s", name))
 		return name, nil
-	} else if options.Build != nil {
+	} else if options.DoBuild {
 		if options.Name != "" {
 			log.Info(fmt.Sprintf("Image %s not found, building...", options.Name))
 		} else {
@@ -48,9 +61,9 @@ func Get(ctx context.Context, options Options) (string, error) {
 func existsLocally(ctx context.Context, options Options) (string, bool) {
 	if options.Name == "" {
 		return "", false
-	} else if options.Build != nil && options.Build.ForceRebuild {
+	} else if options.DoBuild && options.ForceBuild {
 		return "", false
-	} else if options.Build == nil && options.ForcePull {
+	} else if options.ForcePull {
 		return "", false
 	}
 

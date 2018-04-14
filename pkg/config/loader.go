@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/a8m/envsubst"
-	"github.com/docker/distribution/reference"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -156,13 +155,9 @@ func FallbackConfig(backdrop string) (*BackdropConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	ref, err := reference.ParseNormalizedNamed(backdrop)
-	if err != nil {
-		return nil, err
-	}
 
 	config := &BackdropConfig{
-		Image:       ref.String(),
+		Image:       backdrop,
 		Interpreter: []string{},
 		User:        fmt.Sprintf("%s:%s", user.Uid, user.Gid),
 		WorkingDir:  workingDir,

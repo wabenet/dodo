@@ -1,14 +1,20 @@
 package image
 
 import (
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
 func pull(ctx context.Context, options Options) (string, error) {
+	parsed, err := reference.ParseNormalizedNamed(options.Name)
+	if err != nil {
+		return "", err
+	}
+
 	response, err := options.Client.ImagePull(
 		ctx,
-		options.Name,
+		parsed.String(),
 		types.ImagePullOptions{},
 	)
 	if err != nil {
@@ -20,5 +26,5 @@ func pull(ctx context.Context, options Options) (string, error) {
 		return "", err
 	}
 
-	return options.Name, nil
+	return parsed.String(), nil
 }

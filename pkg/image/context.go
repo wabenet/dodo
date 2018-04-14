@@ -18,7 +18,7 @@ import (
 
 // TODO: validate that all files in the context are ok
 func getContext(options Options, dockerfile string) (io.ReadCloser, error) {
-	contextDir := options.Build.Context
+	contextDir := options.Context
 	if contextDir == "" {
 		contextDir = "."
 	}
@@ -110,9 +110,9 @@ func getDockerignore(contextDir string, dockerfile string) ([]string, error) {
 }
 
 func getDockerfile(options Options, contextDir string) ([]byte, error) {
-	dockerfile := options.Build.Dockerfile
+	dockerfile := options.Dockerfile
 	steps := ""
-	for _, step := range options.Build.Steps {
+	for _, step := range options.Steps {
 		steps = steps + "\n" + step
 	}
 
