@@ -30,7 +30,7 @@ func NewCommand() *cobra.Command {
 			return runCommand(&opts, args[0], args[1:])
 		},
 	}
-	options.ConfigureFlags(cmd, opts)
+	options.ConfigureFlags(cmd, &opts)
 	return cmd
 }
 

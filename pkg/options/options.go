@@ -26,7 +26,7 @@ type Options struct {
 
 // ConfigureFlags adds flags for all possible command-line options
 // to a Cobra command
-func ConfigureFlags(cmd *cobra.Command, opts Options) {
+func ConfigureFlags(cmd *cobra.Command, opts *Options) {
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
 

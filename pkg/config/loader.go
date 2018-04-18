@@ -22,6 +22,8 @@ var (
 	}
 )
 
+// TODO: function to list all backdrops
+
 // LoadConfiguration tries to find a backdrop configuration by name in any of
 // the supported locations. If given, will only look in the supplied config
 // file.
@@ -157,10 +159,10 @@ func FallbackConfig(backdrop string) (*BackdropConfig, error) {
 	}
 
 	config := &BackdropConfig{
-		Image:       backdrop,
-		Interpreter: []string{},
-		User:        fmt.Sprintf("%s:%s", user.Uid, user.Gid),
-		WorkingDir:  workingDir,
+		Image:      backdrop,
+		Script:     fmt.Sprintf("%s $@", backdrop),
+		User:       fmt.Sprintf("%s:%s", user.Uid, user.Gid),
+		WorkingDir: workingDir,
 		Volumes: []string{
 			fmt.Sprintf("%s:%s", workingDir, workingDir),
 		},

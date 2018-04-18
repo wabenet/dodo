@@ -42,7 +42,6 @@ func getEntrypoint(options Options) []string {
 	if options.Interpreter != nil {
 		entrypoint = options.Interpreter
 	}
-	// TODO: interactive is currently broken?
 	if !options.Interactive && len(options.Script) > 0 {
 		entrypoint = append(entrypoint, options.Entrypoint)
 	}
