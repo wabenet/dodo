@@ -8,7 +8,6 @@ import (
 
 	"github.com/a8m/envsubst"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -116,9 +115,6 @@ func FindConfigInDirectory(
 	return nil, fmt.Errorf("Could not find configuration for backdrop '%s' in directory '%s'", backdrop, directory)
 }
 
-// TODO: validation
-// TODO: check if there are unknown keys
-
 // FindConfigInFile tries to find a backdrop configuration by name in a specific
 // file.
 func FindConfigInFile(
@@ -129,10 +125,9 @@ func FindConfigInFile(
 		return nil, fmt.Errorf("Could not read file '%s'", filename)
 	}
 
-	config := &Config{}
-	err = yaml.Unmarshal(bytes, config)
+	config, err := ParseConfiguration(bytes)
 	if err != nil {
-		return nil, fmt.Errorf("Could not load config from '%s': %s", filename, err)
+		return nil, fmt.Errorf("Could not parse config from '%s': %s", filename, err)
 	}
 
 	if config.Backdrops == nil {
