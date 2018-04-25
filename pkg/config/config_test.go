@@ -39,7 +39,7 @@ backdrops:
 `
 
 func getExampleConfig(t *testing.T, name string) BackdropConfig {
-	config, err := ParseConfiguration([]byte(exampleYaml))
+	config, err := ParseConfiguration("exampleYaml", []byte(exampleYaml))
 	assert.Nil(t, err)
 	assert.Contains(t, config.Backdrops, name)
 	assert.NotNil(t, config.Backdrops[name])

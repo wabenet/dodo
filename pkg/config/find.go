@@ -125,7 +125,7 @@ func FindConfigInFile(
 		return nil, fmt.Errorf("Could not read file '%s'", filename)
 	}
 
-	config, err := ParseConfiguration(bytes)
+	config, err := ParseConfiguration(filename, bytes)
 	if err != nil {
 		return nil, fmt.Errorf("Could not parse config from '%s': %s", filename, err)
 	}

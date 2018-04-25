@@ -1,7 +1,9 @@
 package config
 
 import (
-	"github.com/mitchellh/mapstructure"
+	"fmt"
+	"reflect"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -14,51 +16,50 @@ import (
 
 // TODO: support env_file as well
 
-// TODO: validation
-// TODO: check if there are unknown keys
-
 // Config represents a full configuration file
 type Config struct {
-	Backdrops map[string]BackdropConfig `mapstructure:"backdrops"`
+	Backdrops Backdrops
 }
 
-func ParseConfiguration(bytes []byte) (*Config, error) {
+func errorUnsupportedType(name string, kind reflect.Kind) error {
+	return fmt.Errorf("Unsupported type of '%s': '%v'", name, kind)
+}
+
+func errorUnsupportedKey(parent string, name string) error {
+	return fmt.Errorf("Unsupported option in '%s': '%s'", parent, name)
+}
+
+func ParseConfiguration(name string, bytes []byte) (*Config, error) {
 	var mapType map[string]interface{}
 	err := yaml.Unmarshal(bytes, &mapType)
 	if err != nil {
 		return nil, err
 	}
-
-	var config Config
-	err = mapstructure.Decode(mapType, &config)
-	return &config, err
+	config, err := DecodeConfig(name, mapType)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
-// BackdropConfig represents the configuration for a backdrop
-// (possible target for running a command)
-type BackdropConfig struct {
-	Build         *BuildConfig `mapstructure:"build"`
-	ContainerName string       `mapstructure:"container_name"`
-	Remove        *bool        `mapstructure:"remove"`
-	Pull          bool         `mapstructure:"pull"`
-	Interactive   bool         `mapstructure:"interactive"`
-	Environment   []string     `mapstructure:"environment"`
-	Image         string       `mapstructure:"image"`
-	User          string       `mapstructure:"user"`
-	Volumes       []string     `mapstructure:"volumes"`
-	VolumesFrom   []string     `mapstructure:"volumes_from"`
-	WorkingDir    string       `mapstructure:"working_dir"`
-	Interpreter   []string     `mapstructure:"interpreter"`
-	Script        string       `mapstructure:"script"`
-	Command       []string     `mapstructure:"command"`
-}
-
-// BuildConfig represents the build configuration for a docker image
-type BuildConfig struct {
-	Context      string   `mapstructure:"context"`
-	Dockerfile   string   `mapstructure:"dockerfile"`
-	Steps        []string `mapstructure:"steps"`
-	Args         []string `mapstructure:"args"`
-	NoCache      bool     `mapstructure:"no_cache"`
-	ForceRebuild bool     `mapstructure:"force_rebuild"`
+func DecodeConfig(name string, config interface{}) (Config, error) {
+	var result Config
+	switch t := reflect.ValueOf(config); t.Kind() {
+	case reflect.Map:
+		for k, v := range t.Interface().(map[string]interface{}) {
+			switch k {
+			case "backdrops":
+				decoded, err := DecodeBackdrops(k, v)
+				if err != nil {
+					return result, err
+				}
+				result.Backdrops = decoded
+			default:
+				return result, errorUnsupportedKey(name, k)
+			}
+		}
+	default:
+		return result, errorUnsupportedType(name, t.Kind())
+	}
+	return result, nil
 }
