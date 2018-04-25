@@ -9,7 +9,7 @@ type BuildConfig struct {
 	Context      string
 	Dockerfile   string
 	Steps        []string
-	Args         []string
+	Args         KeyValueList
 	NoCache      bool
 	ForceRebuild bool
 }
@@ -17,6 +17,12 @@ type BuildConfig struct {
 func DecodeBuild(name string, config interface{}) (BuildConfig, error) {
 	var result BuildConfig
 	switch t := reflect.ValueOf(config); t.Kind() {
+	case reflect.String:
+		decoded, err := DecodeString(name, config)
+		if err != nil {
+			return result, err
+		}
+		result.Context = decoded
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
@@ -39,7 +45,7 @@ func DecodeBuild(name string, config interface{}) (BuildConfig, error) {
 				}
 				result.Steps = decoded
 			case "args":
-				decoded, err := DecodeStringSlice(key, v)
+				decoded, err := DecodeKeyValueList(key, v)
 				if err != nil {
 					return result, err
 				}

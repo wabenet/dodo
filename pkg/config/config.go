@@ -7,13 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// TODO: allow the following:
-// - only the context as string in build
-// - environment as key=value list or as map
-// - volumes as source:dest:type list or as special structs
-// - builds args as key=value list or as map
-// - steps as string or slice
-
+// TODO: allow volumes as source:dest:type list or as special structs
 // TODO: support env_file as well
 
 // Config represents a full configuration file

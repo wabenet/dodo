@@ -15,7 +15,7 @@ type BackdropConfig struct {
 	Remove        *bool
 	Pull          bool
 	Interactive   bool
-	Environment   []string
+	Environment   KeyValueList
 	Image         string
 	User          string
 	Volumes       []string
@@ -81,7 +81,7 @@ func DecodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 				}
 				result.Interactive = decoded
 			case "environment":
-				decoded, err := DecodeStringSlice(key, v)
+				decoded, err := DecodeKeyValueList(key, v)
 				if err != nil {
 					return result, err
 				}

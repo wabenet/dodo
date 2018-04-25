@@ -91,7 +91,7 @@ func imageOptions(
 		result.Context = config.Build.Context
 		result.Dockerfile = config.Build.Dockerfile
 		result.Steps = config.Build.Steps
-		result.Args = config.Build.Args
+		result.Args = config.Build.Args.Strings()
 		result.ForceBuild = config.Build.ForceRebuild
 		if options.Build {
 			result.ForceBuild = true
@@ -117,7 +117,7 @@ func containerOptions(
 		Entrypoint:  entrypoint,
 		Script:      config.Script,
 		Command:     config.Command,
-		Environment: append(config.Environment, options.Environment...),
+		Environment: append(config.Environment.Strings(), options.Environment...),
 		Volumes:     append(config.Volumes, options.Volumes...),
 		VolumesFrom: append(config.VolumesFrom, options.VolumesFrom...),
 		User:        config.User,
