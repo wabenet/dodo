@@ -12,10 +12,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-// TODO: no error message when bind mount fails
-
-// TODO: tests
-
 // NewCommand creates a new command instance
 func NewCommand() *cobra.Command {
 	var opts options.Options

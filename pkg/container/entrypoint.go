@@ -12,7 +12,6 @@ import (
 func uploadEntrypoint(
 	ctx context.Context, containerID string, options Options,
 ) error {
-	// TODO: missing eol in entrypoint?
 	reader, writer := io.Pipe()
 	defer func() {
 		if err := reader.Close(); err != nil {
@@ -40,14 +39,16 @@ func uploadEntrypoint(
 		}
 	}()
 
+	script := options.Script + "\n"
+
 	err := tarWriter.WriteHeader(&tar.Header{
 		Name: options.Entrypoint,
 		Mode: 0644,
-		Size: int64(len(options.Script)),
+		Size: int64(len(script)),
 	})
 	if err != nil {
 		return err
 	}
-	_, err = tarWriter.Write([]byte(options.Script))
+	_, err = tarWriter.Write([]byte(script))
 	return err
 }
