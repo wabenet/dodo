@@ -21,8 +21,6 @@ var (
 	}
 )
 
-// TODO: function to list all backdrops
-
 // LoadConfiguration tries to find a backdrop configuration by name in any of
 // the supported locations. If given, will only look in the supplied config
 // file.
@@ -164,4 +162,41 @@ func FallbackConfig(backdrop string) (*BackdropConfig, error) {
 	}
 
 	return config, nil
+}
+
+// ListConfigurations prints out all available backdrop names and the file
+// it was found in.
+func ListConfigurations() {
+	result := map[string]string{}
+	directories, err := FindConfigDirectories()
+	if err != nil {
+		return
+	}
+
+	for _, directory := range directories {
+		for _, filename := range configFileNames {
+			path, err := filepath.Abs(filepath.Join(directory, filename))
+			if err != nil {
+				continue
+			}
+
+			bytes, err := envsubst.ReadFile(path)
+			if err != nil {
+				continue
+			}
+
+			config, err := ParseConfiguration(path, bytes)
+			if err != nil {
+				continue
+			}
+
+			for name, _ := range config.Backdrops {
+				if result[name] == "" {
+					log.WithFields(log.Fields{
+						"file": path,
+					}).Info(name)
+				}
+			}
+		}
+	}
 }

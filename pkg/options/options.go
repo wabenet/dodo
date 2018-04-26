@@ -9,6 +9,7 @@ import (
 // Options represents the set of command-line options of the command
 type Options struct {
 	Filename    string
+	List        bool
 	Quiet       bool
 	Debug       bool
 	Interactive bool
@@ -34,12 +35,16 @@ func ConfigureFlags(cmd *cobra.Command, opts *Options) {
 		&opts.Filename, "file", "f", "",
 		"specify a dodo configuration file")
 	flags.BoolVarP(
+		&opts.List, "list", "", false,
+		"list all available backdrop configurations")
+
+	flags.BoolVarP(
 		&opts.Quiet, "quiet", "q", false,
-		"suppress informational output",
-	)
+		"suppress informational output")
 	flags.BoolVarP(
 		&opts.Debug, "debug", "", false,
 		"show additional debug output")
+
 	flags.BoolVarP(
 		&opts.Interactive, "interactive", "i", false,
 		"run an interactive session")

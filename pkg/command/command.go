@@ -1,6 +1,8 @@
 package command
 
 import (
+	"errors"
+
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/oclaussen/dodo/pkg/config"
@@ -20,9 +22,16 @@ func NewCommand() *cobra.Command {
 		Short:            "Run commands in a Docker context",
 		SilenceUsage:     true,
 		TraverseChildren: true,
-		Args:             cobra.MinimumNArgs(1),
+		Args:             cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			initLogging(&opts)
+			if opts.List {
+				config.ListConfigurations()
+				return nil
+			}
+			if len(args) < 1 {
+				return errors.New("Please specify a backdrop name")
+			}
 			return runCommand(&opts, args[0], args[1:])
 		},
 	}
