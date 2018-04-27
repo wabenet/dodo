@@ -1,7 +1,7 @@
 package options
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // TODO: go through options of docker, docker-compose and sudo
@@ -10,8 +10,6 @@ import (
 type Options struct {
 	Filename    string
 	List        bool
-	Quiet       bool
-	Debug       bool
 	Interactive bool
 	NoCache     bool
 	Pull        bool
@@ -25,25 +23,14 @@ type Options struct {
 	Environment []string
 }
 
-// ConfigureFlags adds flags for all possible command-line options
-// to a Cobra command
-func ConfigureFlags(cmd *cobra.Command, opts *Options) {
-	flags := cmd.Flags()
-	flags.SetInterspersed(false)
-
+// InitFlags adds flags for all possible command-line options to a flag set
+func InitFlags(flags *pflag.FlagSet, opts *Options) {
 	flags.StringVarP(
 		&opts.Filename, "file", "f", "",
 		"specify a dodo configuration file")
 	flags.BoolVarP(
 		&opts.List, "list", "", false,
 		"list all available backdrop configurations")
-
-	flags.BoolVarP(
-		&opts.Quiet, "quiet", "q", false,
-		"suppress informational output")
-	flags.BoolVarP(
-		&opts.Debug, "debug", "", false,
-		"show additional debug output")
 
 	flags.BoolVarP(
 		&opts.Interactive, "interactive", "i", false,

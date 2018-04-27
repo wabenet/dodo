@@ -8,15 +8,17 @@ import (
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
+	"github.com/oclaussen/dodo/pkg/logging"
 	"github.com/oclaussen/dodo/pkg/options"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
 // NewCommand creates a new command instance
 func NewCommand() *cobra.Command {
-	var opts options.Options
+	var loggingOpts logging.Options
+	var dodoOpts options.Options
+
 	cmd := &cobra.Command{
 		Use:              "dodo [OPTIONS] NAME [CMD...]",
 		Short:            "Run commands in a Docker context",
@@ -24,30 +26,23 @@ func NewCommand() *cobra.Command {
 		TraverseChildren: true,
 		Args:             cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			initLogging(&opts)
-			if opts.List {
+			logging.InitLogging(&loggingOpts)
+			if dodoOpts.List {
 				config.ListConfigurations()
 				return nil
 			}
 			if len(args) < 1 {
 				return errors.New("Please specify a backdrop name")
 			}
-			return runCommand(&opts, args[0], args[1:])
+			return runCommand(&dodoOpts, args[0], args[1:])
 		},
 	}
-	options.ConfigureFlags(cmd, &opts)
-	return cmd
-}
 
-func initLogging(options *options.Options) {
-	log.SetFormatter(&log.TextFormatter{
-		DisableTimestamp: true,
-	})
-	if options.Quiet {
-		log.SetLevel(log.WarnLevel)
-	} else if options.Debug {
-		log.SetLevel(log.DebugLevel)
-	}
+	flags := cmd.Flags()
+	flags.SetInterspersed(false)
+	logging.InitFlags(flags, &loggingOpts)
+	options.InitFlags(flags, &dodoOpts)
+	return cmd
 }
 
 func runCommand(options *options.Options, name string, command []string) error {

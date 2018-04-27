@@ -50,9 +50,9 @@ func handleImageResult(result io.ReadCloser, getImageID bool) (string, error) {
 		}
 
 		if msg.Stream != "" {
-			log.Info(strings.TrimRight(msg.Stream, "\n"))
+			log.Debug(strings.TrimRight(msg.Stream, "\n"))
 		} else if msg.Status != "" {
-			log.Info(strings.TrimRight(msg.Status, "\n"))
+			log.Debug(strings.TrimRight(msg.Status, "\n"))
 		}
 	}
 
