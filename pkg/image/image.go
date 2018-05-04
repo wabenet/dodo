@@ -11,26 +11,26 @@ import (
 	"golang.org/x/net/context"
 )
 
-// TODO: authentication
-
 // Options represents the configuration for a docker image that can be
 // either built or pulled.
 type Options struct {
-	Client     Client
-	Name       string
-	ForcePull  bool
-	DoBuild    bool
-	ForceBuild bool
-	NoCache    bool
-	Context    string
-	Dockerfile string
-	Steps      []string
-	Args       []string
+	Client      Client
+	AuthConfigs map[string]types.AuthConfig
+	Name        string
+	ForcePull   bool
+	DoBuild     bool
+	ForceBuild  bool
+	NoCache     bool
+	Context     string
+	Dockerfile  string
+	Steps       []string
+	Args        []string
 }
 
 // Client represents a docker client that can do everything this package
 // needs
 type Client interface {
+	Info(context.Context) (types.Info, error)
 	ImageList(context.Context, types.ImageListOptions) ([]types.ImageSummary, error)
 	ImagePull(context.Context, string, types.ImagePullOptions) (io.ReadCloser, error)
 	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)

@@ -35,6 +35,10 @@ func handleImageResult(result io.ReadCloser, getImageID bool) (string, error) {
 			return "", err
 		}
 
+		if msg.Error != nil {
+			return "", msg.Error
+		}
+
 		if msg.Progress != nil || msg.ProgressMessage != "" {
 			continue
 		}

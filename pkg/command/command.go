@@ -2,7 +2,9 @@ package command
 
 import (
 	"errors"
+	"io/ioutil"
 
+	cliconfig "github.com/docker/cli/cli/config"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/oclaussen/dodo/pkg/config"
@@ -51,16 +53,18 @@ func runCommand(options *options.Options, name string, command []string) error {
 		return err
 	}
 
-	// TODO: read docker configuration
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return err
 	}
+	// TODO: log errors
+	authConfigs := cliconfig.LoadDefaultConfigFile(ioutil.Discard).GetAuthConfigs()
 
 	ctx := context.Background()
 
 	imageOptions := imageOptions(options, config)
 	imageOptions.Client = dockerClient
+	imageOptions.AuthConfigs = authConfigs
 	imageID, err := image.Get(ctx, imageOptions)
 	if err != nil {
 		return err

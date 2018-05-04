@@ -36,6 +36,7 @@ func build(ctx context.Context, options Options) (string, error) {
 			PullParent:     options.ForcePull,
 			Dockerfile:     dockerfile,
 			BuildArgs:      args,
+			AuthConfigs:    options.AuthConfigs,
 		},
 	)
 	if err != nil {

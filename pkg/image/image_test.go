@@ -35,7 +35,7 @@ func TestLocalImage(t *testing.T) {
 func TestRemoteImage(t *testing.T) {
 	client := fakeImageClient{
 		t:               t,
-		existRemotelyAs: "docker.io/library/remoteimage",
+		existRemotelyAs: "docker.io/library/remoteimage:latest",
 		expectList:      true,
 		expectPull:      true,
 		expectBuild:     false,
@@ -46,7 +46,7 @@ func TestRemoteImage(t *testing.T) {
 	}
 	result, err := Get(context.Background(), options)
 	assert.Nil(t, err)
-	assert.Equal(t, "docker.io/library/remoteimage", result)
+	assert.Equal(t, "docker.io/library/remoteimage:latest", result)
 	client.checkAssertions()
 }
 
@@ -54,7 +54,7 @@ func TestForcePull(t *testing.T) {
 	client := fakeImageClient{
 		t:               t,
 		existLocally:    true,
-		existRemotelyAs: "docker.io/library/remoteimage",
+		existRemotelyAs: "docker.io/library/remoteimage:latest",
 		expectList:      false,
 		expectPull:      true,
 		expectBuild:     false,
@@ -66,7 +66,7 @@ func TestForcePull(t *testing.T) {
 	}
 	result, err := Get(context.Background(), options)
 	assert.Nil(t, err)
-	assert.Equal(t, "docker.io/library/remoteimage", result)
+	assert.Equal(t, "docker.io/library/remoteimage:latest", result)
 	client.checkAssertions()
 }
 
@@ -159,6 +159,10 @@ func (client *fakeImageClient) checkAssertions() {
 	assert.Equal(client.t, client.expectList, client.didList)
 	assert.Equal(client.t, client.expectPull, client.didPull)
 	assert.Equal(client.t, client.expectBuild, client.didBuild)
+}
+
+func (client *fakeImageClient) Info(_ context.Context) (types.Info, error) {
+	return types.Info{}, nil
 }
 
 func (client *fakeImageClient) ImageList(
