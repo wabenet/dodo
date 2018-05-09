@@ -156,9 +156,10 @@ func FallbackConfig(backdrop string) (*BackdropConfig, error) {
 		Script:     fmt.Sprintf("%s $@", backdrop),
 		User:       fmt.Sprintf("%s:%s", user.Uid, user.Gid),
 		WorkingDir: workingDir,
-		Volumes: []string{
-			fmt.Sprintf("%s:%s", workingDir, workingDir),
-		},
+		Volumes: []Volume{Volume{
+			Source: workingDir,
+			Target: workingDir,
+		}},
 	}
 
 	return config, nil

@@ -18,7 +18,7 @@ type BackdropConfig struct {
 	Environment   KeyValueList
 	Image         string
 	User          string
-	Volumes       []string
+	Volumes       Volumes
 	VolumesFrom   []string
 	WorkingDir    string
 	Interpreter   []string
@@ -99,7 +99,7 @@ func DecodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 				}
 				result.User = decoded
 			case "volumes":
-				decoded, err := DecodeStringSlice(key, v)
+				decoded, err := DecodeVolumes(key, v)
 				if err != nil {
 					return result, err
 				}

@@ -19,6 +19,17 @@ backdrops:
       - FOO=BAR
       - SOMETHING
 
+  simpleVolume:
+    volumes: foo:bar:ro
+
+  mixedVolumes:
+    volumes:
+      - test
+      - source: from
+        target: to
+        read_only: true
+      - bar:baz
+
   fullExample:
     build:
       context: .
@@ -35,8 +46,6 @@ backdrops:
     pull: true
     interactive: true
     image: testimage
-    volumes:
-      - /foo:/bar:ro
     volumes_from: 'somevolume'
     interpreter: '/bin/sh'
     script: |
@@ -78,6 +87,34 @@ func TestEnvironments(t *testing.T) {
 	assert.Nil(t, something.Value)
 }
 
+func TestSimpleVolume(t *testing.T) {
+	config := getExampleConfig(t, "simpleVolume")
+	assert.Equal(t, 1, len(config.Volumes))
+	assert.Equal(t, "foo", config.Volumes[0].Source)
+	assert.Equal(t, "bar", config.Volumes[0].Target)
+	assert.True(t, config.Volumes[0].ReadOnly)
+}
+
+func TestMixedVolumes(t *testing.T) {
+	config := getExampleConfig(t, "mixedVolumes")
+	assert.Equal(t, 3, len(config.Volumes))
+
+	sourceOnly := config.Volumes[0]
+	assert.Equal(t, "test", sourceOnly.Source)
+	assert.Equal(t, "", sourceOnly.Target)
+	assert.False(t, sourceOnly.ReadOnly)
+
+	fullSpec := config.Volumes[1]
+	assert.Equal(t, "from", fullSpec.Source)
+	assert.Equal(t, "to", fullSpec.Target)
+	assert.True(t, fullSpec.ReadOnly)
+
+	readWrite := config.Volumes[2]
+	assert.Equal(t, "bar", readWrite.Source)
+	assert.Equal(t, "baz", readWrite.Target)
+	assert.False(t, readWrite.ReadOnly)
+}
+
 func TestFullExample(t *testing.T) {
 	config := getExampleConfig(t, "fullExample")
 	assert.NotNil(t, config.Build)
@@ -95,7 +132,6 @@ func TestFullExample(t *testing.T) {
 	assert.True(t, config.Pull)
 	assert.True(t, config.Interactive)
 	assert.Equal(t, "testimage", config.Image)
-	assert.Contains(t, config.Volumes, "/foo:/bar:ro")
 	assert.Contains(t, config.VolumesFrom, "somevolume")
 	assert.Contains(t, config.Interpreter, "/bin/sh")
 	assert.Equal(t, "echo \"$@\"\n", config.Script)

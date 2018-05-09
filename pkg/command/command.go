@@ -122,7 +122,7 @@ func containerOptions(
 		Script:      config.Script,
 		Command:     config.Command,
 		Environment: append(config.Environment.Strings(), options.Environment...),
-		Volumes:     append(config.Volumes, options.Volumes...),
+		Volumes:     append(config.Volumes.Strings(), options.Volumes...),
 		VolumesFrom: append(config.VolumesFrom, options.VolumesFrom...),
 		User:        config.User,
 		WorkingDir:  config.WorkingDir,

@@ -7,9 +7,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// TODO: allow volumes as source:dest:type list or as special structs
-// TODO: support env_file as well
-
 // Config represents a full configuration file
 type Config struct {
 	Backdrops Backdrops
