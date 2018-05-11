@@ -16,6 +16,8 @@ type Volume struct {
 	ReadOnly bool
 }
 
+// Strings transforms a set of Volume definitions into a list of strings that
+// will be understood by docker.
 func (vs *Volumes) Strings() []string {
 	result := []string{}
 	for _, v := range *vs {
@@ -34,24 +36,24 @@ func (v *Volume) String() string {
 	}
 }
 
-func DecodeVolumes(name string, config interface{}) (Volumes, error) {
+func decodeVolumes(name string, config interface{}) (Volumes, error) {
 	result := []Volume{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeVolume(name, config)
+		decoded, err := decodeVolume(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Map:
-		decoded, err := DecodeVolume(name, config)
+		decoded, err := decodeVolume(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeVolume(name, v)
+			decoded, err := decodeVolume(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -61,7 +63,7 @@ func DecodeVolumes(name string, config interface{}) (Volumes, error) {
 	return result, nil
 }
 
-func DecodeVolume(name string, config interface{}) (Volume, error) {
+func decodeVolume(name string, config interface{}) (Volume, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		switch values := strings.SplitN(t.String(), ":", 3); len(values) {
@@ -90,19 +92,19 @@ func DecodeVolume(name string, config interface{}) (Volume, error) {
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "source":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Source = decoded
 			case "target":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Target = decoded
 			case "read_only":
-				decoded, err := DecodeBool(key, v)
+				decoded, err := decodeBool(key, v)
 				if err != nil {
 					return result, err
 				}

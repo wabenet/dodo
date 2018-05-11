@@ -26,13 +26,13 @@ type BackdropConfig struct {
 	Command       []string
 }
 
-func DecodeBackdrops(name string, config interface{}) (Backdrops, error) {
+func decodeBackdrops(name string, config interface{}) (Backdrops, error) {
 	result := map[string]BackdropConfig{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := DecodeBackdropConfig(key, v)
+			decoded, err := decodeBackdropConfig(key, v)
 			if err != nil {
 				return result, err
 			}
@@ -44,92 +44,92 @@ func DecodeBackdrops(name string, config interface{}) (Backdrops, error) {
 	return result, nil
 }
 
-func DecodeBackdropConfig(name string, config interface{}) (BackdropConfig, error) {
+func decodeBackdropConfig(name string, config interface{}) (BackdropConfig, error) {
 	var result BackdropConfig
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "build":
-				decoded, err := DecodeBuild(key, v)
+				decoded, err := decodeBuild(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Build = &decoded
 			case "container_name":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.ContainerName = decoded
 			case "remove":
-				decoded, err := DecodeBool(key, v)
+				decoded, err := decodeBool(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Remove = &decoded
 			case "pull":
-				decoded, err := DecodeBool(key, v)
+				decoded, err := decodeBool(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Pull = decoded
 			case "interactive":
-				decoded, err := DecodeBool(key, v)
+				decoded, err := decodeBool(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Interactive = decoded
 			case "environment":
-				decoded, err := DecodeKeyValueList(key, v)
+				decoded, err := decodeKeyValueList(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Environment = decoded
 			case "image":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Image = decoded
 			case "user":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.User = decoded
 			case "volumes":
-				decoded, err := DecodeVolumes(key, v)
+				decoded, err := decodeVolumes(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Volumes = decoded
 			case "volumes_from":
-				decoded, err := DecodeStringSlice(key, v)
+				decoded, err := decodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.VolumesFrom = decoded
 			case "working_dir":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.WorkingDir = decoded
 			case "interpreter":
-				decoded, err := DecodeStringSlice(key, v)
+				decoded, err := decodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Interpreter = decoded
 			case "script":
-				decoded, err := DecodeString(key, v)
+				decoded, err := decodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Script = decoded
 			case "command":
-				decoded, err := DecodeStringSlice(key, v)
+				decoded, err := decodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}

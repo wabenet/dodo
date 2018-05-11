@@ -4,8 +4,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// TODO: go through options of docker, docker-compose and sudo
-
 // Options represents the set of command-line options of the command
 type Options struct {
 	Filename    string

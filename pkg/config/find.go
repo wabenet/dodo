@@ -191,7 +191,7 @@ func ListConfigurations() {
 				continue
 			}
 
-			for name, _ := range config.Backdrops {
+			for name := range config.Backdrops {
 				if result[name] == "" {
 					log.WithFields(log.Fields{
 						"file": path,

@@ -16,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// TODO: validate that all files in the context are ok
 func getContext(options Options, dockerfile string) (io.ReadCloser, error) {
 	contextDir := options.Context
 	if contextDir == "" {

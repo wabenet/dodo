@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-func DecodeBool(name string, config interface{}) (bool, error) {
+func decodeBool(name string, config interface{}) (bool, error) {
 	var result bool
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Bool:
@@ -15,7 +15,7 @@ func DecodeBool(name string, config interface{}) (bool, error) {
 	return result, nil
 }
 
-func DecodeString(name string, config interface{}) (string, error) {
+func decodeString(name string, config interface{}) (string, error) {
 	var result string
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
@@ -26,14 +26,14 @@ func DecodeString(name string, config interface{}) (string, error) {
 	return result, nil
 }
 
-func DecodeStringSlice(name string, config interface{}) ([]string, error) {
+func decodeStringSlice(name string, config interface{}) ([]string, error) {
 	var result []string
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		result = []string{t.String()}
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeString(name, v)
+			decoded, err := decodeString(name, v)
 			if err != nil {
 				return result, err
 			}
