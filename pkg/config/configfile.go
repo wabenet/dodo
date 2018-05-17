@@ -41,33 +41,6 @@ func LoadConfiguration(
 	return FallbackConfig(backdrop)
 }
 
-// FindConfigDirectories provides a list of directories on the file system
-// that should be search for config files.
-func FindConfigDirectories() ([]string, error) {
-	// TODO: make / and /etc and ~/.config work on other platforms
-	var configDirectories []string
-
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return configDirectories, err
-	}
-	for directory := workingDir; directory != "/"; directory = filepath.Dir(directory) {
-		configDirectories = append(configDirectories, directory)
-	}
-	configDirectories = append(configDirectories, "/")
-
-	user, err := user.Current()
-	if err != nil {
-		return configDirectories, err
-	}
-	configDirectories = append(configDirectories, user.HomeDir)
-	configDirectories = append(configDirectories, filepath.Join(user.HomeDir, ".config", "dodo"))
-
-	configDirectories = append(configDirectories, "/etc")
-
-	return configDirectories, nil
-}
-
 // FindConfigAnywhere tries to find a backdrop configuration by name in any of
 // the supported locations.
 func FindConfigAnywhere(backdrop string) (*BackdropConfig, error) {

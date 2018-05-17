@@ -16,6 +16,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+// TODO: fix output of --help, explain backdrops, remove [flags]
+
 // NewCommand creates a new command instance
 func NewCommand() *cobra.Command {
 	var loggingOpts logging.Options
