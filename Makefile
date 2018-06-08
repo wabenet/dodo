@@ -1,8 +1,8 @@
-all: build
+all: clean lint test build
 
 .PHONY: clean
 clean:
-	rm dodo_*
+	rm -f dodo_*
 
 .PHONY: fmt
 fmt:
@@ -21,5 +21,5 @@ dep:
 	dep ensure
 
 .PHONY: build
-build:
+build: clean
 	gox -arch="amd64" -os="darwin" ./...

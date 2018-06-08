@@ -42,7 +42,7 @@ func uploadEntrypoint(
 	script := options.Script + "\n"
 
 	err := tarWriter.WriteHeader(&tar.Header{
-		Name: options.Entrypoint,
+		Name: options.ScriptPath,
 		Mode: 0644,
 		Size: int64(len(script)),
 	})

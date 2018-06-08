@@ -9,7 +9,7 @@ backdrops:
           RUN go get github.com/alecthomas/gometalinter && gometalinter --install
           RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
     environment: CGO_ENABLED=0
-    volumes:
-      - ${PWD}:/go/src/github.com/oclaussen/dodo
+    volumes: ${PWD}:/go/src/github.com/oclaussen/dodo
     working_dir: /go/src/github.com/oclaussen/dodo
     script: make $@
+    command: all

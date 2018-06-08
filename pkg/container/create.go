@@ -21,7 +21,7 @@ func createContainer(ctx context.Context, options Options) (string, error) {
 			Cmd:          options.Command,
 			Image:        options.Image,
 			WorkingDir:   options.WorkingDir,
-			Entrypoint:   getEntrypoint(options),
+			Entrypoint:   options.Entrypoint,
 		},
 		&container.HostConfig{
 			AutoRemove:  options.Remove,
@@ -35,15 +35,4 @@ func createContainer(ctx context.Context, options Options) (string, error) {
 		return "", err
 	}
 	return response.ID, nil
-}
-
-func getEntrypoint(options Options) []string {
-	entrypoint := []string{"/bin/sh"}
-	if options.Interpreter != nil {
-		entrypoint = options.Interpreter
-	}
-	if !options.Interactive && len(options.Script) > 0 {
-		entrypoint = append(entrypoint, options.Entrypoint)
-	}
-	return entrypoint
 }

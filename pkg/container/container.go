@@ -14,10 +14,9 @@ type Options struct {
 	Image       string
 	Name        string
 	Remove      bool
-	Interactive bool
-	Interpreter []string
-	Entrypoint  string
+	Entrypoint  []string
 	Script      string
+	ScriptPath  string
 	Command     []string
 	Environment []string
 	Volumes     []string

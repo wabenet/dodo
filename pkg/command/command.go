@@ -83,12 +83,9 @@ func runCommand(options *options.Options, name string, command []string) error {
 		return err
 	}
 
-	containerOptions := containerOptions(options, config)
+	containerOptions := containerOptions(options, config, command)
 	containerOptions.Client = dockerClient
 	containerOptions.Image = imageID
-	if len(command) > 0 {
-		containerOptions.Command = command
-	}
 	return container.Run(ctx, containerOptions)
 }
 
@@ -124,15 +121,14 @@ func imageOptions(
 func containerOptions(
 	options *options.Options,
 	config *config.BackdropConfig,
+	command []string,
 ) container.Options {
-	entrypoint := "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20]
 	result := container.Options{
 		Name:        config.ContainerName,
-		Interactive: config.Interactive,
 		Remove:      true,
-		Interpreter: config.Interpreter,
-		Entrypoint:  entrypoint,
+		Entrypoint:  []string{"/bin/sh"},
 		Script:      config.Script,
+		ScriptPath:  "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20],
 		Command:     config.Command,
 		Environment: append(config.Environment.Strings(), options.Environment...),
 		Volumes:     append(config.Volumes.Strings(), options.Volumes...),
@@ -142,9 +138,6 @@ func containerOptions(
 	}
 	if options.Workdir != "" {
 		result.WorkingDir = options.Workdir
-	}
-	if options.Interactive {
-		result.Interactive = true
 	}
 	if config.Remove != nil {
 		result.Remove = *config.Remove
@@ -158,5 +151,20 @@ func containerOptions(
 	if options.User != "" {
 		result.User = options.User
 	}
+
+	if config.Interpreter != nil {
+		result.Entrypoint = config.Interpreter
+	}
+	if config.Interactive || options.Interactive {
+		result.Command = nil
+	} else {
+		if len(config.Script) > 0 {
+			result.Entrypoint = append(result.Entrypoint, result.ScriptPath)
+		}
+		if len(command) > 0 {
+			result.Command = command
+		}
+	}
+
 	return result
 }

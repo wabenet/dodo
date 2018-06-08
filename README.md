@@ -105,7 +105,7 @@ backdrops:
 In my home directory, I have a dodo configuration with the following config for
 terraform:
 
-```
+```yaml
 backdrops:
   terraform:
     image: hashicorp/terraform:latest
