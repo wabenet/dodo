@@ -25,10 +25,16 @@ func build(ctx context.Context, options Options) (string, error) {
 		return "", err
 	}
 
+	var tags []string
+	if options.Name != "" {
+		tags = append(tags, options.Name)
+	}
+
 	response, err := options.Client.ImageBuild(
 		ctx,
 		buildContext,
 		types.ImageBuildOptions{
+			Tags:           tags,
 			SuppressOutput: false,
 			NoCache:        options.NoCache,
 			Remove:         true,
