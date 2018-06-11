@@ -28,7 +28,7 @@ func (vs *Volumes) Strings() []string {
 
 func (v *Volume) String() string {
 	if v.Target == "" && !v.ReadOnly {
-		return v.Source
+		return fmt.Sprintf("%s:%s", v.Source, v.Source)
 	} else if !v.ReadOnly {
 		return fmt.Sprintf("%s:%s", v.Source, v.Target)
 	} else {
