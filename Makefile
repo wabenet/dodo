@@ -16,8 +16,8 @@ lint:
 test:
 	go test -cover ./...
 
-.PHONY: dep
-dep:
+.PHONY: vendor
+vendor: Gopkg.lock Gopkg.toml
 	dep ensure
 
 .PHONY: build

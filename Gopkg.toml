@@ -1,3 +1,18 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/docker/distribution"
+  branch = "master"
+
+# The last commit before the API version changed to 1.37
+# All released versions suffer from upper-case logrus imports
+[[constraint]]
+  name = "github.com/docker/docker"
+  revision = "f23c00d8701e4bd0f2372a586dacbf66a26f9a51"
+
+# Because docker/go-metrics can not handle the API change after this revision
+[[override]]
+  name = "github.com/prometheus/client_golang"
+  revision = "661e31bf844dfca9aeba15f27ea8aa0d485ad212"
