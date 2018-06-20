@@ -3,6 +3,8 @@ package container
 import (
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -52,6 +54,15 @@ func runContainer(
 		return err
 	}
 
+	resizeContainer(ctx, containerID, options)
+	resizeChannel := make(chan os.Signal, 1)
+	signal.Notify(resizeChannel, syscall.SIGWINCH)
+	go func() {
+		for range resizeChannel {
+			resizeContainer(ctx, containerID, options)
+		}
+	}()
+
 	if err := <-streamErrorChannel; err != nil {
 		return err
 	}
@@ -61,6 +72,36 @@ func runContainer(
 		return nil
 	case err := <-waitErrorChannel:
 		return err
+	}
+}
+
+func resizeContainer(
+	ctx context.Context, containerID string, options Options,
+) {
+	outFd, _ := term.GetFdInfo(os.Stdout)
+
+	ws, err := term.GetWinsize(outFd)
+	if err != nil {
+		return
+		log.Debugf("Error resize: %s", err)
+	}
+
+	height := uint(ws.Height)
+	width := uint(ws.Width)
+	if height == 0 && width == 0 {
+		return
+	}
+
+	err = options.Client.ContainerResize(
+		ctx,
+		containerID,
+		types.ResizeOptions{
+			Height: height,
+			Width:  width,
+		},
+	)
+	if err != nil {
+		log.Debugf("Error resize: %s", err)
 	}
 }
 
