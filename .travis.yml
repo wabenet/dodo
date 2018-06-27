@@ -1,0 +1,26 @@
+language: go
+
+go:
+  - 1.10.x
+
+before_install:
+  - go get github.com/mitchellh/gox
+  - go get github.com/alecthomas/gometalinter
+  - gometalinter --install
+
+script: make all
+
+branches:
+  only: 
+    - /.*/
+
+deploy:
+  provider: releases
+  file:
+    - dodo_linux_amd64
+    - dodo_darwin_amd64
+  skip_cleanup: true
+  on:
+    tags: true
+  api_key:
+    secure: l0Hsuw15OZcTCQrXrLSTfoourapJ1Wyu7UPLd7JLuPOdJ/stMHQgxJbpoySrrvpIWGM3ohtHJgqvyOIp7DlctJp90+JcsETKmYps+hCMUl/o4Nk8ue8CdfmaNnFQydgXCv8XHEi5rkusFEoO92bcXC0DKvUv+cwNQC4Ft37T6ZMx9unUxn8uICRiPiaoYFUT5k/Fg0gUX4Ymd69G/fkcG9hZ4PLRWKM56Lfo1rD/8o7KCTIjbmu1cA/VPDB/fqqzzvf1k5RuizebMjT9axg6rq+ZKFP3EA8v2XMI1O8X6B5fghdaLclbTL4aMPiXru7fQFzL36zKHVxME1jSqjY71bs/Va6c1CgDI435dzAOCoLVw+hm7rNjkXQUKQ3a9gnBg28h4ty37uSpMCRMseV+yn2rVfqCMujI6XtrFMyuikqFZMH85IgKvlL8Xo/JbAzX9R1NnB6Q7biC0TJX5vOfJdwFUOtagoQJpEDWy0YSFjvXAHGnaUsllLoIbv0E9SOWsb2jWYTpSpQ1loZZwz++0luR1EiKo/xaNoyiMH5ysPmgBMC3Q6RGHB+MzLXJxj1HrVbepQjzKsbmKpqDZDWrYTlX1gE9BaGZcoox6z9hVgQ8pIdiy7z20PETLknnsv+n9Xjjf3pkSZugjEgEdpbSZLKCI82xPwr//5AMQDdqBVE=
