@@ -70,7 +70,11 @@ func decodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 func decodeKeyValue(name string, config interface{}) (KeyValue, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		switch values := strings.SplitN(t.String(), "=", 2); len(values) {
+		decoded, err := decodeString(name, t.String())
+		if err != nil {
+			return KeyValue{}, err
+		}
+		switch values := strings.SplitN(decoded, "=", 2); len(values) {
 		case 0:
 			return KeyValue{}, fmt.Errorf("Empty assignment in '%s'", name)
 		case 1:

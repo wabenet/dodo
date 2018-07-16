@@ -2,11 +2,11 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 
-	"github.com/a8m/envsubst"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -91,7 +91,7 @@ func FindConfigInDirectory(
 func FindConfigInFile(
 	backdrop string, filename string,
 ) (*BackdropConfig, error) {
-	bytes, err := envsubst.ReadFile(filename)
+	bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Could not read file '%s'", filename)
 	}
@@ -154,7 +154,7 @@ func ListConfigurations() {
 				continue
 			}
 
-			bytes, err := envsubst.ReadFile(path)
+			bytes, err := ioutil.ReadFile(path)
 			if err != nil {
 				continue
 			}

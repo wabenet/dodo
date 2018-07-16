@@ -66,7 +66,11 @@ func decodeVolumes(name string, config interface{}) (Volumes, error) {
 func decodeVolume(name string, config interface{}) (Volume, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		switch values := strings.SplitN(t.String(), ":", 3); len(values) {
+		decoded, err := decodeString(name, t.String())
+		if err != nil {
+			return Volume{}, err
+		}
+		switch values := strings.SplitN(decoded, ":", 3); len(values) {
 		case 0:
 			return Volume{}, fmt.Errorf("Empty volume definition in '%s'", name)
 		case 1:
