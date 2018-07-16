@@ -10,6 +10,7 @@ import (
 // Config represents a full configuration file
 type Config struct {
 	Backdrops Backdrops
+	Includes  Includes
 }
 
 func errorUnsupportedType(name string, kind reflect.Kind) error {
@@ -46,6 +47,12 @@ func decodeConfig(name string, config interface{}) (Config, error) {
 					return result, err
 				}
 				result.Backdrops = decoded
+			case "include":
+				decoded, err := decodeIncludes(k, v)
+				if err != nil {
+					return result, err
+				}
+				result.Includes = decoded
 			default:
 				return result, errorUnsupportedKey(name, k)
 			}

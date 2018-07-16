@@ -59,6 +59,8 @@ func decodeVolumes(name string, config interface{}) (Volumes, error) {
 			}
 			result = append(result, decoded)
 		}
+	default:
+		return result, errorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }

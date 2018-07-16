@@ -101,12 +101,48 @@ func FindConfigInFile(
 		return nil, fmt.Errorf("Could not parse config from '%s': %s", filename, err)
 	}
 
-	if config.Backdrops == nil {
+	if config.Backdrops == nil && config.Includes == nil {
 		return nil, fmt.Errorf("File '%s' does not contain any backdrop configurations", filename)
 	}
 
 	if backdropConfig, ok := config.Backdrops[backdrop]; ok {
 		return &backdropConfig, nil
+	}
+
+	directory := filepath.Dir(filename)
+	for _, include := range config.Includes {
+		if include.File != "" {
+			path, err := filepath.Abs(filepath.Join(directory, include.File))
+			if err != nil {
+				log.Error(err)
+			}
+			// TODO: this may create infinite loops
+			config, err := FindConfigInFile(backdrop, path)
+			if err == nil {
+				return config, err
+			}
+			log.WithFields(log.Fields{
+				"name":   backdrop,
+				"file":   path,
+				"reason": err,
+			}).Debug("No valid config found in file")
+		} else if include.Text != "" {
+			config, err := ParseConfiguration(filename, []byte(include.Text))
+			if err != nil {
+				return nil, fmt.Errorf("Could not parse config from include in '%s': %s", filename, err)
+			}
+			if config.Backdrops == nil {
+				return nil, fmt.Errorf("Include in file '%s' does not contain any backdrop configurations", filename)
+			}
+			if backdropConfig, ok := config.Backdrops[backdrop]; ok {
+				return &backdropConfig, nil
+			}
+			log.WithFields(log.Fields{
+				"name":   backdrop,
+				"file":   filename,
+				"reason": err,
+			}).Debug("No valid config in include of file")
+		}
 	}
 
 	return nil, fmt.Errorf("File '%s' does not contain configuration for backdrop '%s'", filename, backdrop)
