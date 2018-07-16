@@ -80,6 +80,21 @@ to `/bin/sh`.
 For details on the backdrop configuration, check the following [examples](#examples)
 or the full [reference](#config-reference).
 
+### templating
+
+All strings in the YAML configuration are processed by the [golang templating
+engine](https://golang.org/pkg/text/template/). The following methods are
+available:
+
+ * `{{ cwd }}` evaluates to the current working directory
+ * `{{ env <variable> }}` evaluates to the contents of environment variable
+   `<variable>`
+ * `{{ user }}` evaluates to the current user, in form of a
+   [golang user](https://golang.org/pkg/os/user/). From this, you can access
+   fields like `{{ user.HomeDir }}` or `{{ user.Uid }}`.
+ * `{{ sh <command> }}` executes `<command>` via `/bin/sh` and evaluates
+   to its stdout
+
 ### examples
 
 For example, I use the following configuration in most of my Ruby projects based
@@ -96,7 +111,7 @@ backdrops:
         - COPY *.gemspec Gemfile* ./
         - RUN bundle install
     volumes:
-      - ${PWD}:/build
+      - '{{ cwd }}:/build'
     working_dir: /build
     script: exec bundle exec rake "$@"
     command: all
@@ -116,7 +131,7 @@ backdrops:
       - TF_LOG=DEBUG
       - TF_LOG_PATH=/terraform/terraform.log
     volumes:
-      - ${PWD}:/terraform
+      - {{ cwd }}:/terraform
     working_dir: /terraform
     script: |
       test -f terraform.log && rm -f terraform.log
