@@ -61,11 +61,7 @@ func NewCommand() *cobra.Command {
 }
 
 func runCommand(options *options.Options, name string, command []string) error {
-	config, err := config.LoadConfiguration(name, options.Filename)
-	if err != nil {
-		return err
-	}
-
+	config := config.LoadConfiguration(name, options.Filename)
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return err

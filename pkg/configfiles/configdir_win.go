@@ -1,11 +1,11 @@
 // +build windows
 
-package config
+package configfiles
 
 import "os"
 
-var XDGDefaultDir = ""
-var SpecialSystemDirectories = []string{
+var xdgDefaultDir = ""
+var specialSystemDirectories = []string{
 	os.Getenv("PROGRAMDATA"),
 	os.Getenv("APPDATA"),
 }

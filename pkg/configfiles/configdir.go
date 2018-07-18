@@ -1,4 +1,4 @@
-package config
+package configfiles
 
 import (
 	"os"
@@ -6,15 +6,14 @@ import (
 	"path/filepath"
 )
 
-const (
-	XDGHome = "XDG_CONFIG_HOME"
-	XDGDirs = "XDG_CONFIG_DIRS"
-	DirName = "dodo"
+var (
+	xdgHome = os.Getenv("XDG_CONFIG_HOME")
+	xdgDirs = os.Getenv("XDG_CONFIG_DIRS")
 )
 
 // FindConfigDirectories provides a list of directories on the file system
 // that should be search for config files.
-func FindConfigDirectories() ([]string, error) {
+func FindConfigDirectories(appname string) ([]string, error) {
 	var configDirs []string
 
 	workingDir, err := os.Getwd()
@@ -34,26 +33,26 @@ func FindConfigDirectories() ([]string, error) {
 		configDirs = append(configDirs, user.HomeDir)
 	}
 
-	if xdgHome := os.Getenv(XDGHome); xdgHome != "" {
-		configDir := filepath.Join(xdgHome, DirName)
+	if xdgHome != "" {
+		configDir := filepath.Join(xdgHome, appname)
 		configDirs = append(configDirs, configDir)
 	} else {
-		configdir := filepath.Join(user.HomeDir, ".config", DirName)
+		configdir := filepath.Join(user.HomeDir, ".config", appname)
 		configDirs = append(configDirs, configdir)
 	}
 
-	if xdgDirs := os.Getenv(XDGDirs); xdgDirs != "" {
+	if xdgDirs != "" {
 		for _, xdgDir := range filepath.SplitList(xdgDirs) {
-			configDir := filepath.Join(xdgDir, DirName)
+			configDir := filepath.Join(xdgDir, appname)
 			configDirs = append(configDirs, configDir)
 		}
-	} else if XDGDefaultDir != "" {
-		configDir := filepath.Join(XDGDefaultDir, DirName)
+	} else if xdgDefaultDir != "" {
+		configDir := filepath.Join(xdgDefaultDir, appname)
 		configDirs = append(configDirs, configDir)
 	}
 
-	for _, systemDir := range SpecialSystemDirectories {
-		configDir := filepath.Join(systemDir, DirName)
+	for _, systemDir := range specialSystemDirectories {
+		configDir := filepath.Join(systemDir, appname)
 		configDirs = append(configDirs, configDir)
 	}
 
