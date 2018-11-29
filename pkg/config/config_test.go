@@ -53,6 +53,25 @@ backdrops:
     command: ['Hello', 'World']
 `
 
+var exampleGroupedYaml = `
+groups:
+  first:
+    backdrops:
+      example1:
+        image: testimage
+
+    groups:
+      second:
+        backdrops:
+          example2:
+            image: testimage
+
+  third:
+    backdrops:
+      example3:
+        image: testimage
+`
+
 func getExampleConfig(t *testing.T, name string) BackdropConfig {
 	config, err := ParseConfiguration("exampleYaml", []byte(exampleYaml))
 	assert.Nil(t, err)
@@ -136,4 +155,15 @@ func TestFullExample(t *testing.T) {
 	assert.Contains(t, config.Interpreter, "/bin/sh")
 	assert.Equal(t, "echo \"$@\"\n", config.Script)
 	assert.Equal(t, []string{"Hello", "World"}, config.Command)
+}
+
+func TestNestedGroups(t *testing.T) {
+	config, err := ParseConfiguration("exampleGroupedYaml", []byte(exampleGroupedYaml))
+	assert.Nil(t, err)
+	assert.Contains(t, config.Groups, "first")
+	assert.Contains(t, config.Groups["first"].Backdrops, "example1")
+	assert.Contains(t, config.Groups["first"].Groups, "second")
+	assert.Contains(t, config.Groups["first"].Groups["second"].Backdrops, "example2")
+	assert.Contains(t, config.Groups, "third")
+	assert.Contains(t, config.Groups["third"].Backdrops, "example3")
 }
