@@ -15,7 +15,10 @@ type BuildConfig struct {
 }
 
 func decodeBuild(name string, config interface{}) (BuildConfig, error) {
-	var result BuildConfig
+	result := BuildConfig{
+		Context:    ".",
+		Dockerfile: "Dockerfile",
+	}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		decoded, err := decodeString(name, config)

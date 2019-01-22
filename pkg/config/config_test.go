@@ -89,7 +89,7 @@ func TestContextOnly(t *testing.T) {
 	config := getExampleConfig(t, "contextOnly")
 	assert.NotNil(t, config.Build)
 	assert.Equal(t, "./path/to/context", config.Build.Context)
-	assert.Equal(t, "", config.Build.Dockerfile)
+	assert.Equal(t, "Dockerfile", config.Build.Dockerfile)
 }
 
 func TestEnvironments(t *testing.T) {

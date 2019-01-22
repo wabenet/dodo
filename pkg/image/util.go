@@ -44,13 +44,15 @@ func handleImageResult(result io.ReadCloser, getImageID bool) (string, error) {
 		}
 
 		if msg.Aux != nil && getImageID {
-			var result types.BuildResult
-			if err := json.Unmarshal(*msg.Aux, &result); err == nil {
-				imageID = result.ID
-			} else {
-				log.Error(err)
+			if msg.ID == "moby.image.id" {
+				var result types.BuildResult
+				if err := json.Unmarshal(*msg.Aux, &result); err == nil {
+					imageID = result.ID
+				} else {
+					log.Error(err)
+				}
+				continue
 			}
-			continue
 		}
 
 		if msg.Stream != "" {

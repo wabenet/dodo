@@ -1,16 +1,15 @@
 [prune]
-  go-tests = true
   unused-packages = true
+  non-go = true
+  go-tests = true
 
 [[constraint]]
-  name = "github.com/docker/distribution"
-  branch = "master"
+  name = "github.com/docker/cli"
+  version = "18.06.1"
 
-# The last commit before the API version changed to 1.37
-# All released versions suffer from upper-case logrus imports
 [[constraint]]
   name = "github.com/docker/docker"
-  revision = "f23c00d8701e4bd0f2372a586dacbf66a26f9a51"
+  revision = "bc4c1c238b551ce58fc26690523354d1571bab1d"
 
 # Because docker/go-metrics can not handle the API change after this revision
 [[override]]

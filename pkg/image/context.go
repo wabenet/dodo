@@ -1,154 +1,109 @@
 package image
 
 import (
-	"archive/tar"
-	"fmt"
+	"bytes"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
-	"github.com/docker/docker/builder/dockerignore"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/idtools"
-	log "github.com/sirupsen/logrus"
+	"github.com/docker/docker/pkg/urlutil"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/session/filesync"
+	"github.com/pkg/errors"
+	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
-func getContext(options Options, dockerfile string) (io.ReadCloser, error) {
-	contextDir := options.Context
-	if contextDir == "" {
-		contextDir = "."
-	}
-	contextDir, err := filepath.Abs(contextDir)
-	if err != nil {
-		return nil, err
-	}
-	contextDir, err = filepath.EvalSymlinks(contextDir)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := os.Lstat(contextDir)
-	if err != nil {
-		return nil, err
-	}
-	if !stat.IsDir() {
-		return nil, fmt.Errorf(
-			"context must be a directory: %s", contextDir)
-	}
-	excludes, err := getDockerignore(contextDir, dockerfile)
-	if err != nil {
-		return nil, err
-	}
-	dockerfileStream, err := getDockerfile(options, contextDir)
-	if err != nil {
-		return nil, err
-	}
-	tarStream, err := archive.TarWithOptions(
-		contextDir,
-		&archive.TarOptions{
-			ExcludePatterns: excludes,
-			ChownOpts:       &idtools.IDPair{UID: 0, GID: 0},
-		},
+func prepareContext(
+	context string, dockerfile string, steps string, session *session.Session,
+) (string, string, func(), error) {
+	var (
+		remote         string
+		dockerfileName = dockerfile
+		syncedDirs     = []filesync.SyncedDir{}
+		cleanup        = func() {}
 	)
-	if err != nil {
-		return nil, err
+
+	if context == "" {
+		remote = "client-session"
+
+	} else if _, err := os.Stat(context); err == nil {
+		remote = "client-session"
+		syncedDirs = append(syncedDirs, filesync.SyncedDir{
+			Name: "context",
+			Dir:  context,
+			Map: func(stat *fstypes.Stat) bool {
+				stat.Uid = 0
+				stat.Gid = 0
+				return true
+			},
+		})
+
+	} else if urlutil.IsURL(context) {
+		remote = context
+
+	} else {
+		return "", "", nil, errors.Errorf("Context directory does not exist: %v", context)
 	}
-	now := time.Now()
-	header := &tar.Header{
-		Mode:       0600,
-		Uid:        0,
-		Gid:        0,
-		ModTime:    now,
-		Typeflag:   tar.TypeReg,
-		AccessTime: now,
-		ChangeTime: now,
+
+	if steps != "" {
+		tempfile, err := writeDockerfile("Dockerfile", steps)
+		if err != nil {
+			return "", "", nil, err
+		}
+		dockerfileName = filepath.Base(tempfile)
+		dockerfileDir := filepath.Dir(tempfile)
+		cleanup = func() { os.RemoveAll(dockerfileDir) }
+		syncedDirs = append(syncedDirs, filesync.SyncedDir{
+			Name: "dockerfile",
+			Dir:  dockerfileDir,
+		})
+
+	} else if dockerfile != "" && remote == "client-session" {
+		dockerfileName = filepath.Base(dockerfile)
+		dockerfileDir := filepath.Dir(dockerfile)
+		syncedDirs = append(syncedDirs, filesync.SyncedDir{
+			Name: "dockerfile",
+			Dir:  dockerfileDir,
+		})
 	}
-	dockerfileFunc := func(
-		_ string, _ *tar.Header, _ io.Reader,
-	) (*tar.Header, []byte, error) {
-		return header, dockerfileStream, nil
+
+	if len(syncedDirs) > 0 {
+		session.Allow(filesync.NewFSSyncProvider(syncedDirs))
 	}
-	tarStream = archive.ReplaceFileTarWrapper(
-		tarStream,
-		map[string]archive.TarModifierFunc{
-			dockerfile: dockerfileFunc,
-		},
-	)
-	return tarStream, nil
+
+	return remote, dockerfileName, cleanup, nil
 }
 
-func getDockerignore(contextDir string, dockerfile string) ([]string, error) {
-	file, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
+func writeDockerfile(filename string, content string) (dockerfile string, err error) {
+	tempdir, err := ioutil.TempDir("", "dodo-temp-dockerfile-")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, err
+		return "", err
 	}
+
 	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			log.Error(closeErr)
+		if err != nil {
+			os.RemoveAll(tempdir)
 		}
 	}()
 
-	excludes, err := dockerignore.ReadAll(file)
+	dockerfile = filepath.Join(tempdir, filename)
+	file, err := os.Create(dockerfile)
 	if err != nil {
-		return nil, err
+		return "", err
+	}
+	defer file.Close()
+
+	rc := ioutil.NopCloser(bytes.NewReader([]byte(content)))
+	_, err = io.Copy(file, rc)
+	if err != nil {
+		return "", err
 	}
 
-	if keep, _ := fileutils.Matches(".dockerignore", excludes); keep {
-		excludes = append(excludes, "!.dockerignore")
-	}
-	if keep, _ := fileutils.Matches(dockerfile, excludes); keep {
-		excludes = append(excludes, "!"+dockerfile)
+	err = rc.Close()
+	if err != nil {
+		return "", err
 	}
 
-	return excludes, nil
-}
-
-func getDockerfile(options Options, contextDir string) ([]byte, error) {
-	dockerfile := options.Dockerfile
-	steps := ""
-	for _, step := range options.Steps {
-		steps = steps + "\n" + step
-	}
-
-	if dockerfile == "" && len(steps) > 0 {
-		return []byte(steps), nil
-	}
-
-	if dockerfile == "" {
-		dockerfile = filepath.Join(contextDir, "Dockerfile")
-	}
-	if !filepath.IsAbs(dockerfile) {
-		dockerfile = filepath.Join(contextDir, dockerfile)
-	}
-	dockerfile, err := filepath.Abs(dockerfile)
-	if err != nil {
-		return nil, err
-	}
-	dockerfile, err = filepath.EvalSymlinks(dockerfile)
-	if err != nil {
-		return nil, err
-	}
-	_, err = os.Lstat(dockerfile)
-	if err != nil {
-		return nil, err
-	}
-	file, err := os.Open(dockerfile)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if closeErr := file.Close(); err != nil {
-			log.Error(closeErr)
-		}
-	}()
-	bytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-	return append(bytes, []byte(steps)...), nil
+	return dockerfile, nil
 }

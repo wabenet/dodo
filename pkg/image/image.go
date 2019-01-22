@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -30,6 +31,9 @@ type Options struct {
 // Client represents a docker client that can do everything this package
 // needs
 type Client interface {
+	ClientVersion() string
+	DialSession(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
+	BuildCancel(ctx context.Context, id string) error
 	Info(context.Context) (types.Info, error)
 	ImageList(context.Context, types.ImageListOptions) ([]types.ImageSummary, error)
 	ImagePull(context.Context, string, types.ImagePullOptions) (io.ReadCloser, error)
@@ -49,7 +53,7 @@ func Get(ctx context.Context, options Options) (string, error) {
 		} else {
 			log.Info("Building image...")
 		}
-		return build(ctx, options)
+		return buildToDo(options)
 	} else if options.Name != "" {
 		log.Info(fmt.Sprintf("Image %s not found locally, pulling...", options.Name))
 		return pull(ctx, options)

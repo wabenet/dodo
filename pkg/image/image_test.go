@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"net"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -165,6 +166,20 @@ func (client *fakeImageClient) Info(_ context.Context) (types.Info, error) {
 	return types.Info{}, nil
 }
 
+func (client *fakeImageClient) ClientVersion() string {
+	return "1.39"
+}
+
+func (client *fakeImageClient) DialSession(
+	_ context.Context, _ string, _ map[string][]string,
+) (net.Conn, error) {
+	return nil, nil
+}
+
+func (client *fakeImageClient) BuildCancel(_ context.Context, _ string) error {
+	return nil
+}
+
 func (client *fakeImageClient) ImageList(
 	_ context.Context, _ types.ImageListOptions,
 ) ([]types.ImageSummary, error) {
@@ -205,6 +220,7 @@ func (client *fakeImageClient) ImageBuild(
 	assert.Nil(client.t, err)
 	rawJSON := json.RawMessage(auxJSON)
 	message := jsonmessage.JSONMessage{
+		ID:     "moby.image.id",
 		Stream: "hello world",
 		Aux:    &rawJSON,
 	}
