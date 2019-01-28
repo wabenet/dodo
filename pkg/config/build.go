@@ -6,29 +6,34 @@ import (
 
 // BuildConfig represents the build configuration for a docker image
 type BuildConfig struct {
+	Name         string
 	Context      string
 	Dockerfile   string
 	Steps        []string
 	Args         KeyValueList
 	NoCache      bool
 	ForceRebuild bool
+	ForcePull    bool
 }
 
 func decodeBuild(name string, config interface{}) (BuildConfig, error) {
-	result := BuildConfig{
-		Context:    ".",
-		Dockerfile: "Dockerfile",
-	}
+	var result BuildConfig
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		decoded, err := decodeString(name, config)
 		if err != nil {
 			return result, err
 		}
-		result.Context = decoded
+		result.Name = decoded
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
+			case "name":
+				decoded, err := decodeString(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Name = decoded
 			case "context":
 				decoded, err := decodeString(key, v)
 				if err != nil {
@@ -65,6 +70,12 @@ func decodeBuild(name string, config interface{}) (BuildConfig, error) {
 					return result, err
 				}
 				result.ForceRebuild = decoded
+			case "force_pull":
+				decoded, err := decodeBool(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.ForcePull = decoded
 			default:
 				return result, errorUnsupportedKey(name, key)
 			}

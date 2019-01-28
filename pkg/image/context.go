@@ -2,6 +2,7 @@ package image
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,7 +16,7 @@ import (
 )
 
 func prepareContext(
-	context string, dockerfile string, steps string, session *session.Session,
+	context string, dockerfile string, steps string, name string, session *session.Session,
 ) (string, string, func(), error) {
 	var (
 		remote         string
@@ -66,6 +67,20 @@ func prepareContext(
 			Name: "dockerfile",
 			Dir:  dockerfileDir,
 		})
+
+	} else if name != "" && remote == "client-session" {
+		tempfile, err := writeDockerfile("Dockerfile", fmt.Sprintf("FROM %s", name))
+		if err != nil {
+			return "", "", nil, err
+		}
+		dockerfileName = filepath.Base(tempfile)
+		dockerfileDir := filepath.Dir(tempfile)
+		cleanup = func() { os.RemoveAll(dockerfileDir) }
+		syncedDirs = append(syncedDirs, filesync.SyncedDir{
+			Name: "dockerfile",
+			Dir:  dockerfileDir,
+		})
+
 	}
 
 	if len(syncedDirs) > 0 {

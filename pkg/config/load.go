@@ -60,7 +60,7 @@ func LoadConfiguration(
 // on the name, that can be used in case no better configuration was found.
 func FallbackConfig(backdrop string) *BackdropConfig {
 	result := &BackdropConfig{
-		Image:  backdrop,
+		Build:  &BuildConfig{Steps: []string{fmt.Sprintf("FROM %s", backdrop)}},
 		Script: fmt.Sprintf("%s $@", backdrop),
 	}
 

@@ -16,7 +16,6 @@ type BackdropConfig struct {
 	Pull          bool
 	Interactive   bool
 	Environment   KeyValueList
-	Image         string
 	User          string
 	Volumes       Volumes
 	VolumesFrom   []string
@@ -50,7 +49,7 @@ func decodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
-			case "build":
+			case "build", "image":
 				decoded, err := decodeBuild(key, v)
 				if err != nil {
 					return result, err
@@ -68,12 +67,6 @@ func decodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 					return result, err
 				}
 				result.Remove = &decoded
-			case "pull":
-				decoded, err := decodeBool(key, v)
-				if err != nil {
-					return result, err
-				}
-				result.Pull = decoded
 			case "interactive":
 				decoded, err := decodeBool(key, v)
 				if err != nil {
@@ -86,12 +79,6 @@ func decodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 					return result, err
 				}
 				result.Environment = decoded
-			case "image":
-				decoded, err := decodeString(key, v)
-				if err != nil {
-					return result, err
-				}
-				result.Image = decoded
 			case "user":
 				decoded, err := decodeString(key, v)
 				if err != nil {

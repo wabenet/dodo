@@ -1,15 +1,26 @@
 package image
 
 import (
-	"errors"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
+	"os"
+	"os/user"
+	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	log "github.com/sirupsen/logrus"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/appcontext"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 )
 
 // Options represents the configuration for a docker image that can be
@@ -19,7 +30,6 @@ type Options struct {
 	AuthConfigs map[string]types.AuthConfig
 	Name        string
 	ForcePull   bool
-	DoBuild     bool
 	ForceBuild  bool
 	NoCache     bool
 	Context     string
@@ -34,50 +44,140 @@ type Client interface {
 	ClientVersion() string
 	DialSession(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 	BuildCancel(ctx context.Context, id string) error
-	Info(context.Context) (types.Info, error)
-	ImageList(context.Context, types.ImageListOptions) ([]types.ImageSummary, error)
-	ImagePull(context.Context, string, types.ImagePullOptions) (io.ReadCloser, error)
 	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)
 }
 
 // Get gets a valid image id, and builds or pulls the image if necessary.
-func Get(ctx context.Context, options Options) (string, error) {
+func Get(options Options) (string, error) {
 	if options.Client == nil {
 		return "", errors.New("client may not be nil")
-	} else if name, ok := existsLocally(ctx, options); ok {
-		log.Info(fmt.Sprintf("Using image %s", name))
-		return name, nil
-	} else if options.DoBuild {
-		if options.Name != "" {
-			log.Info(fmt.Sprintf("Image %s not found, building...", options.Name))
-		} else {
-			log.Info("Building image...")
-		}
-		return buildToDo(options)
-	} else if options.Name != "" {
-		log.Info(fmt.Sprintf("Image %s not found locally, pulling...", options.Name))
-		return pull(ctx, options)
-	} else {
-		return "", errors.New("you need to specify either image name or build")
 	}
+	if versions.LessThan(options.Client.ClientVersion(), "1.31") {
+		return "", errors.Errorf("buildkit not supported by daemon")
+	}
+
+	args := map[string]*string{}
+	for _, arg := range options.Args {
+		switch values := strings.SplitN(arg, "=", 2); len(values) {
+		case 1:
+			args[values[0]] = nil
+		case 2:
+			args[values[0]] = &values[1]
+		}
+	}
+
+	var tags []string
+	if options.Name != "" {
+		tags = append(tags, options.Name)
+	}
+
+	var contextDir string
+	if options.Context == "" {
+		contextDir = "."
+	} else {
+		contextDir = options.Context
+	}
+
+	ctx := appcontext.Context()
+
+	sessionID, err := readOrCreateSessionID()
+	if err != nil {
+		return "", err
+	}
+	s := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", sessionID, contextDir)))
+	sharedKey := hex.EncodeToString(s[:])
+
+	session, err := session.NewSession(context.Background(), filepath.Base(contextDir), sharedKey)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create session")
+	}
+
+	steps := ""
+	for _, step := range options.Steps {
+		steps = steps + "\n" + step
+	}
+
+	remote, dockerfile, cleanup, err := prepareContext(contextDir, options.Dockerfile, steps, options.Name, session)
+	if err != nil {
+		return "", err
+	}
+	defer cleanup()
+
+	buildID := stringid.GenerateRandomID()
+	imageID := ""
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return session.Run(context.TODO(), options.Client.DialSession)
+	})
+
+	eg.Go(func() error {
+		defer func() {
+			session.Close()
+		}()
+
+		response, err := options.Client.ImageBuild(
+			context.Background(),
+			nil,
+			types.ImageBuildOptions{
+				Tags:           tags,
+				SuppressOutput: false,
+				NoCache:        options.NoCache,
+				Remove:         true,
+				ForceRemove:    true,
+				PullParent:     options.ForcePull,
+				Dockerfile:     dockerfile,
+				BuildArgs:      args,
+				AuthConfigs:    options.AuthConfigs,
+				Version:        types.BuilderBuildKit,
+				RemoteContext:  remote,
+				SessionID:      session.ID(),
+				BuildID:        buildID,
+			},
+		)
+		if err != nil {
+			return err
+		}
+		imageID, err = handleImageResult(response.Body, true)
+		return err
+	})
+
+	return imageID, eg.Wait()
 }
 
-func existsLocally(ctx context.Context, options Options) (string, bool) {
-	if options.Name == "" {
-		return "", false
-	} else if options.DoBuild && options.ForceBuild {
-		return "", false
-	} else if options.ForcePull {
-		return "", false
+func readOrCreateSessionID() (string, error) {
+	user, err := user.Current()
+	if err != nil {
+		return "", err
 	}
 
-	filter := filters.NewArgs(filters.Arg("reference", options.Name))
-	images, err := options.Client.ImageList(
-		ctx,
-		types.ImageListOptions{Filters: filter},
-	)
-	if err != nil || len(images) == 0 {
-		return "", false
+	sessionDir := filepath.Join(user.HomeDir, ".dodo")
+	sessionFile := filepath.Join(sessionDir, "sessionID")
+
+	err = os.MkdirAll(sessionDir, 0700)
+	if err != nil {
+		return "", err
 	}
-	return options.Name, true
+
+	if _, err = os.Lstat(sessionFile); err == nil {
+		sessionID, err := ioutil.ReadFile(sessionFile)
+		if err != nil {
+			return "", err
+		}
+		return string(sessionID), nil
+	}
+
+	sessionID := make([]byte, 32)
+	_, err = rand.Read(sessionID)
+	if err != nil {
+		return "", err
+	}
+	sessionID = []byte(hex.EncodeToString(sessionID))
+	err = ioutil.WriteFile(sessionFile, sessionID, 0600)
+	if err != nil {
+		return "", err
+	}
+
+	return string(sessionID), nil
 }
