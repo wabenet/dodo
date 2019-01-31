@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,14 +14,24 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/console"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stringid"
+	controlapi "github.com/moby/buildkit/api/services/control"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/appcontext"
+	"github.com/moby/buildkit/util/progress/progressui"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
+)
+
+var (
+	errMissingImageID = errors.New(
+		"build complete, but the server did not send an image id")
 )
 
 // Options represents the configuration for a docker image that can be
@@ -42,8 +53,8 @@ type Options struct {
 // needs
 type Client interface {
 	ClientVersion() string
-	DialSession(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
-	BuildCancel(ctx context.Context, id string) error
+	Ping(context.Context) (types.Ping, error)
+	DialSession(context.Context, string, map[string][]string) (net.Conn, error)
 	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)
 }
 
@@ -52,7 +63,11 @@ func Get(options Options) (string, error) {
 	if options.Client == nil {
 		return "", errors.New("client may not be nil")
 	}
-	if versions.LessThan(options.Client.ClientVersion(), "1.31") {
+	ping, err := options.Client.Ping(context.Background())
+	if err != nil {
+		return "", err
+	}
+	if !ping.Experimental || versions.LessThan(options.Client.ClientVersion(), "1.31") {
 		return "", errors.Errorf("buildkit not supported by daemon")
 	}
 
@@ -139,11 +154,101 @@ func Get(options Options) (string, error) {
 		if err != nil {
 			return err
 		}
-		imageID, err = handleImageResult(response.Body, true)
-		return err
+		defer response.Body.Close()
+		displayCh := make(chan *client.SolveStatus)
+		defer close(displayCh)
+
+		cons, err := console.ConsoleFromFile(os.Stdout)
+		if err != nil {
+			return err
+		}
+
+		eg.Go(func() error {
+			return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stdout, displayCh)
+		})
+
+		decoder := json.NewDecoder(response.Body)
+		for {
+			var msg jsonmessage.JSONMessage
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return err
+			}
+
+			if msg.Error != nil {
+				return msg.Error
+			}
+
+			if msg.Aux != nil {
+				if msg.ID == "moby.image.id" {
+					var result types.BuildResult
+					if err := json.Unmarshal(*msg.Aux, &result); err != nil {
+						continue
+					}
+					imageID = result.ID
+				} else if msg.ID == "moby.buildkit.trace" {
+					var resp controlapi.StatusResponse
+					var dt []byte
+					if err := json.Unmarshal(*msg.Aux, &dt); err != nil {
+						continue
+					}
+					if err := (&resp).Unmarshal(dt); err != nil {
+						continue
+					}
+
+					s := client.SolveStatus{}
+					for _, v := range resp.Vertexes {
+						s.Vertexes = append(s.Vertexes, &client.Vertex{
+							Digest:    v.Digest,
+							Inputs:    v.Inputs,
+							Name:      v.Name,
+							Started:   v.Started,
+							Completed: v.Completed,
+							Error:     v.Error,
+							Cached:    v.Cached,
+						})
+					}
+					for _, v := range resp.Statuses {
+						s.Statuses = append(s.Statuses, &client.VertexStatus{
+							ID:        v.ID,
+							Vertex:    v.Vertex,
+							Name:      v.Name,
+							Total:     v.Total,
+							Current:   v.Current,
+							Timestamp: v.Timestamp,
+							Started:   v.Started,
+							Completed: v.Completed,
+						})
+					}
+					for _, v := range resp.Logs {
+						s.Logs = append(s.Logs, &client.VertexLog{
+							Vertex:    v.Vertex,
+							Stream:    int(v.Stream),
+							Data:      v.Msg,
+							Timestamp: v.Timestamp,
+						})
+					}
+
+					displayCh <- &s
+				}
+			}
+		}
+
+		return nil
 	})
 
-	return imageID, eg.Wait()
+	err = eg.Wait()
+	if err != nil {
+		return "", err
+	}
+
+	if imageID == "" {
+		return "", errMissingImageID
+	}
+
+	return imageID, nil
 }
 
 func readOrCreateSessionID() (string, error) {
