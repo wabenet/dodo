@@ -2,22 +2,12 @@ package config
 
 import (
 	"reflect"
+
+	"github.com/oclaussen/dodo/pkg/image"
 )
 
-// BuildConfig represents the build configuration for a docker image
-type BuildConfig struct {
-	Name         string
-	Context      string
-	Dockerfile   string
-	Steps        []string
-	Args         KeyValueList
-	NoCache      bool
-	ForceRebuild bool
-	ForcePull    bool
-}
-
-func decodeBuild(name string, config interface{}) (BuildConfig, error) {
-	var result BuildConfig
+func decodeImage(name string, config interface{}) (image.ImageConfig, error) {
+	var result image.ImageConfig
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		decoded, err := decodeString(name, config)

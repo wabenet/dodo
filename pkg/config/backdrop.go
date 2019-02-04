@@ -2,6 +2,9 @@ package config
 
 import (
 	"reflect"
+
+	"github.com/oclaussen/dodo/pkg/image"
+	"github.com/oclaussen/dodo/pkg/types"
 )
 
 // Backdrops represents a mapping of backdrop names to backdrop configurations.
@@ -10,14 +13,14 @@ type Backdrops map[string]BackdropConfig
 // BackdropConfig represents the configuration for a backdrop
 // (possible target for running a command)
 type BackdropConfig struct {
-	Build         *BuildConfig
+	Image         *image.ImageConfig
 	ContainerName string
 	Remove        *bool
 	Pull          bool
 	Interactive   bool
-	Environment   KeyValueList
+	Environment   types.KeyValueList
 	User          string
-	Volumes       Volumes
+	Volumes       types.Volumes
 	VolumesFrom   []string
 	WorkingDir    string
 	Interpreter   []string
@@ -50,11 +53,11 @@ func decodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "build", "image":
-				decoded, err := decodeBuild(key, v)
+				decoded, err := decodeImage(key, v)
 				if err != nil {
 					return result, err
 				}
-				result.Build = &decoded
+				result.Image = &decoded
 			case "container_name":
 				decoded, err := decodeString(key, v)
 				if err != nil {

@@ -72,9 +72,11 @@ func runCommand(options *options.Options, name string, command []string) error {
 	ctx := context.Background()
 
 	imageOptions := imageOptions(options, config)
-	imageOptions.Client = dockerClient
-	imageOptions.AuthConfigs = authConfigs
-	imageID, err := image.Get(imageOptions)
+	image, err := image.NewImage(dockerClient, authConfigs, imageOptions)
+	if err != nil {
+		return err
+	}
+	imageID, err := image.Build()
 	if err != nil {
 		return err
 	}
@@ -88,22 +90,13 @@ func runCommand(options *options.Options, name string, command []string) error {
 func imageOptions(
 	options *options.Options,
 	config *config.BackdropConfig,
-) image.Options {
-	result := image.Options{
-		Name:       config.Build.Name,
-		ForcePull:  config.Build.ForcePull,
-		NoCache:    config.Build.NoCache,
-		Context:    config.Build.Context,
-		Dockerfile: config.Build.Dockerfile,
-		Steps:      config.Build.Steps,
-		Args:       config.Build.Args.Strings(),
-		ForceBuild: config.Build.ForceRebuild,
-	}
+) *image.ImageConfig {
+	result := config.Image
 	if options.Pull {
 		result.ForcePull = options.Pull
 	}
 	if options.Build {
-		result.ForceBuild = true
+		result.ForceRebuild = true
 	}
 	if options.NoCache {
 		result.NoCache = true

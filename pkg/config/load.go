@@ -6,6 +6,8 @@ import (
 	"os/user"
 
 	"github.com/oclaussen/dodo/pkg/configfiles"
+	"github.com/oclaussen/dodo/pkg/image"
+	"github.com/oclaussen/dodo/pkg/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -60,13 +62,13 @@ func LoadConfiguration(
 // on the name, that can be used in case no better configuration was found.
 func FallbackConfig(backdrop string) *BackdropConfig {
 	result := &BackdropConfig{
-		Build:  &BuildConfig{Steps: []string{fmt.Sprintf("FROM %s", backdrop)}},
+		Image:  &image.ImageConfig{Steps: []string{fmt.Sprintf("FROM %s", backdrop)}},
 		Script: fmt.Sprintf("%s $@", backdrop),
 	}
 
 	if workingDir, err := os.Getwd(); err != nil {
 		result.WorkingDir = workingDir
-		result.Volumes = []Volume{Volume{
+		result.Volumes = []types.Volume{types.Volume{
 			Source: workingDir,
 			Target: workingDir,
 		}}

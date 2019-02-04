@@ -4,40 +4,12 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/oclaussen/dodo/pkg/types"
 )
 
-// Volumes represents a set of volume configurations
-type Volumes []Volume
-
-// Volume represents a bind-mount volume configuration
-type Volume struct {
-	Source   string
-	Target   string
-	ReadOnly bool
-}
-
-// Strings transforms a set of Volume definitions into a list of strings that
-// will be understood by docker.
-func (vs *Volumes) Strings() []string {
-	result := []string{}
-	for _, v := range *vs {
-		result = append(result, v.String())
-	}
-	return result
-}
-
-func (v *Volume) String() string {
-	if v.Target == "" && !v.ReadOnly {
-		return fmt.Sprintf("%s:%s", v.Source, v.Source)
-	} else if !v.ReadOnly {
-		return fmt.Sprintf("%s:%s", v.Source, v.Target)
-	} else {
-		return fmt.Sprintf("%s:%s:ro", v.Source, v.Target)
-	}
-}
-
-func decodeVolumes(name string, config interface{}) (Volumes, error) {
-	result := []Volume{}
+func decodeVolumes(name string, config interface{}) (types.Volumes, error) {
+	result := []types.Volume{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		decoded, err := decodeVolume(name, config)
@@ -65,36 +37,36 @@ func decodeVolumes(name string, config interface{}) (Volumes, error) {
 	return result, nil
 }
 
-func decodeVolume(name string, config interface{}) (Volume, error) {
+func decodeVolume(name string, config interface{}) (types.Volume, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
 		decoded, err := decodeString(name, t.String())
 		if err != nil {
-			return Volume{}, err
+			return types.Volume{}, err
 		}
 		switch values := strings.SplitN(decoded, ":", 3); len(values) {
 		case 0:
-			return Volume{}, fmt.Errorf("Empty volume definition in '%s'", name)
+			return types.Volume{}, fmt.Errorf("Empty volume definition in '%s'", name)
 		case 1:
-			return Volume{
+			return types.Volume{
 				Source: values[0],
 			}, nil
 		case 2:
-			return Volume{
+			return types.Volume{
 				Source: values[0],
 				Target: values[1],
 			}, nil
 		case 3:
-			return Volume{
+			return types.Volume{
 				Source:   values[0],
 				Target:   values[1],
 				ReadOnly: values[2] == "ro",
 			}, nil
 		default:
-			return Volume{}, fmt.Errorf("Too many values in '%s'", name)
+			return types.Volume{}, fmt.Errorf("Too many values in '%s'", name)
 		}
 	case reflect.Map:
-		var result Volume
+		var result types.Volume
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "source":
@@ -121,6 +93,6 @@ func decodeVolume(name string, config interface{}) (Volume, error) {
 		}
 		return result, nil
 	default:
-		return Volume{}, errorUnsupportedType(name, t.Kind())
+		return types.Volume{}, errorUnsupportedType(name, t.Kind())
 	}
 }
