@@ -1,16 +1,9 @@
 package image
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"os/user"
-	"path/filepath"
 	"strings"
 
 	"github.com/containerd/console"
@@ -19,10 +12,8 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
-	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/util/appcontext"
 	"github.com/moby/buildkit/util/progress/progressui"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
@@ -44,39 +35,23 @@ func (image *image) Build() (string, error) {
 		tags = append(tags, image.config.Name)
 	}
 
-	var contextDir string
 	if image.config.Context == "" {
-		contextDir = "."
-	} else {
-		contextDir = image.config.Context
+		image.config.Context = "."
 	}
 
 	ctx := appcontext.Context()
 
-	sessionID, err := readOrCreateSessionID()
+	session, err := prepareSession(image.config.Context)
 	if err != nil {
 		return "", err
 	}
-	s := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", sessionID, contextDir)))
-	sharedKey := hex.EncodeToString(s[:])
 
-	session, err := session.NewSession(context.Background(), filepath.Base(contextDir), sharedKey)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create session")
-	}
-
-	steps := ""
-	for _, step := range image.config.Steps {
-		steps = steps + "\n" + step
-	}
-
-	remote, dockerfile, cleanup, err := prepareContext(contextDir, image.config.Dockerfile, steps, image.config.Name, session)
+	contextData, err := prepareContext(image.config, session)
 	if err != nil {
 		return "", err
 	}
-	defer cleanup()
+	defer contextData.cleanup()
 
-	buildID := stringid.GenerateRandomID()
 	imageID := ""
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -100,13 +75,13 @@ func (image *image) Build() (string, error) {
 				Remove:         true,
 				ForceRemove:    true,
 				PullParent:     image.config.ForcePull,
-				Dockerfile:     dockerfile,
+				Dockerfile:     contextData.dockerfileName,
 				BuildArgs:      args,
 				AuthConfigs:    image.authConfigs,
 				Version:        types.BuilderBuildKit,
-				RemoteContext:  remote,
+				RemoteContext:  contextData.remote,
 				SessionID:      session.ID(),
-				BuildID:        buildID,
+				BuildID:        stringid.GenerateRandomID(),
 			},
 		)
 		if err != nil {
@@ -207,40 +182,4 @@ func (image *image) Build() (string, error) {
 	}
 
 	return imageID, nil
-}
-
-func readOrCreateSessionID() (string, error) {
-	user, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-
-	sessionDir := filepath.Join(user.HomeDir, ".dodo")
-	sessionFile := filepath.Join(sessionDir, "sessionID")
-
-	err = os.MkdirAll(sessionDir, 0700)
-	if err != nil {
-		return "", err
-	}
-
-	if _, err = os.Lstat(sessionFile); err == nil {
-		sessionID, err := ioutil.ReadFile(sessionFile)
-		if err != nil {
-			return "", err
-		}
-		return string(sessionID), nil
-	}
-
-	sessionID := make([]byte, 32)
-	_, err = rand.Read(sessionID)
-	if err != nil {
-		return "", err
-	}
-	sessionID = []byte(hex.EncodeToString(sessionID))
-	err = ioutil.WriteFile(sessionFile, sessionID, 0600)
-	if err != nil {
-		return "", err
-	}
-
-	return string(sessionID), nil
 }

@@ -15,24 +15,28 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
-func prepareContext(
-	context string, dockerfile string, steps string, name string, session *session.Session,
-) (string, string, func(), error) {
-	var (
-		remote         string
-		dockerfileName = dockerfile
-		syncedDirs     = []filesync.SyncedDir{}
-		cleanup        = func() {}
-	)
+type contextData struct {
+	remote         string
+	dockerfileName string
+	cleanup        func()
+}
 
-	if context == "" {
-		remote = "client-session"
+func prepareContext(config *ImageConfig, session *session.Session) (*contextData, error) {
+	data := contextData{
+		remote:         "",
+		dockerfileName: config.Dockerfile,
+		cleanup:        func() {},
+	}
+	syncedDirs := []filesync.SyncedDir{}
 
-	} else if _, err := os.Stat(context); err == nil {
-		remote = "client-session"
+	if config.Context == "" {
+		data.remote = "client-session"
+
+	} else if _, err := os.Stat(config.Context); err == nil {
+		data.remote = "client-session"
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "context",
-			Dir:  context,
+			Dir:  config.Context,
 			Map: func(stat *fstypes.Stat) bool {
 				stat.Uid = 0
 				stat.Gid = 0
@@ -40,42 +44,48 @@ func prepareContext(
 			},
 		})
 
-	} else if urlutil.IsURL(context) {
-		remote = context
+	} else if urlutil.IsURL(config.Context) {
+		data.remote = config.Context
 
 	} else {
-		return "", "", nil, errors.Errorf("Context directory does not exist: %v", context)
+		return nil, errors.Errorf("Context directory does not exist: %v", config.Context)
 	}
 
-	if steps != "" {
+	if len(config.Steps) > 0 {
+		steps := ""
+		for _, step := range config.Steps {
+			steps = steps + "\n" + step
+		}
+
 		tempfile, err := writeDockerfile("Dockerfile", steps)
 		if err != nil {
-			return "", "", nil, err
+			return nil, err
 		}
-		dockerfileName = filepath.Base(tempfile)
+
+		data.dockerfileName = filepath.Base(tempfile)
 		dockerfileDir := filepath.Dir(tempfile)
-		cleanup = func() { os.RemoveAll(dockerfileDir) }
+		data.cleanup = func() { os.RemoveAll(dockerfileDir) }
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "dockerfile",
 			Dir:  dockerfileDir,
 		})
 
-	} else if dockerfile != "" && remote == "client-session" {
-		dockerfileName = filepath.Base(dockerfile)
-		dockerfileDir := filepath.Dir(dockerfile)
+	} else if config.Dockerfile != "" && data.remote == "client-session" {
+		data.dockerfileName = filepath.Base(config.Dockerfile)
+		dockerfileDir := filepath.Dir(config.Dockerfile)
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "dockerfile",
 			Dir:  dockerfileDir,
 		})
 
-	} else if name != "" && remote == "client-session" {
-		tempfile, err := writeDockerfile("Dockerfile", fmt.Sprintf("FROM %s", name))
+	} else if config.Name != "" && data.remote == "client-session" {
+		tempfile, err := writeDockerfile("Dockerfile", fmt.Sprintf("FROM %s", config.Name))
 		if err != nil {
-			return "", "", nil, err
+			return nil, err
 		}
-		dockerfileName = filepath.Base(tempfile)
+		data.dockerfileName = filepath.Base(tempfile)
 		dockerfileDir := filepath.Dir(tempfile)
-		cleanup = func() { os.RemoveAll(dockerfileDir) }
+		data.cleanup = func() { os.RemoveAll(dockerfileDir) }
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "dockerfile",
 			Dir:  dockerfileDir,
@@ -87,7 +97,7 @@ func prepareContext(
 		session.Allow(filesync.NewFSSyncProvider(syncedDirs))
 	}
 
-	return remote, dockerfileName, cleanup, nil
+	return &data, nil
 }
 
 func writeDockerfile(filename string, content string) (dockerfile string, err error) {

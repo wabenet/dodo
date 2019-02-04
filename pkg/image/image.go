@@ -18,6 +18,7 @@ var (
 
 type image struct {
 	config      *ImageConfig
+	context     *context.Context
 	client      Client
 	authConfigs map[string]types.AuthConfig
 }
