@@ -12,7 +12,8 @@ backdrops:
     image: testimage
 
   contextOnly:
-    build: ./path/to/context
+    image:
+      context: ./path/to/context
 
   environments:
     environment:
@@ -31,7 +32,8 @@ backdrops:
       - bar:baz
 
   fullExample:
-    build:
+    image:
+      name: testimage
       context: .
       dockerfile: Dockerfile
       steps:
@@ -41,11 +43,10 @@ backdrops:
         - FOO=BAR
       no_cache: true
       force_rebuild: true
+      force_pull: true
     container_name: testcontainer
     remove: false
-    pull: true
     interactive: true
-    image: testimage
     volumes_from: 'somevolume'
     interpreter: '/bin/sh'
     script: |
@@ -82,14 +83,14 @@ func getExampleConfig(t *testing.T, name string) BackdropConfig {
 
 func TestSimplePull(t *testing.T) {
 	config := getExampleConfig(t, "simplePull")
-	assert.Equal(t, "testimage", config.Image)
+	assert.NotNil(t, config.Image)
+	assert.Equal(t, "testimage", config.Image.Name)
 }
 
 func TestContextOnly(t *testing.T) {
 	config := getExampleConfig(t, "contextOnly")
-	assert.NotNil(t, config.Build)
-	assert.Equal(t, "./path/to/context", config.Build.Context)
-	assert.Equal(t, "Dockerfile", config.Build.Dockerfile)
+	assert.NotNil(t, config.Image)
+	assert.Equal(t, "./path/to/context", config.Image.Context)
 }
 
 func TestEnvironments(t *testing.T) {
@@ -136,21 +137,21 @@ func TestMixedVolumes(t *testing.T) {
 
 func TestFullExample(t *testing.T) {
 	config := getExampleConfig(t, "fullExample")
-	assert.NotNil(t, config.Build)
-	assert.Equal(t, ".", config.Build.Context)
-	assert.Equal(t, "Dockerfile", config.Build.Dockerfile)
-	assert.Equal(t, []string{"RUN hello", "RUN world"}, config.Build.Steps)
-	assert.Equal(t, 1, len(config.Build.Args))
-	assert.Equal(t, "FOO", config.Build.Args[0].Key)
-	assert.Equal(t, "BAR", *config.Build.Args[0].Value)
-	assert.True(t, config.Build.NoCache)
-	assert.True(t, config.Build.ForceRebuild)
+	assert.NotNil(t, config.Image)
+	assert.Equal(t, "testimage", config.Image.Name)
+	assert.Equal(t, ".", config.Image.Context)
+	assert.Equal(t, "Dockerfile", config.Image.Dockerfile)
+	assert.Equal(t, []string{"RUN hello", "RUN world"}, config.Image.Steps)
+	assert.Equal(t, 1, len(config.Image.Args))
+	assert.Equal(t, "FOO", config.Image.Args[0].Key)
+	assert.Equal(t, "BAR", *config.Image.Args[0].Value)
+	assert.True(t, config.Image.NoCache)
+	assert.True(t, config.Image.ForceRebuild)
+	assert.True(t, config.Image.ForcePull)
 	assert.Equal(t, "testcontainer", config.ContainerName)
 	assert.NotNil(t, config.Remove)
 	assert.False(t, *config.Remove)
-	assert.True(t, config.Pull)
 	assert.True(t, config.Interactive)
-	assert.Equal(t, "testimage", config.Image)
 	assert.Contains(t, config.VolumesFrom, "somevolume")
 	assert.Contains(t, config.Interpreter, "/bin/sh")
 	assert.Equal(t, "echo \"$@\"\n", config.Script)
