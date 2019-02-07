@@ -27,14 +27,6 @@ type fakeImageClient struct {
 	willBuildAs string
 }
 
-func (client *fakeImageClient) ClientVersion() string {
-	return "1.39"
-}
-
-func (client *fakeImageClient) Ping(_ context.Context) (types.Ping, error) {
-	return types.Ping{Experimental: true}, nil
-}
-
 func (client *fakeImageClient) DialSession(
 	_ context.Context, _ string, _ map[string][]string,
 ) (net.Conn, error) {
