@@ -19,7 +19,53 @@ import (
 )
 
 // Build produces a runnable image and returns an image id.
-func (image *image) Build() (string, error) {
+func (image *Image) Build() (string, error) {
+	contextData, err := prepareContext(image.config, image.session)
+	if err != nil {
+		return "", err
+	}
+	defer contextData.cleanup()
+
+	imageID := ""
+	displayCh := make(chan *client.SolveStatus)
+
+	eg, _ := errgroup.WithContext(appcontext.Context())
+
+	eg.Go(func() error {
+		return image.session.Run(context.TODO(), image.client.DialSession)
+	})
+
+	eg.Go(func() error {
+		cons, err := console.ConsoleFromFile(os.Stdout)
+		if err != nil {
+			return err
+		}
+		return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stdout, displayCh)
+	})
+
+	eg.Go(func() error {
+		defer func() {
+			close(displayCh)
+			image.session.Close()
+		}()
+
+		imageID, err = image.runBuild(contextData, displayCh)
+		return err
+	})
+
+	err = eg.Wait()
+	if err != nil {
+		return "", err
+	}
+
+	if imageID == "" {
+		return "", errMissingImageID
+	}
+
+	return imageID, nil
+}
+
+func (image *Image) runBuild(contextData *contextData, displayCh chan *client.SolveStatus) (string, error) {
 	args := map[string]*string{}
 	for _, arg := range image.config.Args.Strings() {
 		switch values := strings.SplitN(arg, "=", 2); len(values) {
@@ -35,151 +81,101 @@ func (image *image) Build() (string, error) {
 		tags = append(tags, image.config.Name)
 	}
 
-	if image.config.Context == "" {
-		image.config.Context = "."
-	}
-
-	ctx := appcontext.Context()
-
-	session, err := prepareSession(image.config.Context)
+	response, err := image.client.ImageBuild(
+		context.Background(),
+		nil,
+		types.ImageBuildOptions{
+			Tags:           tags,
+			SuppressOutput: false,
+			NoCache:        image.config.NoCache,
+			Remove:         true,
+			ForceRemove:    true,
+			PullParent:     image.config.ForcePull,
+			Dockerfile:     contextData.dockerfileName,
+			BuildArgs:      args,
+			AuthConfigs:    image.authConfigs,
+			Version:        types.BuilderBuildKit,
+			RemoteContext:  contextData.remote,
+			SessionID:      image.session.ID(),
+			BuildID:        stringid.GenerateRandomID(),
+		},
+	)
 	if err != nil {
 		return "", err
 	}
+	defer response.Body.Close()
 
-	contextData, err := prepareContext(image.config, session)
-	if err != nil {
-		return "", err
-	}
-	defer contextData.cleanup()
+	return handleBuildResult(response.Body, displayCh)
+}
 
-	imageID := ""
-
-	eg, ctx := errgroup.WithContext(ctx)
-
-	eg.Go(func() error {
-		return session.Run(context.TODO(), image.client.DialSession)
-	})
-
-	eg.Go(func() error {
-		defer func() {
-			session.Close()
-		}()
-
-		response, err := image.client.ImageBuild(
-			context.Background(),
-			nil,
-			types.ImageBuildOptions{
-				Tags:           tags,
-				SuppressOutput: false,
-				NoCache:        image.config.NoCache,
-				Remove:         true,
-				ForceRemove:    true,
-				PullParent:     image.config.ForcePull,
-				Dockerfile:     contextData.dockerfileName,
-				BuildArgs:      args,
-				AuthConfigs:    image.authConfigs,
-				Version:        types.BuilderBuildKit,
-				RemoteContext:  contextData.remote,
-				SessionID:      session.ID(),
-				BuildID:        stringid.GenerateRandomID(),
-			},
-		)
-		if err != nil {
-			return err
-		}
-		defer response.Body.Close()
-		displayCh := make(chan *client.SolveStatus)
-		defer close(displayCh)
-
-		cons, err := console.ConsoleFromFile(os.Stdout)
-		if err != nil {
-			return err
+func handleBuildResult(response io.Reader, displayCh chan *client.SolveStatus) (string, error) {
+	var imageID string
+	decoder := json.NewDecoder(response)
+	for {
+		var msg jsonmessage.JSONMessage
+		if err := decoder.Decode(&msg); err != nil {
+			if err == io.EOF {
+				return imageID, nil
+			}
+			return "", err
 		}
 
-		eg.Go(func() error {
-			return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stdout, displayCh)
-		})
+		if msg.Error != nil {
+			return "", msg.Error
+		}
 
-		decoder := json.NewDecoder(response.Body)
-		for {
-			var msg jsonmessage.JSONMessage
-			if err := decoder.Decode(&msg); err != nil {
-				if err == io.EOF {
-					break
+		if msg.Aux != nil {
+			if msg.ID == "moby.image.id" {
+				var result types.BuildResult
+				if err := json.Unmarshal(*msg.Aux, &result); err != nil {
+					continue
 				}
-				return err
-			}
-
-			if msg.Error != nil {
-				return msg.Error
-			}
-
-			if msg.Aux != nil {
-				if msg.ID == "moby.image.id" {
-					var result types.BuildResult
-					if err := json.Unmarshal(*msg.Aux, &result); err != nil {
-						continue
-					}
-					imageID = result.ID
-				} else if msg.ID == "moby.buildkit.trace" {
-					var resp controlapi.StatusResponse
-					var dt []byte
-					if err := json.Unmarshal(*msg.Aux, &dt); err != nil {
-						continue
-					}
-					if err := (&resp).Unmarshal(dt); err != nil {
-						continue
-					}
-
-					s := client.SolveStatus{}
-					for _, v := range resp.Vertexes {
-						s.Vertexes = append(s.Vertexes, &client.Vertex{
-							Digest:    v.Digest,
-							Inputs:    v.Inputs,
-							Name:      v.Name,
-							Started:   v.Started,
-							Completed: v.Completed,
-							Error:     v.Error,
-							Cached:    v.Cached,
-						})
-					}
-					for _, v := range resp.Statuses {
-						s.Statuses = append(s.Statuses, &client.VertexStatus{
-							ID:        v.ID,
-							Vertex:    v.Vertex,
-							Name:      v.Name,
-							Total:     v.Total,
-							Current:   v.Current,
-							Timestamp: v.Timestamp,
-							Started:   v.Started,
-							Completed: v.Completed,
-						})
-					}
-					for _, v := range resp.Logs {
-						s.Logs = append(s.Logs, &client.VertexLog{
-							Vertex:    v.Vertex,
-							Stream:    int(v.Stream),
-							Data:      v.Msg,
-							Timestamp: v.Timestamp,
-						})
-					}
-
-					displayCh <- &s
+				imageID = result.ID
+			} else if msg.ID == "moby.buildkit.trace" {
+				var resp controlapi.StatusResponse
+				var dt []byte
+				if err := json.Unmarshal(*msg.Aux, &dt); err != nil {
+					continue
 				}
+				if err := (&resp).Unmarshal(dt); err != nil {
+					continue
+				}
+
+				s := client.SolveStatus{}
+				for _, v := range resp.Vertexes {
+					s.Vertexes = append(s.Vertexes, &client.Vertex{
+						Digest:    v.Digest,
+						Inputs:    v.Inputs,
+						Name:      v.Name,
+						Started:   v.Started,
+						Completed: v.Completed,
+						Error:     v.Error,
+						Cached:    v.Cached,
+					})
+				}
+				for _, v := range resp.Statuses {
+					s.Statuses = append(s.Statuses, &client.VertexStatus{
+						ID:        v.ID,
+						Vertex:    v.Vertex,
+						Name:      v.Name,
+						Total:     v.Total,
+						Current:   v.Current,
+						Timestamp: v.Timestamp,
+						Started:   v.Started,
+						Completed: v.Completed,
+					})
+				}
+				for _, v := range resp.Logs {
+					s.Logs = append(s.Logs, &client.VertexLog{
+						Vertex:    v.Vertex,
+						Stream:    int(v.Stream),
+						Data:      v.Msg,
+						Timestamp: v.Timestamp,
+					})
+				}
+
+				displayCh <- &s
 			}
 		}
-
-		return nil
-	})
-
-	err = eg.Wait()
-	if err != nil {
-		return "", err
 	}
-
-	if imageID == "" {
-		return "", errMissingImageID
-	}
-
-	return imageID, nil
 }

@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/pkg/errors"
 	fstypes "github.com/tonistiigi/fsutil/types"
@@ -21,7 +20,7 @@ type contextData struct {
 	cleanup        func()
 }
 
-func prepareContext(config *ImageConfig, session *session.Session) (*contextData, error) {
+func prepareContext(config *ImageConfig, session session) (*contextData, error) {
 	data := contextData{
 		remote:         "",
 		dockerfileName: config.Dockerfile,

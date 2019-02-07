@@ -10,12 +10,19 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/moby/buildkit/session"
+	buildkit "github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
-func prepareSession(baseDir string) (*session.Session, error) {
+type session interface {
+	ID() string
+	Allow(buildkit.Attachable)
+	Run(context.Context, buildkit.Dialer) error
+	Close() error
+}
+
+func prepareSession(baseDir string) (session, error) {
 	sessionID, err := readOrCreateSessionID()
 	if err != nil {
 		return nil, err
@@ -24,7 +31,7 @@ func prepareSession(baseDir string) (*session.Session, error) {
 	s := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", sessionID, baseDir)))
 	sharedKey := hex.EncodeToString(s[:])
 
-	session, err := session.NewSession(context.Background(), filepath.Base(baseDir), sharedKey)
+	session, err := buildkit.NewSession(context.Background(), filepath.Base(baseDir), sharedKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create session")
 	}

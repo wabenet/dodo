@@ -16,11 +16,12 @@ var (
 		"build complete, but the server did not send an image id")
 )
 
-type image struct {
+// Image represents the data necessary to build a docker image
+type Image struct {
 	config      *ImageConfig
-	context     *context.Context
 	client      Client
 	authConfigs map[string]types.AuthConfig
+	session     session
 }
 
 // ImageConfig represents the build configuration for a docker image
@@ -44,7 +45,8 @@ type Client interface {
 	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)
 }
 
-func NewImage(client Client, authConfigs map[string]types.AuthConfig, config *ImageConfig) (*image, error) {
+// NewImage initializes and validates a new Image object
+func NewImage(client Client, authConfigs map[string]types.AuthConfig, config *ImageConfig) (*Image, error) {
 	if client == nil {
 		return nil, errors.New("client may not be nil")
 	}
@@ -56,9 +58,20 @@ func NewImage(client Client, authConfigs map[string]types.AuthConfig, config *Im
 		return nil, errors.Errorf("buildkit not supported by daemon")
 	}
 
-	return &image{
+	// TODO: do this somewhere else
+	if config.Context == "" {
+		config.Context = "."
+	}
+
+	session, err := prepareSession(config.Context)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Image{
 		client:      client,
 		authConfigs: authConfigs,
 		config:      config,
+		session:     session,
 	}, nil
 }
