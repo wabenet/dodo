@@ -97,6 +97,7 @@ func imageOptions(
 	}
 	if options.Build {
 		result.ForceRebuild = true
+		result.PrintOutput = true
 	}
 	if options.NoCache {
 		result.NoCache = true

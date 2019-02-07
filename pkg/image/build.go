@@ -35,13 +35,15 @@ func (image *Image) Build() (string, error) {
 		return image.session.Run(context.TODO(), image.client.DialSession)
 	})
 
-	eg.Go(func() error {
-		cons, err := console.ConsoleFromFile(os.Stdout)
-		if err != nil {
-			return err
-		}
-		return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stdout, displayCh)
-	})
+	if image.config.PrintOutput {
+		eg.Go(func() error {
+			cons, err := console.ConsoleFromFile(os.Stdout)
+			if err != nil {
+				return err
+			}
+			return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stdout, displayCh)
+		})
+	}
 
 	eg.Go(func() error {
 		defer func() {
@@ -105,10 +107,10 @@ func (image *Image) runBuild(contextData *contextData, displayCh chan *client.So
 	}
 	defer response.Body.Close()
 
-	return handleBuildResult(response.Body, displayCh)
+	return handleBuildResult(response.Body, displayCh, image.config.PrintOutput)
 }
 
-func handleBuildResult(response io.Reader, displayCh chan *client.SolveStatus) (string, error) {
+func handleBuildResult(response io.Reader, displayCh chan *client.SolveStatus, printOutput bool) (string, error) {
 	var imageID string
 	decoder := json.NewDecoder(response)
 	for {
@@ -131,7 +133,7 @@ func handleBuildResult(response io.Reader, displayCh chan *client.SolveStatus) (
 					continue
 				}
 				imageID = result.ID
-			} else if msg.ID == "moby.buildkit.trace" {
+			} else if printOutput && msg.ID == "moby.buildkit.trace" {
 				var resp controlapi.StatusResponse
 				var dt []byte
 				if err := json.Unmarshal(*msg.Aux, &dt); err != nil {

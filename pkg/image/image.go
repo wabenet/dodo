@@ -34,6 +34,7 @@ type ImageConfig struct {
 	NoCache      bool
 	ForceRebuild bool
 	ForcePull    bool
+	PrintOutput  bool
 }
 
 // Client represents a docker client that can do everything this package
