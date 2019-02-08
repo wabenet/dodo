@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/term"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -83,7 +82,6 @@ func resizeContainer(
 	ws, err := term.GetWinsize(outFd)
 	if err != nil {
 		return
-		log.Debugf("Error resize: %s", err)
 	}
 
 	height := uint(ws.Height)
@@ -92,7 +90,7 @@ func resizeContainer(
 		return
 	}
 
-	err = options.Client.ContainerResize(
+	options.Client.ContainerResize(
 		ctx,
 		containerID,
 		types.ResizeOptions{
@@ -100,9 +98,6 @@ func resizeContainer(
 			Width:  width,
 		},
 	)
-	if err != nil {
-		log.Debugf("Error resize: %s", err)
-	}
 }
 
 func streamContainer(
@@ -114,11 +109,7 @@ func streamContainer(
 		errChan <- err
 		return
 	}
-	defer func() {
-		if restErr := term.RestoreTerminal(inFd, inState); err != nil {
-			log.Error(restErr)
-		}
-	}()
+	defer term.RestoreTerminal(inFd, inState)
 
 	outFd, _ := term.GetFdInfo(os.Stdout)
 	outState, err := term.SetRawTerminal(outFd)
@@ -126,11 +117,7 @@ func streamContainer(
 		errChan <- err
 		return
 	}
-	defer func() {
-		if restErr := term.RestoreTerminal(outFd, outState); err != nil {
-			log.Error(restErr)
-		}
-	}()
+	defer term.RestoreTerminal(outFd, outState)
 
 	outputDone := make(chan error)
 	go func() {
@@ -140,12 +127,8 @@ func streamContainer(
 
 	inputDone := make(chan struct{})
 	go func() {
-		if _, err := io.Copy(attach.Conn, os.Stdin); err != nil {
-			log.Error(err)
-		}
-		if err := attach.CloseWrite(); err != nil {
-			log.Error(err)
-		}
+		io.Copy(attach.Conn, os.Stdin)
+		attach.CloseWrite()
 		close(inputDone)
 	}()
 

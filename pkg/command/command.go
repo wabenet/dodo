@@ -10,7 +10,6 @@ import (
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
-	"github.com/oclaussen/dodo/pkg/logging"
 	"github.com/oclaussen/dodo/pkg/options"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -29,7 +28,6 @@ can be used to overwrite the backdrop configuration.
 
 // NewCommand creates a new command instance
 func NewCommand() *cobra.Command {
-	var loggingOpts logging.Options
 	var dodoOpts options.Options
 
 	cmd := &cobra.Command{
@@ -41,10 +39,8 @@ func NewCommand() *cobra.Command {
 		TraverseChildren:      true,
 		Args:                  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			logging.InitLogging(&loggingOpts)
 			if dodoOpts.List {
-				config.ListConfigurations()
-				return nil
+				return config.ListConfigurations()
 			}
 			if len(args) < 1 {
 				return errors.New("Please specify a backdrop name")
@@ -55,18 +51,20 @@ func NewCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
-	logging.InitFlags(flags, &loggingOpts)
 	options.InitFlags(flags, &dodoOpts)
 	return cmd
 }
 
 func runCommand(options *options.Options, name string, command []string) error {
-	config := config.LoadConfiguration(name, options.Filename)
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	config, err := config.LoadConfiguration(name, options.Filename)
 	if err != nil {
 		return err
 	}
-	// TODO: log errors
+
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+	if err != nil {
+		return err
+	}
 	authConfigs := cliconfig.LoadDefaultConfigFile(ioutil.Discard).GetAuthConfigs()
 
 	ctx := context.Background()

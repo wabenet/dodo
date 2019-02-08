@@ -1,16 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/oclaussen/dodo/pkg/command"
-	log "github.com/sirupsen/logrus"
 )
 
 func main() {
 	cmd := command.NewCommand()
 	if err := cmd.Execute(); err != nil {
-		log.Debug(err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }

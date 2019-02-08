@@ -2,13 +2,9 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"os/user"
 
 	"github.com/oclaussen/dodo/pkg/configfiles"
-	"github.com/oclaussen/dodo/pkg/image"
-	"github.com/oclaussen/dodo/pkg/types"
-	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
 )
 
 // LoadConfiguration tries to find a backdrop configuration by name in any of
@@ -16,98 +12,56 @@ import (
 // file.
 func LoadConfiguration(
 	backdrop string, configfile string,
-) *BackdropConfig {
-	var result BackdropConfig
-	processFile := func(filename string) bool {
-		ok := false
-		config, err := ParseConfigurationFile(filename)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"file":   filename,
-				"reason": err,
-			}).Error("Could not parse config file")
-			return false
-		}
-		result, ok = config.Backdrops[backdrop]
-		return ok
-	}
-
+) (*BackdropConfig, error) {
 	if configfile != "" {
-		if found := processFile(configfile); found {
-			return &result
+		config, err := ParseConfigurationFile(configfile)
+		if err != nil {
+			return nil, err
 		}
-		log.WithFields(log.Fields{
-			"name": backdrop,
-			"file": configfile,
-		}).Error("No valid config in file")
+		result, ok := config.Backdrops[backdrop]
+		if !ok {
+			return nil, errors.Errorf("Could not find backdrop %s in file %s", backdrop, configfile)
+		}
+		return &result, nil
 	}
 
-	err := configfiles.NewFinder(
-		"dodo",
-		[]string{"yaml", "yml", "json"},
-		processFile,
-	).FindConfiguration()
-
-	if err == nil {
-		return &result
+	candidates, err := configfiles.FindConfigFiles("dodo", []string{"yaml", "yml", "json"})
+	if err != nil {
+		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"reason": err,
-	}).Info("Fallback to default configuration")
-	return FallbackConfig(backdrop)
-}
-
-// FallbackConfig guesses a general-purpose backdrop configuration based
-// on the name, that can be used in case no better configuration was found.
-func FallbackConfig(backdrop string) *BackdropConfig {
-	result := &BackdropConfig{
-		Image:  &image.ImageConfig{Steps: []string{fmt.Sprintf("FROM %s", backdrop)}},
-		Script: fmt.Sprintf("%s $@", backdrop),
+	for _, candidate := range candidates {
+		config, err := ParseConfigurationFile(candidate)
+		if err != nil {
+			return nil, err
+		}
+		if result, ok := config.Backdrops[backdrop]; ok {
+			return &result, nil
+		}
 	}
 
-	if workingDir, err := os.Getwd(); err != nil {
-		result.WorkingDir = workingDir
-		result.Volumes = []types.Volume{types.Volume{
-			Source: workingDir,
-			Target: workingDir,
-		}}
-	} else {
-		log.Error(err)
-	}
-
-	if user, err := user.Current(); err != nil {
-		result.User = fmt.Sprintf("%s:%s", user.Uid, user.Gid)
-	} else {
-		log.Error(err)
-	}
-
-	return result
+	return nil, errors.Errorf("Could not find backdrop %s in any configuration file", backdrop)
 }
 
 // ListConfigurations prints out all available backdrop names and the file
 // it was found in.
-func ListConfigurations() {
+func ListConfigurations() error {
 	result := map[string]string{}
-	configfiles.NewFinder(
-		"dodo",
-		[]string{"yaml", "yml", "json"},
-		func(filename string) bool {
-			config, err := ParseConfigurationFile(filename)
-			if err != nil {
-				return false
+	candidates, err := configfiles.FindConfigFiles("dodo", []string{"yaml", "yml", "json"})
+	if err != nil {
+		return err
+	}
+	for _, candidate := range candidates {
+		config, err := ParseConfigurationFile(candidate)
+		if err != nil {
+			return err
+		}
+		for name := range config.Backdrops {
+			if result[name] == "" {
+				fmt.Printf("%s (%s)\n", name, candidate)
+				result[name] = candidate
 			}
-
-			for name := range config.Backdrops {
-				if result[name] == "" {
-					log.WithFields(log.Fields{
-						"file": filename,
-					}).Info(name)
-				}
-				result[name] = filename
-			}
-
-			return false
-		},
-	).FindConfiguration()
+		}
+	}
+	return nil
 }
