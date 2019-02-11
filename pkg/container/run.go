@@ -67,7 +67,14 @@ func runContainer(
 	}
 
 	select {
-	case <-waitChannel:
+	case response := <-waitChannel:
+		if response.StatusCode != 0 {
+			scriptError := &ScriptError{ExitCode: int(response.StatusCode)}
+			if response.Error != nil {
+				scriptError.Message = response.Error.Message
+			}
+			return scriptError
+		}
 		return nil
 	case err := <-waitErrorChannel:
 		return err

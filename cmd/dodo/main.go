@@ -1,16 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/oclaussen/dodo/pkg/command"
+	"github.com/oclaussen/dodo/pkg/container"
 )
 
 func main() {
 	cmd := command.NewCommand()
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		if err, ok := err.(*container.ScriptError); ok {
+			os.Exit(err.ExitCode)
+		} else {
+			os.Exit(1)
+		}
 	}
 }

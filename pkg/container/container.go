@@ -25,6 +25,15 @@ type Options struct {
 	WorkingDir  string
 }
 
+type ScriptError struct {
+	Message  string
+	ExitCode int
+}
+
+func (e *ScriptError) Error() string {
+	return e.Message
+}
+
 // Run runs a docker container as backdrop.
 func Run(ctx context.Context, options Options) error {
 	if options.Client == nil {
