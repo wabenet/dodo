@@ -6,7 +6,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func createContainer(ctx context.Context, options Options) (string, error) {
+func createContainer(ctx context.Context, options Options, tty bool) (string, error) {
 	response, err := options.Client.ContainerCreate(
 		ctx,
 		&container.Config{
@@ -14,7 +14,7 @@ func createContainer(ctx context.Context, options Options) (string, error) {
 			AttachStdin:  true,
 			AttachStdout: true,
 			AttachStderr: true,
-			Tty:          true,
+			Tty:          tty,
 			OpenStdin:    true,
 			StdinOnce:    true,
 			Env:          options.Environment,

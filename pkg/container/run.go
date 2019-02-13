@@ -8,12 +8,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
 	"golang.org/x/net/context"
 )
 
 func runContainer(
-	ctx context.Context, containerID string, options Options,
+	ctx context.Context, containerID string, options Options, tty bool,
 ) error {
 	attach, err := options.Client.ContainerAttach(
 		ctx,
@@ -32,7 +33,7 @@ func runContainer(
 	defer attach.Close()
 
 	streamErrorChannel := make(chan error, 1)
-	go streamContainer(ctx, streamErrorChannel, attach)
+	go streamContainer(ctx, streamErrorChannel, attach, tty)
 
 	condition := container.WaitConditionNextExit
 	if options.Remove {
@@ -53,14 +54,16 @@ func runContainer(
 		return err
 	}
 
-	resizeContainer(ctx, containerID, options)
-	resizeChannel := make(chan os.Signal, 1)
-	signal.Notify(resizeChannel, syscall.SIGWINCH)
-	go func() {
-		for range resizeChannel {
-			resizeContainer(ctx, containerID, options)
-		}
-	}()
+	if tty {
+		resizeContainer(ctx, containerID, options)
+		resizeChannel := make(chan os.Signal, 1)
+		signal.Notify(resizeChannel, syscall.SIGWINCH)
+		go func() {
+			for range resizeChannel {
+				resizeContainer(ctx, containerID, options)
+			}
+		}()
+	}
 
 	if err := <-streamErrorChannel; err != nil {
 		return err
@@ -108,28 +111,35 @@ func resizeContainer(
 }
 
 func streamContainer(
-	ctx context.Context, errChan chan<- error, attach types.HijackedResponse,
+	ctx context.Context, errChan chan<- error, attach types.HijackedResponse, tty bool,
 ) {
-	inFd, _ := term.GetFdInfo(os.Stdin)
-	inState, err := term.SetRawTerminal(inFd)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	defer term.RestoreTerminal(inFd, inState)
+	if tty {
+		inFd, _ := term.GetFdInfo(os.Stdin)
+		inState, err := term.SetRawTerminal(inFd)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		defer term.RestoreTerminal(inFd, inState)
 
-	outFd, _ := term.GetFdInfo(os.Stdout)
-	outState, err := term.SetRawTerminal(outFd)
-	if err != nil {
-		errChan <- err
-		return
+		outFd, _ := term.GetFdInfo(os.Stdout)
+		outState, err := term.SetRawTerminal(outFd)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		defer term.RestoreTerminal(outFd, outState)
 	}
-	defer term.RestoreTerminal(outFd, outState)
 
 	outputDone := make(chan error)
 	go func() {
-		_, err := io.Copy(os.Stdout, attach.Reader)
-		outputDone <- err
+		if tty {
+			_, err := io.Copy(os.Stdout, attach.Reader)
+			outputDone <- err
+		} else {
+			_, err := stdcopy.StdCopy(os.Stdout, os.Stderr, attach.Reader)
+			outputDone <- err
+		}
 	}()
 
 	inputDone := make(chan struct{})

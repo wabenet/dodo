@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/term"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/util/appcontext"
@@ -28,6 +29,7 @@ func (image *Image) Build() (string, error) {
 
 	imageID := ""
 	displayCh := make(chan *client.SolveStatus)
+	_, stdErrIsTerminal := term.GetFdInfo(os.Stderr)
 
 	eg, _ := errgroup.WithContext(appcontext.Context())
 
@@ -35,13 +37,13 @@ func (image *Image) Build() (string, error) {
 		return image.session.Run(context.TODO(), image.client.DialSession)
 	})
 
-	if image.config.PrintOutput {
+	if image.config.PrintOutput && stdErrIsTerminal {
 		eg.Go(func() error {
-			cons, err := console.ConsoleFromFile(os.Stdout)
+			cons, err := console.ConsoleFromFile(os.Stderr)
 			if err != nil {
 				return err
 			}
-			return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stdout, displayCh)
+			return progressui.DisplaySolveStatus(context.TODO(), "", cons, os.Stderr, displayCh)
 		})
 	}
 
@@ -107,7 +109,8 @@ func (image *Image) runBuild(contextData *contextData, displayCh chan *client.So
 	}
 	defer response.Body.Close()
 
-	return handleBuildResult(response.Body, displayCh, image.config.PrintOutput)
+	_, stdErrIsTerminal := term.GetFdInfo(os.Stderr)
+	return handleBuildResult(response.Body, displayCh, image.config.PrintOutput && stdErrIsTerminal)
 }
 
 func handleBuildResult(response io.Reader, displayCh chan *client.SolveStatus, printOutput bool) (string, error) {

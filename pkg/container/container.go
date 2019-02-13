@@ -2,8 +2,10 @@ package container
 
 import (
 	"errors"
+	"os"
 
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/term"
 	"golang.org/x/net/context"
 )
 
@@ -40,7 +42,11 @@ func Run(ctx context.Context, options Options) error {
 		return errors.New("client may not be nil")
 	}
 
-	containerID, err := createContainer(ctx, options)
+	_, inTerm := term.GetFdInfo(os.Stdin)
+	_, outTerm := term.GetFdInfo(os.Stdout)
+	tty := inTerm && outTerm
+
+	containerID, err := createContainer(ctx, options, tty)
 	if err != nil {
 		return err
 	}
@@ -50,5 +56,5 @@ func Run(ctx context.Context, options Options) error {
 		return err
 	}
 
-	return runContainer(ctx, containerID, options)
+	return runContainer(ctx, containerID, options, tty)
 }
