@@ -23,6 +23,21 @@ I like to think of dodo as a "sudo for docker", because it constructs the desire
 environment for a shell command you want to execute. But instead of wrapping
 your command with the correct `su` calls, it wraps it in a `docker run`.
 
+## state of development
+
+Currently, I maintain dodo as a small side project, whenever I feel like it. I
+use it quite heavily, and therefore keep it in a stable and usable state. But any
+features or use cases outside of my usual workflows will probably get overlooked.
+
+I run docker mostly on OSX, with the docker daemon inside a VirtualBox VM, so
+that case works perfectly. I have no idea, however, how dodo behaves on native
+OSX or even Windows.
+
+As long as dodo does not have many users outside myself, I will probably introduce
+breaking changes easily.
+
+Any contributions (especially OS compatibility or tests) are very welcome.
+
 ## usage
 
 ```bash
@@ -83,8 +98,8 @@ or the full [reference](#config-reference).
 ### templating
 
 All strings in the YAML configuration are processed by the [golang templating
-engine](https://golang.org/pkg/text/template/). The following methods are
-available:
+engine](https://golang.org/pkg/text/template/). The following additional methods
+are available:
 
  * `{{ cwd }}` evaluates to the current working directory
  * `{{ env <variable> }}` evaluates to the contents of environment variable
@@ -104,7 +119,7 @@ build everything:
 ```yaml
 backdrops:
   rake:
-    build:
+    image:
       context: .
       steps:
         - FROM ruby:2.4-alpine
@@ -137,7 +152,7 @@ backdrops:
       test -f terraform.log && rm -f terraform.log
       terraform init
       exec terraform "$@"
-    command: [plan, -out=terraform.tfplan]
+    command: apply
 ```
 
 Another example is the `dodo.yaml` in this very repository, which allows you
@@ -150,13 +165,9 @@ The following configuration options are supported for backdrops. They mostly
 behave the same as their equivalent in a docker-compose file, unless otherwise
 noted.
 
-* `image`: the docker image to run. either this or `build` is required. If both
-  are given, the built image is tagged with this name and reused on subsequent
-  runs.
-* `pull`: always pull the specified image, even if it already exists. Applies to
-  the base image while building as well.
-* `build`: defines configuration for building a docker image. Can be either
-  a string containing the path to the build context, or an object with:
+* `image` or `build`: defines configuration for building a docker image. Can be either
+  a string containing an existing docker image, or an object with:
+  * `name`: a name tag for the resulting image
   * `context`: path to the build context
   * `dockerfile`: path to the dockerfile inside the build context
   * `steps`: list of additional steps to perform on the docker image. Can be
@@ -165,6 +176,7 @@ noted.
   * `no_cache`: set to true to disable the docker cache during build
   * `force_rebuild`: always rebuild the image, even if an image with the
     specified name already exists
+  * `force_pull`: always pull the base image, even if it already exists
 * `container_name`: set the container name
 * `remove`: always remove the container after running (defaults to `true`)
 * `environment`: set environment variables
@@ -200,7 +212,7 @@ instead.
 ## license & authors
 
 ```text
-Copyright 2018 Ole Claussen
+Copyright 2019 Ole Claussen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
