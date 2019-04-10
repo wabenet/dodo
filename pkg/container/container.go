@@ -6,25 +6,27 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/term"
+	"github.com/oclaussen/dodo/pkg/types"
 	"golang.org/x/net/context"
 )
 
 // Options represents the configuration for running a docker container to
 // be used as backdrop.
 type Options struct {
-	Client      *client.Client
-	Image       string
-	Name        string
-	Remove      bool
-	Entrypoint  []string
-	Script      string
-	ScriptPath  string
-	Command     []string
-	Environment []string
-	Volumes     []string
-	VolumesFrom []string
-	User        string
-	WorkingDir  string
+	Client       *client.Client
+	Image        string
+	Name         string
+	Remove       bool
+	Entrypoint   []string
+	Script       string
+	ScriptPath   string
+	Command      []string
+	Environment  []string
+	Volumes      []string
+	VolumesFrom  []string
+	PortBindings types.Ports
+	User         string
+	WorkingDir   string
 }
 
 type ScriptError struct {

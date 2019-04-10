@@ -11,7 +11,7 @@ type Groups map[string]Group
 
 // Group represents as set of backdrops, nested groups are allowed.
 type Group struct {
-	Backdrops Backdrops
+	Backdrops types.Backdrops
 	Groups    Groups
 }
 
@@ -34,7 +34,7 @@ func decodeGroups(name string, config interface{}) (Groups, error) {
 }
 
 func decodeGroup(name string, config interface{}) (Group, error) {
-	result := Group{Backdrops: Backdrops{}, Groups: Groups{}}
+	result := Group{Backdrops: types.Backdrops{}, Groups: Groups{}}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
@@ -48,7 +48,7 @@ func decodeGroup(name string, config interface{}) (Group, error) {
 					result.Groups[name] = group
 				}
 			case "backdrops":
-				decoded, err := decodeBackdrops(key, v)
+				decoded, err := types.DecodeBackdrops(key, v)
 				if err != nil {
 					return result, err
 				}

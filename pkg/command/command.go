@@ -11,6 +11,7 @@ import (
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
 	"github.com/oclaussen/dodo/pkg/options"
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -87,8 +88,8 @@ func runCommand(options *options.Options, name string, command []string) error {
 
 func imageOptions(
 	options *options.Options,
-	config *config.BackdropConfig,
-) *image.ImageConfig {
+	config *types.Backdrop,
+) *types.Image {
 	result := config.Image
 	if options.Pull {
 		result.ForcePull = options.Pull
@@ -105,21 +106,29 @@ func imageOptions(
 
 func containerOptions(
 	options *options.Options,
-	config *config.BackdropConfig,
+	config *types.Backdrop,
 	command []string,
 ) container.Options {
+	ports := config.Ports
+	for _, port := range options.Ports {
+		if p, err := types.DecodePort("cli", port); err == nil {
+			ports = append(ports, p)
+		}
+	}
+
 	result := container.Options{
-		Name:        config.ContainerName,
-		Remove:      true,
-		Entrypoint:  []string{"/bin/sh"},
-		Script:      config.Script,
-		ScriptPath:  "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20],
-		Command:     config.Command,
-		Environment: append(config.Environment.Strings(), options.Environment...),
-		Volumes:     append(config.Volumes.Strings(), options.Volumes...),
-		VolumesFrom: append(config.VolumesFrom, options.VolumesFrom...),
-		User:        config.User,
-		WorkingDir:  config.WorkingDir,
+		Name:         config.ContainerName,
+		Remove:       true,
+		Entrypoint:   []string{"/bin/sh"},
+		Script:       config.Script,
+		ScriptPath:   "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20],
+		Command:      config.Command,
+		Environment:  append(config.Environment.Strings(), options.Environment...),
+		Volumes:      append(config.Volumes.Strings(), options.Volumes...),
+		VolumesFrom:  append(config.VolumesFrom, options.VolumesFrom...),
+		PortBindings: ports,
+		User:         config.User,
+		WorkingDir:   config.WorkingDir,
 	}
 	if options.Workdir != "" {
 		result.WorkingDir = options.Workdir

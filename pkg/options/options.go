@@ -19,6 +19,7 @@ type Options struct {
 	Volumes     []string
 	VolumesFrom []string
 	Environment []string
+	Ports       []string
 }
 
 // InitFlags adds flags for all possible command-line options to a flag set
@@ -63,4 +64,7 @@ func InitFlags(flags *pflag.FlagSet, opts *Options) {
 	flags.StringArrayVarP(
 		&opts.Environment, "env", "e", []string{},
 		"Set environment variables")
+	flags.StringArrayVarP(
+		&opts.Ports, "publish", "p", []string{},
+		"Publish a container's port(s) to the host")
 }

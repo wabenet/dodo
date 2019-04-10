@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/oclaussen/dodo/pkg/configfiles"
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
 )
 
@@ -12,7 +13,7 @@ import (
 // file.
 func LoadConfiguration(
 	backdrop string, configfile string,
-) (*BackdropConfig, error) {
+) (*types.Backdrop, error) {
 	if configfile != "" {
 		config, err := ParseConfigurationFile(configfile)
 		if err != nil {

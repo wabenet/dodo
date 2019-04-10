@@ -17,34 +17,20 @@ var (
 
 // Image represents the data necessary to build a docker image
 type Image struct {
-	config      *ImageConfig
+	config      *dodotypes.Image
 	client      Client
 	authConfigs map[string]types.AuthConfig
 	session     session
 }
 
-// ImageConfig represents the build configuration for a docker image
-type ImageConfig struct {
-	Name         string
-	Context      string
-	Dockerfile   string
-	Steps        []string
-	Args         dodotypes.KeyValueList
-	NoCache      bool
-	ForceRebuild bool
-	ForcePull    bool
-	PrintOutput  bool
-}
-
-// Client represents a docker client that can do everything this package
-// needs
+// Client represents a docker client that can do everything this package needs
 type Client interface {
 	DialSession(context.Context, string, map[string][]string) (net.Conn, error)
 	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)
 }
 
 // NewImage initializes and validates a new Image object
-func NewImage(client Client, authConfigs map[string]types.AuthConfig, config *ImageConfig) (*Image, error) {
+func NewImage(client Client, authConfigs map[string]types.AuthConfig, config *dodotypes.Image) (*Image, error) {
 	if client == nil {
 		return nil, errors.New("client may not be nil")
 	}

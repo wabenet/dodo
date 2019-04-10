@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,7 +74,7 @@ groups:
         image: testimage
 `
 
-func getExampleConfig(t *testing.T, name string) BackdropConfig {
+func getExampleConfig(t *testing.T, name string) types.Backdrop {
 	config, err := ParseConfiguration("exampleYaml", []byte(exampleYaml))
 	assert.Nil(t, err)
 	assert.Contains(t, config.Backdrops, name)

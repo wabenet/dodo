@@ -10,11 +10,12 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/jsonmessage"
+	dodotypes "github.com/oclaussen/dodo/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
-func fakeImage(t *testing.T, config *ImageConfig) *Image {
+func fakeImage(t *testing.T, config *dodotypes.Image) *Image {
 	return &Image{
 		client:  &fakeImageClient{t: t, willBuildAs: "NewImageID"},
 		config:  config,
