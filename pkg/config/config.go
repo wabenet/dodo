@@ -7,16 +7,9 @@ import (
 	"path/filepath"
 	"reflect"
 
+	"github.com/oclaussen/dodo/pkg/types"
 	"gopkg.in/yaml.v2"
 )
-
-func errorUnsupportedType(name string, kind reflect.Kind) error {
-	return fmt.Errorf("Unsupported type of '%s': '%v'", name, kind)
-}
-
-func errorUnsupportedKey(parent string, name string) error {
-	return fmt.Errorf("Unsupported option in '%s': '%s'", parent, name)
-}
 
 // ParseConfigurationFile reads a full dodo configuration from a file.
 func ParseConfigurationFile(filename string) (Group, error) {
@@ -69,7 +62,7 @@ func decodeIncludes(name string, config interface{}) ([]Group, error) {
 			result = append(result, decoded)
 		}
 	default:
-		return result, errorUnsupportedType(name, t.Kind())
+		return result, types.ErrorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }
@@ -81,23 +74,23 @@ func decodeInclude(name string, config interface{}) (Group, error) {
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "file":
-				decoded, err := decodeString(key, v)
+				decoded, err := types.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				return ParseConfigurationFile(decoded)
 			case "text":
-				decoded, err := decodeString(key, v)
+				decoded, err := types.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				return ParseConfiguration(name, []byte(decoded))
 			default:
-				return result, errorUnsupportedKey(name, key)
+				return result, types.ErrorUnsupportedKey(name, key)
 			}
 		}
 	default:
-		return result, errorUnsupportedType(name, t.Kind())
+		return result, types.ErrorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }

@@ -22,6 +22,7 @@ type BackdropConfig struct {
 	User          string
 	Volumes       types.Volumes
 	VolumesFrom   []string
+	Ports         types.Ports
 	WorkingDir    string
 	Interpreter   []string
 	Script        string
@@ -41,7 +42,7 @@ func decodeBackdrops(name string, config interface{}) (Backdrops, error) {
 			result[key] = decoded
 		}
 	default:
-		return result, errorUnsupportedType(name, t.Kind())
+		return result, types.ErrorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }
@@ -59,77 +60,83 @@ func decodeBackdropConfig(name string, config interface{}) (BackdropConfig, erro
 				}
 				result.Image = &decoded
 			case "container_name":
-				decoded, err := decodeString(key, v)
+				decoded, err := types.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.ContainerName = decoded
 			case "remove":
-				decoded, err := decodeBool(key, v)
+				decoded, err := types.DecodeBool(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Remove = &decoded
 			case "interactive":
-				decoded, err := decodeBool(key, v)
+				decoded, err := types.DecodeBool(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Interactive = decoded
 			case "environment":
-				decoded, err := decodeKeyValueList(key, v)
+				decoded, err := types.DecodeKeyValueList(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Environment = decoded
 			case "user":
-				decoded, err := decodeString(key, v)
+				decoded, err := types.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.User = decoded
 			case "volumes":
-				decoded, err := decodeVolumes(key, v)
+				decoded, err := types.DecodeVolumes(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Volumes = decoded
 			case "volumes_from":
-				decoded, err := decodeStringSlice(key, v)
+				decoded, err := types.DecodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.VolumesFrom = decoded
+			case "ports":
+				decoded, err := types.DecodePorts(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Ports = decoded
 			case "working_dir":
-				decoded, err := decodeString(key, v)
+				decoded, err := types.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.WorkingDir = decoded
 			case "interpreter":
-				decoded, err := decodeStringSlice(key, v)
+				decoded, err := types.DecodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Interpreter = decoded
 			case "script":
-				decoded, err := decodeString(key, v)
+				decoded, err := types.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Script = decoded
 			case "command":
-				decoded, err := decodeStringSlice(key, v)
+				decoded, err := types.DecodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Command = decoded
 			default:
-				return result, errorUnsupportedKey(name, key)
+				return result, types.ErrorUnsupportedKey(name, key)
 			}
 		}
 	default:
-		return result, errorUnsupportedType(name, t.Kind())
+		return result, types.ErrorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }

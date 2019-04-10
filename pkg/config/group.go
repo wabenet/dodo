@@ -2,6 +2,8 @@ package config
 
 import (
 	"reflect"
+
+	"github.com/oclaussen/dodo/pkg/types"
 )
 
 // Groups represents a mapping of group names to backdrop groups.
@@ -26,7 +28,7 @@ func decodeGroups(name string, config interface{}) (Groups, error) {
 			result[key] = decoded
 		}
 	default:
-		return result, errorUnsupportedType(name, t.Kind())
+		return result, types.ErrorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }
@@ -64,11 +66,11 @@ func decodeGroup(name string, config interface{}) (Group, error) {
 					}
 				}
 			default:
-				return result, errorUnsupportedKey(name, key)
+				return result, types.ErrorUnsupportedKey(name, key)
 			}
 		}
 	default:
-		return result, errorUnsupportedType(name, t.Kind())
+		return result, types.ErrorUnsupportedType(name, t.Kind())
 	}
 	return result, nil
 }
