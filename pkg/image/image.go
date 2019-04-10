@@ -35,11 +35,6 @@ func NewImage(client Client, authConfigs map[string]types.AuthConfig, config *do
 		return nil, errors.New("client may not be nil")
 	}
 
-	// TODO: do this somewhere else
-	if config.Context == "" {
-		config.Context = "."
-	}
-
 	session, err := prepareSession(config.Context)
 	if err != nil {
 		return nil, err

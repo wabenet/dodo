@@ -18,19 +18,41 @@ import (
 type contextData struct {
 	remote         string
 	dockerfileName string
-	cleanup        func()
+	contextDir     string
+}
+
+func (data *contextData) tempdir() (string, error) {
+	if len(data.contextDir) == 0 {
+		dir, err := ioutil.TempDir("", "dodo-temp-")
+		if err != nil {
+			return "", err
+		}
+		data.contextDir = dir
+	}
+	return data.contextDir, nil
+}
+
+func (data *contextData) cleanup() {
+	if data.contextDir != "" {
+		os.RemoveAll(data.contextDir)
+	}
 }
 
 func prepareContext(config *types.Image, session session) (*contextData, error) {
 	data := contextData{
 		remote:         "",
 		dockerfileName: config.Dockerfile,
-		cleanup:        func() {},
 	}
 	syncedDirs := []filesync.SyncedDir{}
 
 	if config.Context == "" {
 		data.remote = "client-session"
+		dir, err := data.tempdir()
+		if err != nil {
+			data.cleanup()
+			return nil, err
+		}
+		syncedDirs = append(syncedDirs, filesync.SyncedDir{Name: "context", Dir: dir})
 
 	} else if _, err := os.Stat(config.Context); err == nil {
 		data.remote = "client-session"
@@ -57,14 +79,19 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 			steps = steps + "\n" + step
 		}
 
-		tempfile, err := writeDockerfile("Dockerfile", steps)
+		dir, err := data.tempdir()
 		if err != nil {
+			data.cleanup()
+			return nil, err
+		}
+		tempfile := filepath.Join(dir, "Dockerfile")
+		if err := writeDockerfile(tempfile, steps); err != nil {
+			data.cleanup()
 			return nil, err
 		}
 
 		data.dockerfileName = filepath.Base(tempfile)
 		dockerfileDir := filepath.Dir(tempfile)
-		data.cleanup = func() { os.RemoveAll(dockerfileDir) }
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "dockerfile",
 			Dir:  dockerfileDir,
@@ -79,13 +106,18 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 		})
 
 	} else if config.Name != "" && data.remote == "client-session" {
-		tempfile, err := writeDockerfile("Dockerfile", fmt.Sprintf("FROM %s", config.Name))
+		dir, err := data.tempdir()
 		if err != nil {
+			data.cleanup()
+			return nil, err
+		}
+		tempfile := filepath.Join(dir, "Dockerfile")
+		if err := writeDockerfile(tempfile, fmt.Sprintf("FROM %s", config.Name)); err != nil {
+			data.cleanup()
 			return nil, err
 		}
 		data.dockerfileName = filepath.Base(tempfile)
 		dockerfileDir := filepath.Dir(tempfile)
-		data.cleanup = func() { os.RemoveAll(dockerfileDir) }
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "dockerfile",
 			Dir:  dockerfileDir,
@@ -100,35 +132,23 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 	return &data, nil
 }
 
-func writeDockerfile(filename string, content string) (dockerfile string, err error) {
-	tempdir, err := ioutil.TempDir("", "dodo-temp-dockerfile-")
+func writeDockerfile(path string, content string) error {
+	file, err := os.Create(path)
 	if err != nil {
-		return "", err
-	}
-
-	defer func() {
-		if err != nil {
-			os.RemoveAll(tempdir)
-		}
-	}()
-
-	dockerfile = filepath.Join(tempdir, filename)
-	file, err := os.Create(dockerfile)
-	if err != nil {
-		return "", err
+		return err
 	}
 	defer file.Close()
 
 	rc := ioutil.NopCloser(bytes.NewReader([]byte(content)))
 	_, err = io.Copy(file, rc)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	err = rc.Close()
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return dockerfile, nil
+	return nil
 }
