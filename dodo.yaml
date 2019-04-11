@@ -9,7 +9,7 @@ backdrops:
           RUN go get github.com/mitchellh/gox
           RUN go get github.com/alecthomas/gometalinter && gometalinter --install
     environment: CGO_ENABLED=0
-    volumes: "{{ cwd }}:/go/src/github.com/oclaussen/dodo"
+    volumes: "{{ projectRoot }}:/go/src/github.com/oclaussen/dodo"
     working_dir: /go/src/github.com/oclaussen/dodo
     script: make $@
     command: all
