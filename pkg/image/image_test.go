@@ -28,8 +28,8 @@ type fakeImageClient struct {
 	willBuildAs string
 }
 
-func (client *fakeImageClient) DialSession(
-	_ context.Context, _ string, _ map[string][]string,
+func (client *fakeImageClient) DialHijack(
+	_ context.Context, _ string, _ string, _ map[string][]string,
 ) (net.Conn, error) {
 	return nil, nil
 }
