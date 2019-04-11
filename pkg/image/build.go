@@ -3,6 +3,7 @@ package image
 import (
 	"encoding/json"
 	"io"
+	"net"
 	"os"
 	"strings"
 
@@ -34,7 +35,12 @@ func (image *Image) Build() (string, error) {
 	eg, _ := errgroup.WithContext(appcontext.Context())
 
 	eg.Go(func() error {
-		return image.session.Run(context.TODO(), image.client.DialSession)
+		return image.session.Run(
+			context.TODO(),
+			func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
+				return image.client.DialHijack(ctx, "/session", proto, meta)
+			},
+		)
 	})
 
 	if image.config.PrintOutput && stdErrIsTerminal {

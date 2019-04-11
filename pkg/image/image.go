@@ -25,7 +25,7 @@ type Image struct {
 
 // Client represents a docker client that can do everything this package needs
 type Client interface {
-	DialSession(context.Context, string, map[string][]string) (net.Conn, error)
+	DialHijack(context.Context, string, string, map[string][]string) (net.Conn, error)
 	ImageBuild(context.Context, io.Reader, types.ImageBuildOptions) (types.ImageBuildResponse, error)
 }
 
