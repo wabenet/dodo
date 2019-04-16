@@ -43,7 +43,7 @@ func (image *Image) Build() (string, error) {
 		)
 	})
 
-	if image.config.PrintOutput && stdErrIsTerminal {
+	if image.config.ForceRebuild && stdErrIsTerminal {
 		eg.Go(func() error {
 			cons, err := console.ConsoleFromFile(os.Stderr)
 			if err != nil {
@@ -116,7 +116,7 @@ func (image *Image) runBuild(contextData *contextData, displayCh chan *client.So
 	defer response.Body.Close()
 
 	_, stdErrIsTerminal := term.GetFdInfo(os.Stderr)
-	return handleBuildResult(response.Body, displayCh, image.config.PrintOutput && stdErrIsTerminal)
+	return handleBuildResult(response.Body, displayCh, image.config.ForceRebuild && stdErrIsTerminal)
 }
 
 func handleBuildResult(response io.Reader, displayCh chan *client.SolveStatus, printOutput bool) (string, error) {

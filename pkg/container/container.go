@@ -5,28 +5,17 @@ import (
 	"os"
 
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/term"
 	"github.com/oclaussen/dodo/pkg/types"
 	"golang.org/x/net/context"
 )
 
-// Options represents the configuration for running a docker container to
-// be used as backdrop.
-type Options struct {
-	Client       *client.Client
-	Image        string
-	Name         string
-	Remove       bool
-	Entrypoint   []string
-	Script       string
-	ScriptPath   string
-	Command      []string
-	Environment  []string
-	Volumes      []string
-	VolumesFrom  []string
-	PortBindings types.Ports
-	User         string
-	WorkingDir   string
+type Container struct {
+	config     *types.Backdrop
+	client     *client.Client
+	context    context.Context
+	scriptPath string
 }
 
 type ScriptError struct {
@@ -38,25 +27,34 @@ func (e *ScriptError) Error() string {
 	return e.Message
 }
 
-// Run runs a docker container as backdrop.
-func Run(ctx context.Context, options Options) error {
-	if options.Client == nil {
-		return errors.New("client may not be nil")
+func NewContainer(client *client.Client, config *types.Backdrop) (*Container, error) {
+	if client == nil {
+		return nil, errors.New("client may not be nil")
 	}
+	return &Container{
+		config:     config,
+		client:     client,
+		context:    context.Background(),
+		scriptPath: "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20],
+	}, nil
+}
 
+// Run runs a docker container as backdrop.
+func (c *Container) Run(image string) error {
 	_, inTerm := term.GetFdInfo(os.Stdin)
 	_, outTerm := term.GetFdInfo(os.Stdout)
 	tty := inTerm && outTerm
 
-	containerID, err := createContainer(ctx, options, tty)
+	containerID, err := c.create(image, tty)
 	if err != nil {
 		return err
 	}
 
-	err = uploadEntrypoint(ctx, containerID, options)
-	if err != nil {
-		return err
+	if len(c.config.Script) > 0 {
+		if err = c.uploadEntrypoint(containerID); err != nil {
+			return err
+		}
 	}
 
-	return runContainer(ctx, containerID, options, tty)
+	return c.run(containerID, tty)
 }

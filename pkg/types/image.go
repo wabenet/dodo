@@ -14,7 +14,31 @@ type Image struct {
 	NoCache      bool
 	ForceRebuild bool
 	ForcePull    bool
-	PrintOutput  bool
+}
+
+func (target *Image) Merge(source *Image) {
+	if len(source.Name) > 0 {
+		target.Name = source.Name
+	}
+	if len(source.Context) > 0 {
+		target.Context = source.Context
+	}
+	if len(source.Dockerfile) > 0 {
+		target.Dockerfile = source.Dockerfile
+	}
+	if len(source.Steps) > 0 {
+		target.Steps = source.Steps
+	}
+	target.Args = append(target.Args, source.Args...)
+	if source.NoCache {
+		target.NoCache = true
+	}
+	if source.ForceRebuild {
+		target.ForceRebuild = true
+	}
+	if source.ForcePull {
+		target.ForcePull = true
+	}
 }
 
 func DecodeImage(name string, config interface{}) (Image, error) {

@@ -6,14 +6,10 @@ import (
 
 	cliconfig "github.com/docker/cli/cli/config"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
-	"github.com/oclaussen/dodo/pkg/options"
-	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 const description = `Run commands in a Docker context.
@@ -29,7 +25,7 @@ can be used to overwrite the backdrop configuration.
 
 // NewCommand creates a new command instance
 func NewCommand() *cobra.Command {
-	var dodoOpts options.Options
+	var opts options
 
 	cmd := &cobra.Command{
 		Use:                   "dodo [FLAGS] NAME [CMD...]",
@@ -40,27 +36,32 @@ func NewCommand() *cobra.Command {
 		TraverseChildren:      true,
 		Args:                  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if dodoOpts.List {
+			if opts.list {
 				return config.ListConfigurations()
 			}
 			if len(args) < 1 {
 				return errors.New("Please specify a backdrop name")
 			}
-			return runCommand(&dodoOpts, args[0], args[1:])
+			return runCommand(&opts, args[0], args[1:])
 		},
 	}
 
-	flags := cmd.Flags()
-	flags.SetInterspersed(false)
-	options.InitFlags(flags, &dodoOpts)
+	opts.createFlags(cmd)
 	return cmd
 }
 
-func runCommand(options *options.Options, name string, command []string) error {
-	config, err := config.LoadConfiguration(name, options.Filename)
+func runCommand(opts *options, name string, command []string) error {
+	config, err := config.LoadConfiguration(name, opts.file)
 	if err != nil {
 		return err
 	}
+
+	optsConfig, err := opts.createConfig(command)
+	if err != nil {
+		return err
+	}
+
+	config.Merge(optsConfig)
 
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
 	if err != nil {
@@ -68,10 +69,7 @@ func runCommand(options *options.Options, name string, command []string) error {
 	}
 	authConfigs := cliconfig.LoadDefaultConfigFile(ioutil.Discard).GetAuthConfigs()
 
-	ctx := context.Background()
-
-	imageOptions := imageOptions(options, config)
-	image, err := image.NewImage(dockerClient, authConfigs, imageOptions)
+	image, err := image.NewImage(dockerClient, authConfigs, config.Image)
 	if err != nil {
 		return err
 	}
@@ -80,85 +78,10 @@ func runCommand(options *options.Options, name string, command []string) error {
 		return err
 	}
 
-	containerOptions := containerOptions(options, config, command)
-	containerOptions.Client = dockerClient
-	containerOptions.Image = imageID
-	return container.Run(ctx, containerOptions)
-}
-
-func imageOptions(
-	options *options.Options,
-	config *types.Backdrop,
-) *types.Image {
-	result := config.Image
-	if options.Pull {
-		result.ForcePull = options.Pull
-	}
-	if options.Build {
-		result.ForceRebuild = true
-		result.PrintOutput = true
-	}
-	if options.NoCache {
-		result.NoCache = true
-	}
-	return result
-}
-
-func containerOptions(
-	options *options.Options,
-	config *types.Backdrop,
-	command []string,
-) container.Options {
-	ports := config.Ports
-	for _, port := range options.Ports {
-		if p, err := types.DecodePort("cli", port); err == nil {
-			ports = append(ports, p)
-		}
+	container, err := container.NewContainer(dockerClient, config)
+	if err != nil {
+		return err
 	}
 
-	result := container.Options{
-		Name:         config.ContainerName,
-		Remove:       true,
-		Entrypoint:   []string{"/bin/sh"},
-		Script:       config.Script,
-		ScriptPath:   "/tmp/dodo-dockerfile-" + stringid.GenerateRandomID()[:20],
-		Command:      config.Command,
-		Environment:  append(config.Environment.Strings(), options.Environment...),
-		Volumes:      append(config.Volumes.Strings(), options.Volumes...),
-		VolumesFrom:  append(config.VolumesFrom, options.VolumesFrom...),
-		PortBindings: ports,
-		User:         config.User,
-		WorkingDir:   config.WorkingDir,
-	}
-	if options.Workdir != "" {
-		result.WorkingDir = options.Workdir
-	}
-	if config.Remove != nil {
-		result.Remove = *config.Remove
-	}
-	if options.Remove {
-		result.Remove = true
-	}
-	if options.NoRemove {
-		result.Remove = false
-	}
-	if options.User != "" {
-		result.User = options.User
-	}
-
-	if config.Interpreter != nil {
-		result.Entrypoint = config.Interpreter
-	}
-	if config.Interactive || options.Interactive {
-		result.Command = nil
-	} else {
-		if len(config.Script) > 0 {
-			result.Entrypoint = append(result.Entrypoint, result.ScriptPath)
-		}
-		if len(command) > 0 {
-			result.Command = command
-		}
-	}
-
-	return result
+	return container.Run(imageID)
 }

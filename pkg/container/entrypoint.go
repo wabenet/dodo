@@ -5,18 +5,15 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
-func uploadEntrypoint(
-	ctx context.Context, containerID string, options Options,
-) error {
+func (container *Container) uploadEntrypoint(containerID string) error {
 	reader, writer := io.Pipe()
 	defer reader.Close()
 	defer writer.Close()
 
-	go options.Client.CopyToContainer(
-		ctx,
+	go container.client.CopyToContainer(
+		container.context,
 		containerID,
 		"/",
 		reader,
@@ -26,10 +23,10 @@ func uploadEntrypoint(
 	tarWriter := tar.NewWriter(writer)
 	defer tarWriter.Close()
 
-	script := options.Script + "\n"
+	script := container.config.Script + "\n"
 
 	err := tarWriter.WriteHeader(&tar.Header{
-		Name: options.ScriptPath,
+		Name: container.scriptPath,
 		Mode: 0644,
 		Size: int64(len(script)),
 	})

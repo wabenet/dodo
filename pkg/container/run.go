@@ -13,11 +13,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-func runContainer(
-	ctx context.Context, containerID string, options Options, tty bool,
-) error {
-	attach, err := options.Client.ContainerAttach(
-		ctx,
+func (c *Container) run(containerID string, tty bool) error {
+	attach, err := c.client.ContainerAttach(
+		c.context,
 		containerID,
 		types.ContainerAttachOptions{
 			Stream: true,
@@ -33,20 +31,20 @@ func runContainer(
 	defer attach.Close()
 
 	streamErrorChannel := make(chan error, 1)
-	go streamContainer(ctx, streamErrorChannel, attach, tty)
+	go streamContainer(c.context, streamErrorChannel, attach, tty)
 
 	condition := container.WaitConditionNextExit
-	if options.Remove {
+	if c.config.Remove == nil || *c.config.Remove == true {
 		condition = container.WaitConditionRemoved
 	}
-	waitChannel, waitErrorChannel := options.Client.ContainerWait(
-		ctx,
+	waitChannel, waitErrorChannel := c.client.ContainerWait(
+		c.context,
 		containerID,
 		condition,
 	)
 
-	err = options.Client.ContainerStart(
-		ctx,
+	err = c.client.ContainerStart(
+		c.context,
 		containerID,
 		types.ContainerStartOptions{},
 	)
@@ -55,12 +53,12 @@ func runContainer(
 	}
 
 	if tty {
-		resizeContainer(ctx, containerID, options)
+		c.resize(containerID)
 		resizeChannel := make(chan os.Signal, 1)
 		signal.Notify(resizeChannel, syscall.SIGWINCH)
 		go func() {
 			for range resizeChannel {
-				resizeContainer(ctx, containerID, options)
+				c.resize(containerID)
 			}
 		}()
 	}
@@ -84,9 +82,7 @@ func runContainer(
 	}
 }
 
-func resizeContainer(
-	ctx context.Context, containerID string, options Options,
-) {
+func (c *Container) resize(containerID string) {
 	outFd, _ := term.GetFdInfo(os.Stdout)
 
 	ws, err := term.GetWinsize(outFd)
@@ -100,8 +96,8 @@ func resizeContainer(
 		return
 	}
 
-	options.Client.ContainerResize(
-		ctx,
+	c.client.ContainerResize(
+		c.context,
 		containerID,
 		types.ResizeOptions{
 			Height: height,

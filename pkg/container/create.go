@@ -3,35 +3,51 @@ package container
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"golang.org/x/net/context"
 )
 
-func createContainer(ctx context.Context, options Options, tty bool) (string, error) {
-	response, err := options.Client.ContainerCreate(
-		ctx,
+func (c *Container) create(image string, tty bool) (string, error) {
+	entrypoint := []string{"/bin/sh"}
+	command := c.config.Command
+
+	if c.config.Interpreter != nil {
+		entrypoint = c.config.Interpreter
+	}
+	if c.config.Interactive {
+		command = nil
+	} else if len(c.config.Script) > 0 {
+		entrypoint = append(entrypoint, c.scriptPath)
+	}
+
+	response, err := c.client.ContainerCreate(
+		c.context,
 		&container.Config{
-			User:         options.User,
+			User:         c.config.User,
 			AttachStdin:  true,
 			AttachStdout: true,
 			AttachStderr: true,
 			Tty:          tty,
 			OpenStdin:    true,
 			StdinOnce:    true,
-			Env:          options.Environment,
-			Cmd:          options.Command,
-			Image:        options.Image,
-			WorkingDir:   options.WorkingDir,
-			Entrypoint:   options.Entrypoint,
-			ExposedPorts: options.PortBindings.PortSet(),
+			Env:          c.config.Environment.Strings(),
+			Cmd:          command,
+			Image:        image,
+			WorkingDir:   c.config.WorkingDir,
+			Entrypoint:   entrypoint,
+			ExposedPorts: c.config.Ports.PortSet(),
 		},
 		&container.HostConfig{
-			AutoRemove:   options.Remove,
-			Binds:        options.Volumes,
-			VolumesFrom:  options.VolumesFrom,
-			PortBindings: options.PortBindings.PortMap(),
+			AutoRemove: func() bool {
+				if c.config.Remove == nil {
+					return true
+				}
+				return *c.config.Remove
+			}(),
+			Binds:        c.config.Volumes.Strings(),
+			VolumesFrom:  c.config.VolumesFrom,
+			PortBindings: c.config.Ports.PortMap(),
 		},
 		&network.NetworkingConfig{},
-		options.Name,
+		c.config.ContainerName,
 	)
 	if err != nil {
 		return "", err

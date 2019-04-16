@@ -26,6 +26,43 @@ type Backdrop struct {
 	Command       []string
 }
 
+func (target *Backdrop) Merge(source *Backdrop) {
+	if source.Image != nil {
+		target.Image.Merge(source.Image)
+	}
+	if len(source.ContainerName) > 0 {
+		target.ContainerName = source.ContainerName
+	}
+	if source.Remove != nil {
+		target.Remove = source.Remove
+	}
+	if source.Pull {
+		target.Pull = true
+	}
+	if source.Interactive {
+		target.Interactive = true
+	}
+	target.Environment = append(target.Environment, source.Environment...)
+	if len(source.User) > 0 {
+		target.User = source.User
+	}
+	target.Volumes = append(target.Volumes, source.Volumes...)
+	target.VolumesFrom = append(target.VolumesFrom, source.VolumesFrom...)
+	target.Ports = append(target.Ports, source.Ports...)
+	if len(source.WorkingDir) > 0 {
+		target.WorkingDir = source.WorkingDir
+	}
+	if len(source.Interpreter) > 0 {
+		target.Interpreter = source.Interpreter
+	}
+	if len(source.Script) > 0 {
+		target.Script = source.Script
+	}
+	if len(source.Command) > 0 {
+		target.Command = source.Command
+	}
+}
+
 func DecodeBackdrops(name string, config interface{}) (Backdrops, error) {
 	result := map[string]Backdrop{}
 	switch t := reflect.ValueOf(config); t.Kind() {
