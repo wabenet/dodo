@@ -37,6 +37,7 @@ func (ports Ports) PortSet() nat.PortSet {
 	return result
 }
 
+// DecodePorts creates port binding configurations from a config map.
 func DecodePorts(name string, config interface{}) (Ports, error) {
 	result := []Port{}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -66,6 +67,7 @@ func DecodePorts(name string, config interface{}) (Ports, error) {
 	return result, nil
 }
 
+// DecodePort creates a port binding configuration from a config map.
 func DecodePort(name string, config interface{}) (Port, error) {
 	result := Port{Protocol: "tcp"}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -76,7 +78,7 @@ func DecodePort(name string, config interface{}) (Port, error) {
 		}
 		switch values := strings.SplitN(decoded, ":", 3); len(values) {
 		case 0:
-			return result, fmt.Errorf("Empty port definition in '%s'", name)
+			return result, fmt.Errorf("empty port definition in '%s'", name)
 		case 1:
 			result.Target = values[0]
 		case 2:
@@ -87,7 +89,7 @@ func DecodePort(name string, config interface{}) (Port, error) {
 			result.Published = values[1]
 			result.Target = values[2]
 		default:
-			return result, fmt.Errorf("Too many values in '%s'", name)
+			return result, fmt.Errorf("too many values in '%s'", name)
 		}
 		switch values := strings.SplitN(result.Target, "/", 2); len(values) {
 		case 1:

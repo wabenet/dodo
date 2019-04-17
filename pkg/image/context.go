@@ -15,6 +15,8 @@ import (
 	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
+const clientSession = "client-session"
+
 type contextData struct {
 	remote         string
 	dockerfileName string
@@ -46,7 +48,7 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 	syncedDirs := []filesync.SyncedDir{}
 
 	if config.Context == "" {
-		data.remote = "client-session"
+		data.remote = clientSession
 		dir, err := data.tempdir()
 		if err != nil {
 			data.cleanup()
@@ -55,7 +57,7 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{Name: "context", Dir: dir})
 
 	} else if _, err := os.Stat(config.Context); err == nil {
-		data.remote = "client-session"
+		data.remote = clientSession
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
 			Name: "context",
 			Dir:  config.Context,
@@ -97,7 +99,7 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 			Dir:  dockerfileDir,
 		})
 
-	} else if config.Dockerfile != "" && data.remote == "client-session" {
+	} else if config.Dockerfile != "" && data.remote == clientSession {
 		data.dockerfileName = filepath.Base(config.Dockerfile)
 		dockerfileDir := filepath.Dir(config.Dockerfile)
 		syncedDirs = append(syncedDirs, filesync.SyncedDir{
@@ -105,7 +107,7 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 			Dir:  dockerfileDir,
 		})
 
-	} else if config.Name != "" && data.remote == "client-session" {
+	} else if config.Name != "" && data.remote == clientSession {
 		dir, err := data.tempdir()
 		if err != nil {
 			data.cleanup()

@@ -7,8 +7,7 @@ import (
 // Backdrops represents a mapping of backdrop names to backdrop configurations.
 type Backdrops map[string]Backdrop
 
-// Backdrop represents the configuration for a backdrop
-// (possible target for running a command)
+// Backdrop represents the configuration for a backdrop (possible target for running a command).
 type Backdrop struct {
 	Image         *Image
 	ContainerName string
@@ -26,6 +25,7 @@ type Backdrop struct {
 	Command       []string
 }
 
+// Merge adds all options from another backdrop config.
 func (target *Backdrop) Merge(source *Backdrop) {
 	if source.Image != nil {
 		target.Image.Merge(source.Image)
@@ -63,6 +63,7 @@ func (target *Backdrop) Merge(source *Backdrop) {
 	}
 }
 
+// DecodeBackdrops creates backdrop configurations from a config map.
 func DecodeBackdrops(name string, config interface{}) (Backdrops, error) {
 	result := map[string]Backdrop{}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -81,6 +82,7 @@ func DecodeBackdrops(name string, config interface{}) (Backdrops, error) {
 	return result, nil
 }
 
+// DecodeBackdrop creates a backdrop configuration from a config map.
 func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 	var result Backdrop
 	switch t := reflect.ValueOf(config); t.Kind() {

@@ -32,6 +32,7 @@ func (kv *KeyValue) String() string {
 	return fmt.Sprintf("%s=%s", kv.Key, *kv.Value)
 }
 
+// DecodeKeyValueList creates key value configurations from a config map.
 func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 	result := []KeyValue{}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -67,6 +68,7 @@ func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 	return result, nil
 }
 
+// DecodeKeyValue creates a key value configuration from a config map.
 func DecodeKeyValue(name string, config interface{}) (KeyValue, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
@@ -76,13 +78,13 @@ func DecodeKeyValue(name string, config interface{}) (KeyValue, error) {
 		}
 		switch values := strings.SplitN(decoded, "=", 2); len(values) {
 		case 0:
-			return KeyValue{}, fmt.Errorf("Empty assignment in '%s'", name)
+			return KeyValue{}, fmt.Errorf("empty assignment in '%s'", name)
 		case 1:
 			return KeyValue{Key: values[0], Value: nil}, nil
 		case 2:
 			return KeyValue{Key: values[0], Value: &values[1]}, nil
 		default:
-			return KeyValue{}, fmt.Errorf("Too many values in '%s'", name)
+			return KeyValue{}, fmt.Errorf("too many values in '%s'", name)
 		}
 	default:
 		return KeyValue{}, ErrorUnsupportedType(name, t.Kind())

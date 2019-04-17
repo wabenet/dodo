@@ -18,15 +18,6 @@ type Container struct {
 	scriptPath string
 }
 
-type ScriptError struct {
-	Message  string
-	ExitCode int
-}
-
-func (e *ScriptError) Error() string {
-	return e.Message
-}
-
 func NewContainer(client *client.Client, config *types.Backdrop) (*Container, error) {
 	if client == nil {
 		return nil, errors.New("client may not be nil")

@@ -16,6 +16,7 @@ type Image struct {
 	ForcePull    bool
 }
 
+// Merge adds all options from another image config.
 func (target *Image) Merge(source *Image) {
 	if len(source.Name) > 0 {
 		target.Name = source.Name
@@ -41,6 +42,7 @@ func (target *Image) Merge(source *Image) {
 	}
 }
 
+// DecodeImage creates an image configuration from a config map.
 func DecodeImage(name string, config interface{}) (Image, error) {
 	var result Image
 	switch t := reflect.ValueOf(config); t.Kind() {

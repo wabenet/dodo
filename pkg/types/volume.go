@@ -36,6 +36,7 @@ func (v *Volume) String() string {
 	}
 }
 
+// DecodeVolumes creates volume configurations from a config map.
 func DecodeVolumes(name string, config interface{}) (Volumes, error) {
 	result := []Volume{}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -65,6 +66,7 @@ func DecodeVolumes(name string, config interface{}) (Volumes, error) {
 	return result, nil
 }
 
+// DecodeVolume creates a volume configuration from a config map.
 func DecodeVolume(name string, config interface{}) (Volume, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
@@ -74,7 +76,7 @@ func DecodeVolume(name string, config interface{}) (Volume, error) {
 		}
 		switch values := strings.SplitN(decoded, ":", 3); len(values) {
 		case 0:
-			return Volume{}, fmt.Errorf("Empty volume definition in '%s'", name)
+			return Volume{}, fmt.Errorf("empty volume definition in '%s'", name)
 		case 1:
 			return Volume{
 				Source: values[0],
@@ -91,7 +93,7 @@ func DecodeVolume(name string, config interface{}) (Volume, error) {
 				ReadOnly: values[2] == "ro",
 			}, nil
 		default:
-			return Volume{}, fmt.Errorf("Too many values in '%s'", name)
+			return Volume{}, fmt.Errorf("too many values in '%s'", name)
 		}
 	case reflect.Map:
 		var result Volume
