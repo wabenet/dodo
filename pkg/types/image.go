@@ -11,6 +11,7 @@ type Image struct {
 	Dockerfile   string
 	Steps        []string
 	Args         KeyValueList
+	Secrets      Secrets
 	NoCache      bool
 	ForceRebuild bool
 	ForcePull    bool
@@ -31,6 +32,7 @@ func (target *Image) Merge(source *Image) {
 		target.Steps = source.Steps
 	}
 	target.Args = append(target.Args, source.Args...)
+	target.Secrets = append(target.Secrets, source.Secrets...)
 	if source.NoCache {
 		target.NoCache = true
 	}
@@ -85,6 +87,12 @@ func DecodeImage(name string, config interface{}) (Image, error) {
 					return result, err
 				}
 				result.Args = decoded
+			case "secrets":
+				decoded, err := DecodeSecrets(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Secrets = decoded
 			case "no_cache":
 				decoded, err := DecodeBool(key, v)
 				if err != nil {

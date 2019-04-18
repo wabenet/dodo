@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/moby/buildkit/session/auth/authprovider"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
@@ -129,6 +130,15 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 
 	if len(syncedDirs) > 0 {
 		session.Allow(filesync.NewFSSyncProvider(syncedDirs))
+	}
+
+	session.Allow(authprovider.NewDockerAuthProvider())
+	if len(config.Secrets) > 0 {
+		provider, err := config.Secrets.SecretsProvider()
+		if err != nil {
+			return nil, err
+		}
+		session.Allow(provider)
 	}
 
 	return &data, nil

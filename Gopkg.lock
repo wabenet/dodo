@@ -69,12 +69,12 @@
   version = "v0.8.6"
 
 [[projects]]
-  branch = "master"
   digest = "1:707ebe952a8b3d00b343c01536c79c73771d100f63ec6babeaed5c79e2b8a8dd"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
   pruneopts = "NUT"
-  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+  revision = "4b2b341e8d7715fae06375aa633dbb6e91b3fb46"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -188,7 +188,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5f4e23329eebfcb50a5db29345cf8cb27acdabded3e54fbacbd385efea4a7244"
+  digest = "1:310e0802733421a8d1a7df5fcd7d7cfe2a629c1c49a0005908420f00fa2314f7"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -227,7 +227,7 @@
     "registry/resumable",
   ]
   pruneopts = "NUT"
-  revision = "fc52433fa677bcc8dc32cc946916929ce7d4910f"
+  revision = "65e432abe335b1d68b28aa60dfdd8b9e62c62f47"
 
 [[projects]]
   digest = "1:8866486038791fe65ea1abf660041423954b1f3fb99ea6a0ad8424422e943458"
@@ -393,7 +393,7 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:a5a248aab591c444e4a542c1ff69ce61b72eec7a67ac00060265a7c7ecdd4e51"
+  digest = "1:07a2a70a4145fd17cb26a58dd9ded8f1eef94f1df23fed3a219770e9cb50f643"
   name = "github.com/moby/buildkit"
   packages = [
     "api/services/control",
@@ -407,9 +407,13 @@
     "frontend/gateway/pb",
     "identity",
     "session",
+    "session/auth",
+    "session/auth/authprovider",
     "session/content",
     "session/filesync",
     "session/grpchijack",
+    "session/secrets",
+    "session/secrets/secretsprovider",
     "solver/pb",
     "util/apicaps",
     "util/apicaps/pb",
@@ -527,7 +531,7 @@
   name = "github.com/prometheus/procfs"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "ea9eea63887261e4d8ed8315f4078e88d540c725"
+  revision = "8368d24ba045f26503eb745b624d930cbe214c79"
 
 [[projects]]
   digest = "1:998e4640c25e00ccb7b2569bf94562283937b8afb3485c0e1a0a05a15330240d"
@@ -596,11 +600,11 @@
     "scrypt",
   ]
   pruneopts = "NUT"
-  revision = "38d8ce5564a5b71b2e3a00553993f1b9a7ae852f"
+  revision = "f416ebab96af27ca70b6e5c23d6a0747530da626"
 
 [[projects]]
   branch = "master"
-  digest = "1:1220cf42be03dc77d8a26337cfb73901e1f321aaf9817eff0f0658c2f635ed68"
+  digest = "1:e00bb48cb7aebbea7c9ee8b4a5c2ec0facb2be502ac0931f6001ea3b5fe3b354"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -614,7 +618,7 @@
     "trace",
   ]
   pruneopts = "NUT"
-  revision = "eb5bcb51f2a31c7d5141d810b70815c05d9c9146"
+  revision = "1da14a5a36f220ea3f03470682b737b1dfd5de22"
 
 [[projects]]
   branch = "master"
@@ -622,18 +626,18 @@
   name = "golang.org/x/sync"
   packages = ["errgroup"]
   pruneopts = "NUT"
-  revision = "e225da77a7e68af35c70ccbf71af2b83e6acac3c"
+  revision = "56d357773e8497dfd526f0727e187720d1093757"
 
 [[projects]]
   branch = "master"
-  digest = "1:24716f8aaf7b32dfefa5247cd2af5c998b66667bd06b2ce4d440f15849839e35"
+  digest = "1:c3e89c6a4dab7d8a33f668c50c096c62fa85e96bedc78e2628d8372d6c17d327"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "NUT"
-  revision = "0ad05ae3009d6413d3363aa09b350b2ec37daf09"
+  revision = "12500544f89f9420afe9529ba8940bf72d294972"
 
 [[projects]]
   digest = "1:e7071ed636b5422cc51c0e3a6cebc229d6c9fffc528814b519a980641422d619"
@@ -672,7 +676,7 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "NUT"
-  revision = "64821d5d210748c883cd2b809589555ae4654203"
+  revision = "d1146b9035b912113a38af3b138eb2af567b2c67"
 
 [[projects]]
   digest = "1:a053fd2605b0b8feabdd78d0ad522687ab08c0e32f92ea537fa68bbf56367133"
@@ -745,12 +749,13 @@
     "github.com/moby/buildkit/api/services/control",
     "github.com/moby/buildkit/client",
     "github.com/moby/buildkit/session",
+    "github.com/moby/buildkit/session/auth/authprovider",
     "github.com/moby/buildkit/session/filesync",
+    "github.com/moby/buildkit/session/secrets/secretsprovider",
     "github.com/moby/buildkit/util/appcontext",
     "github.com/moby/buildkit/util/progress/progressui",
     "github.com/pkg/errors",
     "github.com/spf13/cobra",
-    "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
     "github.com/tonistiigi/fsutil/types",
     "golang.org/x/net/context",
