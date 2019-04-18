@@ -79,7 +79,7 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 	if len(config.Steps) > 0 {
 		steps := ""
 		for _, step := range config.Steps {
-			steps = steps + "\n" + step
+			steps = steps + step + "\n"
 		}
 
 		dir, err := data.tempdir()
