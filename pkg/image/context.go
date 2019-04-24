@@ -140,6 +140,13 @@ func prepareContext(config *types.Image, session session) (*contextData, error) 
 		}
 		session.Allow(provider)
 	}
+	if len(config.SSHAgents) > 0 {
+		provider, err := config.SSHAgents.SSHAgentProvider()
+		if err != nil {
+			return nil, err
+		}
+		session.Allow(provider)
+	}
 
 	return &data, nil
 }

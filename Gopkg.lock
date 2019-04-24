@@ -45,7 +45,7 @@
   version = "v0.4.12"
 
 [[projects]]
-  digest = "1:a8e16b4caf3575365c9aa3380d9418f31dd0b810596faebfe3a15c37fabeee4a"
+  digest = "1:3b7289c340e1043e1b826ba201d4d9ed1eb3ec32a5e8600208ec030afa74f458"
   name = "github.com/Microsoft/hcsshim"
   packages = [
     ".",
@@ -63,6 +63,7 @@
     "internal/schema2",
     "internal/timeout",
     "internal/wclayer",
+    "osversion",
   ]
   pruneopts = "NUT"
   revision = "f92b8fb9c92e17da496af5a69e3ee13fbe9916e1"
@@ -188,7 +189,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:310e0802733421a8d1a7df5fcd7d7cfe2a629c1c49a0005908420f00fa2314f7"
+  digest = "1:8ca4db9f5414e89f4bec81f72d9381d4a95041884c6ac46a8303221b54f165a6"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -227,7 +228,7 @@
     "registry/resumable",
   ]
   pruneopts = "NUT"
-  revision = "65e432abe335b1d68b28aa60dfdd8b9e62c62f47"
+  revision = "79b5b19439e19cd367f3a78511ce8c15102659d8"
 
 [[projects]]
   digest = "1:8866486038791fe65ea1abf660041423954b1f3fb99ea6a0ad8424422e943458"
@@ -269,12 +270,12 @@
   revision = "b84716841b82eab644a0c64fc8b42d480e49add5"
 
 [[projects]]
-  digest = "1:4340101f42556a9cb2f7a360a0e95a019bfef6247d92e6c4c46f2433cf86a482"
+  digest = "1:97176fe8a268479a527d08df458c269dc27abf59c1643807d4e36398cbd9ef2d"
   name = "github.com/docker/go-units"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "47565b4f722fb6ceae66b95f853feed578a4a51c"
-  version = "v0.3.3"
+  revision = "519db1ee28dcc9fd2474ae59fca29a810482bfb1"
+  version = "v0.4.0"
 
 [[projects]]
   digest = "1:2dcc32af5bf38c37286c96f0077efa98007f67946b690fce98a3e07b9659bdf1"
@@ -393,7 +394,7 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:07a2a70a4145fd17cb26a58dd9ded8f1eef94f1df23fed3a219770e9cb50f643"
+  digest = "1:fb6d151c9afae7d03cb9a8e5116ee534aa6bb95eef24706823c012bdc471becb"
   name = "github.com/moby/buildkit"
   packages = [
     "api/services/control",
@@ -414,6 +415,8 @@
     "session/grpchijack",
     "session/secrets",
     "session/secrets/secretsprovider",
+    "session/sshforward",
+    "session/sshforward/sshprovider",
     "solver/pb",
     "util/apicaps",
     "util/apicaps/pb",
@@ -593,14 +596,22 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dd658e9008df9e0bea1ddb2caa3df8250e5e42bf54dcb776ed5bef0496395549"
+  digest = "1:81f1adcea6950cdd0a0372f5ca6cbfdf384f80ff80c399bba4cab8a853aa5622"
   name = "golang.org/x/crypto"
   packages = [
+    "curve25519",
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "internal/chacha20",
+    "internal/subtle",
     "pbkdf2",
+    "poly1305",
     "scrypt",
+    "ssh",
+    "ssh/agent",
   ]
   pruneopts = "NUT"
-  revision = "f416ebab96af27ca70b6e5c23d6a0747530da626"
+  revision = "d864b10871cd4370fe574816b489c819c675ccc7"
 
 [[projects]]
   branch = "master"
@@ -618,7 +629,7 @@
     "trace",
   ]
   pruneopts = "NUT"
-  revision = "1da14a5a36f220ea3f03470682b737b1dfd5de22"
+  revision = "afe8014c977f78fe2406743d9d32c8bd44d0542b"
 
 [[projects]]
   branch = "master"
@@ -626,18 +637,19 @@
   name = "golang.org/x/sync"
   packages = ["errgroup"]
   pruneopts = "NUT"
-  revision = "56d357773e8497dfd526f0727e187720d1093757"
+  revision = "112230192c580c3556b8cee6403af37a4fc5f28c"
 
 [[projects]]
   branch = "master"
-  digest = "1:c3e89c6a4dab7d8a33f668c50c096c62fa85e96bedc78e2628d8372d6c17d327"
+  digest = "1:4dd9493d1182d8afdc4ee8db4c84111e463941d695e00a973b3adf6e195eec12"
   name = "golang.org/x/sys"
   packages = [
+    "cpu",
     "unix",
     "windows",
   ]
   pruneopts = "NUT"
-  revision = "12500544f89f9420afe9529ba8940bf72d294972"
+  revision = "953cdadca894cdc07be76fc99f95b40c28f06623"
 
 [[projects]]
   digest = "1:e7071ed636b5422cc51c0e3a6cebc229d6c9fffc528814b519a980641422d619"
@@ -676,10 +688,10 @@
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
   pruneopts = "NUT"
-  revision = "d1146b9035b912113a38af3b138eb2af567b2c67"
+  revision = "e7d98fc518a78c9f8b5ee77be7b0b317475d89e1"
 
 [[projects]]
-  digest = "1:a053fd2605b0b8feabdd78d0ad522687ab08c0e32f92ea537fa68bbf56367133"
+  digest = "1:6afefb3e487fbe8a9db2a4bb81cedd7670423bbfea6f82b67b44e9ea3131f502"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -718,8 +730,8 @@
     "tap",
   ]
   pruneopts = "NUT"
-  revision = "236199dd5f8031d698fb64091194aecd1c3895b2"
-  version = "v1.20.0"
+  revision = "25c4f928eaa6d96443009bd842389fb4fa48664e"
+  version = "v1.20.1"
 
 [[projects]]
   digest = "1:18108594151654e9e696b27b181b953f9a90b16bf14d253dd1b397b025a1487f"
@@ -752,6 +764,7 @@
     "github.com/moby/buildkit/session/auth/authprovider",
     "github.com/moby/buildkit/session/filesync",
     "github.com/moby/buildkit/session/secrets/secretsprovider",
+    "github.com/moby/buildkit/session/sshforward/sshprovider",
     "github.com/moby/buildkit/util/appcontext",
     "github.com/moby/buildkit/util/progress/progressui",
     "github.com/pkg/errors",

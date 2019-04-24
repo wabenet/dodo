@@ -12,6 +12,7 @@ type Image struct {
 	Steps        []string
 	Args         KeyValueList
 	Secrets      Secrets
+	SSHAgents    SSHAgents
 	NoCache      bool
 	ForceRebuild bool
 	ForcePull    bool
@@ -33,6 +34,7 @@ func (target *Image) Merge(source *Image) {
 	}
 	target.Args = append(target.Args, source.Args...)
 	target.Secrets = append(target.Secrets, source.Secrets...)
+	target.SSHAgents = append(target.SSHAgents, source.SSHAgents...)
 	if source.NoCache {
 		target.NoCache = true
 	}
@@ -93,6 +95,12 @@ func DecodeImage(name string, config interface{}) (Image, error) {
 					return result, err
 				}
 				result.Secrets = decoded
+			case "ssh":
+				decoded, err := DecodeSSHAgents(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.SSHAgents = decoded
 			case "no_cache":
 				decoded, err := DecodeBool(key, v)
 				if err != nil {
