@@ -4,9 +4,8 @@ go:
   - 1.10.x
 
 before_install:
-  - go get github.com/mitchellh/gox
-  - go get github.com/alecthomas/gometalinter
-  - gometalinter --install
+  - go get -u github.com/mitchellh/gox
+  - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 script: make all
 
