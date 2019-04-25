@@ -4,9 +4,8 @@ import (
 	"errors"
 	"io/ioutil"
 
-	cliconfig "github.com/docker/cli/cli/config"
+	"github.com/docker/cli/cli/config"
 	"github.com/docker/docker/client"
-	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
 	"github.com/spf13/cobra"
@@ -37,10 +36,10 @@ func NewCommand() *cobra.Command {
 		Args:                  cobra.MinimumNArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.list {
-				return config.ListConfigurations()
+				return ListConfigurations()
 			}
 			if len(args) < 1 {
-				return errors.New("Please specify a backdrop name")
+				return errors.New("please specify a backdrop name")
 			}
 			return runCommand(&opts, args[0], args[1:])
 		},
@@ -51,7 +50,7 @@ func NewCommand() *cobra.Command {
 }
 
 func runCommand(opts *options, name string, command []string) error {
-	config, err := config.LoadConfiguration(name, opts.file)
+	conf, err := LoadConfiguration(name, opts.file)
 	if err != nil {
 		return err
 	}
@@ -61,15 +60,15 @@ func runCommand(opts *options, name string, command []string) error {
 		return err
 	}
 
-	config.Merge(optsConfig)
+	conf.Merge(optsConfig)
 
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
 	if err != nil {
 		return err
 	}
-	authConfigs := cliconfig.LoadDefaultConfigFile(ioutil.Discard).GetAuthConfigs()
+	authConfigs := config.LoadDefaultConfigFile(ioutil.Discard).GetAuthConfigs()
 
-	image, err := image.NewImage(dockerClient, authConfigs, config.Image)
+	image, err := image.NewImage(dockerClient, authConfigs, conf.Image)
 	if err != nil {
 		return err
 	}
@@ -78,7 +77,7 @@ func runCommand(opts *options, name string, command []string) error {
 		return err
 	}
 
-	container, err := container.NewContainer(dockerClient, config)
+	container, err := container.NewContainer(dockerClient, conf)
 	if err != nil {
 		return err
 	}

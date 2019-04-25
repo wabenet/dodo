@@ -6,17 +6,13 @@ import (
 	"strings"
 )
 
-// KeyValueList represents a list of key/value pairs
 type KeyValueList []KeyValue
 
-// KeyValue represents a key/value pair, where the value is optional
 type KeyValue struct {
 	Key   string
 	Value *string
 }
 
-// Strings transforms a key/value list into a list of strings that will be
-// understood by docker.
 func (kvs *KeyValueList) Strings() []string {
 	result := []string{}
 	for _, kv := range *kvs {
@@ -32,7 +28,6 @@ func (kv *KeyValue) String() string {
 	return fmt.Sprintf("%s=%s", kv.Key, *kv.Value)
 }
 
-// DecodeKeyValueList creates key value configurations from a config map.
 func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 	result := []KeyValue{}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -63,12 +58,11 @@ func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 			})
 		}
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }
 
-// DecodeKeyValue creates a key value configuration from a config map.
 func DecodeKeyValue(name string, config interface{}) (KeyValue, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
@@ -87,6 +81,6 @@ func DecodeKeyValue(name string, config interface{}) (KeyValue, error) {
 			return KeyValue{}, fmt.Errorf("too many values in '%s'", name)
 		}
 	default:
-		return KeyValue{}, ErrorUnsupportedType(name, t.Kind())
+		return KeyValue{}, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 }

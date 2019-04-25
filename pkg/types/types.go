@@ -12,7 +12,7 @@ func DecodeBool(name string, config interface{}) (bool, error) {
 	case reflect.Bool:
 		result = t.Bool()
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }
@@ -23,9 +23,8 @@ func DecodeString(name string, config interface{}) (string, error) {
 	case reflect.String:
 		return template.ApplyTemplate(t.String())
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
-	return result, nil
 }
 
 func DecodeStringSlice(name string, config interface{}) ([]string, error) {
@@ -46,7 +45,7 @@ func DecodeStringSlice(name string, config interface{}) ([]string, error) {
 			result = append(result, decoded)
 		}
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }

@@ -37,13 +37,7 @@ func DecodeSSHAgents(name string, config interface{}) (SSHAgents, error) {
 		if decoded {
 			result = append(result, SSHAgent{})
 		}
-	case reflect.String:
-		decoded, err := DecodeSSHAgent(name, config)
-		if err != nil {
-			return result, err
-		}
-		result = append(result, decoded)
-	case reflect.Map:
+	case reflect.String, reflect.Map:
 		decoded, err := DecodeSSHAgent(name, config)
 		if err != nil {
 			return result, err
@@ -58,7 +52,7 @@ func DecodeSSHAgents(name string, config interface{}) (SSHAgents, error) {
 			result = append(result, decoded)
 		}
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }
@@ -92,11 +86,11 @@ func DecodeSSHAgent(name string, config interface{}) (SSHAgent, error) {
 				}
 				result.IdentityFile = decoded
 			default:
-				return result, ErrorUnsupportedKey(name, key)
+				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
 		}
 		return result, nil
 	default:
-		return SSHAgent{}, ErrorUnsupportedType(name, t.Kind())
+		return SSHAgent{}, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 }

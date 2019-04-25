@@ -36,13 +36,7 @@ func (secrets Secrets) SecretsProvider() (session.Attachable, error) {
 func DecodeSecrets(name string, config interface{}) (Secrets, error) {
 	result := []Secret{}
 	switch t := reflect.ValueOf(config); t.Kind() {
-	case reflect.String:
-		decoded, err := DecodeSecret(name, config)
-		if err != nil {
-			return result, err
-		}
-		result = append(result, decoded)
-	case reflect.Map:
+	case reflect.String, reflect.Map:
 		decoded, err := DecodeSecret(name, config)
 		if err != nil {
 			return result, err
@@ -57,11 +51,12 @@ func DecodeSecrets(name string, config interface{}) (Secrets, error) {
 			result = append(result, decoded)
 		}
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }
 
+// DecodeSecret creates a secret configurations from a config map.
 func DecodeSecret(name string, config interface{}) (Secret, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
@@ -105,11 +100,11 @@ func DecodeSecret(name string, config interface{}) (Secret, error) {
 				}
 				result.Path = decoded
 			default:
-				return result, ErrorUnsupportedKey(name, key)
+				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
 		}
 		return result, nil
 	default:
-		return Secret{}, ErrorUnsupportedType(name, t.Kind())
+		return Secret{}, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 }

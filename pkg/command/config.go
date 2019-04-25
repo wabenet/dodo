@@ -1,11 +1,14 @@
-package config
+package command
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/oclaussen/dodo/pkg/configfiles"
 	"github.com/oclaussen/dodo/pkg/types"
-	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 // LoadConfiguration tries to find a backdrop configuration by name in any of
@@ -21,7 +24,7 @@ func LoadConfiguration(
 		}
 		result, ok := config.Backdrops[backdrop]
 		if !ok {
-			return nil, errors.Errorf("Could not find backdrop %s in file %s", backdrop, configfile)
+			return nil, fmt.Errorf("could not find backdrop %s in file %s", backdrop, configfile)
 		}
 		return &result, nil
 	}
@@ -41,7 +44,7 @@ func LoadConfiguration(
 		}
 	}
 
-	return nil, errors.Errorf("Could not find backdrop %s in any configuration file", backdrop)
+	return nil, fmt.Errorf("could not find backdrop %s in any configuration file", backdrop)
 }
 
 // ListConfigurations prints out all available backdrop names and the file
@@ -65,4 +68,36 @@ func ListConfigurations() error {
 		}
 	}
 	return nil
+}
+
+// ParseConfigurationFile reads a full dodo configuration from a file.
+func ParseConfigurationFile(filename string) (types.Group, error) {
+	if !filepath.IsAbs(filename) {
+		directory, err := os.Getwd()
+		if err != nil {
+			return types.Group{}, err
+		}
+		filename, err = filepath.Abs(filepath.Join(directory, filename))
+		if err != nil {
+			return types.Group{}, err
+		}
+	}
+
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return types.Group{}, fmt.Errorf("could not read file '%s'", filename)
+	}
+
+	var mapType map[interface{}]interface{}
+	err = yaml.Unmarshal(bytes, &mapType)
+	if err != nil {
+		return types.Group{}, err
+	}
+
+	config, err := types.DecodeGroup(filename, mapType)
+	if err != nil {
+		return types.Group{}, err
+	}
+
+	return config, nil
 }

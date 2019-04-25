@@ -8,10 +8,8 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// Ports represents a set of port bindings
 type Ports []Port
 
-// Port represents a port binding
 type Port struct {
 	Target    string
 	Published string
@@ -37,17 +35,10 @@ func (ports Ports) PortSet() nat.PortSet {
 	return result
 }
 
-// DecodePorts creates port binding configurations from a config map.
 func DecodePorts(name string, config interface{}) (Ports, error) {
 	result := []Port{}
 	switch t := reflect.ValueOf(config); t.Kind() {
-	case reflect.String:
-		decoded, err := DecodePort(name, config)
-		if err != nil {
-			return result, err
-		}
-		result = append(result, decoded)
-	case reflect.Map:
+	case reflect.String, reflect.Map:
 		decoded, err := DecodePort(name, config)
 		if err != nil {
 			return result, err
@@ -62,12 +53,11 @@ func DecodePorts(name string, config interface{}) (Ports, error) {
 			result = append(result, decoded)
 		}
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }
 
-// DecodePort creates a port binding configuration from a config map.
 func DecodePort(name string, config interface{}) (Port, error) {
 	result := Port{Protocol: "tcp"}
 	switch t := reflect.ValueOf(config); t.Kind() {
@@ -98,7 +88,7 @@ func DecodePort(name string, config interface{}) (Port, error) {
 			result.Target = values[0]
 			result.Protocol = values[1]
 		default:
-			return result, fmt.Errorf("Too many values in '%s'", name)
+			return result, fmt.Errorf("too many values in '%s'", name)
 		}
 		return result, nil
 	case reflect.Map:
@@ -129,11 +119,11 @@ func DecodePort(name string, config interface{}) (Port, error) {
 				}
 				result.HostIP = decoded
 			default:
-				return result, ErrorUnsupportedKey(name, key)
+				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
 		}
 		return result, nil
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 }

@@ -6,18 +6,14 @@ import (
 	"strings"
 )
 
-// Volumes represents a set of volume configurations
 type Volumes []Volume
 
-// Volume represents a bind-mount volume configuration
 type Volume struct {
 	Source   string
 	Target   string
 	ReadOnly bool
 }
 
-// Strings transforms a set of Volume definitions into a list of strings that
-// will be understood by docker.
 func (vs *Volumes) Strings() []string {
 	result := []string{}
 	for _, v := range *vs {
@@ -36,17 +32,10 @@ func (v *Volume) String() string {
 	}
 }
 
-// DecodeVolumes creates volume configurations from a config map.
 func DecodeVolumes(name string, config interface{}) (Volumes, error) {
 	result := []Volume{}
 	switch t := reflect.ValueOf(config); t.Kind() {
-	case reflect.String:
-		decoded, err := DecodeVolume(name, config)
-		if err != nil {
-			return result, err
-		}
-		result = append(result, decoded)
-	case reflect.Map:
+	case reflect.String, reflect.Map:
 		decoded, err := DecodeVolume(name, config)
 		if err != nil {
 			return result, err
@@ -61,12 +50,11 @@ func DecodeVolumes(name string, config interface{}) (Volumes, error) {
 			result = append(result, decoded)
 		}
 	default:
-		return result, ErrorUnsupportedType(name, t.Kind())
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 	return result, nil
 }
 
-// DecodeVolume creates a volume configuration from a config map.
 func DecodeVolume(name string, config interface{}) (Volume, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
@@ -118,11 +106,11 @@ func DecodeVolume(name string, config interface{}) (Volume, error) {
 				}
 				result.ReadOnly = decoded
 			default:
-				return result, ErrorUnsupportedKey(name, key)
+				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
 		}
 		return result, nil
 	default:
-		return Volume{}, ErrorUnsupportedType(name, t.Kind())
+		return Volume{}, &ConfigError{Name: name, UnsupportedType: t.Kind()}
 	}
 }
