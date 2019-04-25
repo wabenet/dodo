@@ -1,6 +1,0 @@
-{
-  "EnableAll": true,
-  "Vendor": true,
-  "Sort": ["linter", "severity", "path", "line"],
-  "WarnUnmatchedDirective": true
-}

@@ -10,7 +10,7 @@ fmt:
 
 .PHONY: lint
 lint:
-	gometalinter ./...
+	golangci-lint run --enable-all
 
 .PHONY: test
 test:
