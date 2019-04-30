@@ -1,9 +1,0 @@
-[prune]
-  unused-packages = true
-  non-go = true
-  go-tests = true
-
-# Buildkit does not work with newer versions
-[[override]]
-  name = "github.com/tonistiigi/fsutil"
-  revision = "2659cbdc572838fc9e3647c66d5337de69e9c81f"

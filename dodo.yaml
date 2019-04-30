@@ -2,14 +2,14 @@ backdrops:
   make:
     image:
       steps: |
-          FROM golang:1.11-alpine
-          RUN apk add -U git bash curl tree make
-          RUN git config --global http.https://gopkg.in.followRedirects true
-          RUN go get -u github.com/golang/dep/cmd/dep
-          RUN go get -u github.com/mitchellh/gox
-          RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+        FROM golang:1.12-alpine
+        RUN apk add -U git bash curl tree make
+        RUN go get -u github.com/mitchellh/gox
+        RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
     environment: CGO_ENABLED=0
-    volumes: "{{ projectRoot }}:/go/src/github.com/oclaussen/dodo"
-    working_dir: /go/src/github.com/oclaussen/dodo
+    volumes:
+      - "{{ projectRoot }}:/build"
+      - "{{ projectRoot }}/.cache:/go/pkg/mod"
+    working_dir: /build
     script: make $@
     command: all
