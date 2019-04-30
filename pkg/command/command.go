@@ -2,9 +2,7 @@ package command
 
 import (
 	"errors"
-	"io/ioutil"
 
-	"github.com/docker/cli/cli/config"
 	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
@@ -66,9 +64,8 @@ func runCommand(opts *options, name string, command []string) error {
 	if err != nil {
 		return err
 	}
-	authConfigs := config.LoadDefaultConfigFile(ioutil.Discard).GetAuthConfigs()
 
-	image, err := image.NewImage(dockerClient, authConfigs, conf.Image)
+	image, err := image.NewImage(dockerClient, LoadAuthConfig(), conf.Image)
 	if err != nil {
 		return err
 	}

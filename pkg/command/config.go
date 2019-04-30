@@ -1,11 +1,17 @@
 package command
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
+	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/homedir"
 	"github.com/oclaussen/dodo/pkg/configfiles"
 	"github.com/oclaussen/dodo/pkg/types"
 	"gopkg.in/yaml.v2"
@@ -100,4 +106,69 @@ func ParseConfigurationFile(filename string) (types.Group, error) {
 	}
 
 	return config, nil
+}
+
+func LoadAuthConfig() map[string]dockertypes.AuthConfig {
+	configDir := os.Getenv("DOCKER_CONFIG")
+	if configDir == "" {
+		configDir = filepath.Join(homedir.Get(), ".docker")
+	}
+	filename := filepath.Join(configDir, "config.json")
+
+	var authConfigs map[string]dockertypes.AuthConfig
+
+	if _, err := os.Stat(filename); err != nil {
+		return authConfigs
+	}
+
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return authConfigs
+	}
+
+	var config map[string]*json.RawMessage
+	if err = json.Unmarshal(bytes, &config); err != nil {
+		return authConfigs
+	}
+	if config["auths"] == nil {
+		return authConfigs
+	}
+
+	if err = json.Unmarshal(*config["auths"], &authConfigs); err != nil {
+		return authConfigs
+	}
+
+	for addr, ac := range authConfigs {
+		ac.Username, ac.Password, err = decodeAuth(ac.Auth)
+		if err == nil {
+			ac.Auth = ""
+			ac.ServerAddress = addr
+			authConfigs[addr] = ac
+		}
+	}
+
+	return authConfigs
+}
+
+func decodeAuth(authStr string) (string, string, error) {
+	if authStr == "" {
+		return "", "", nil
+	}
+
+	decLen := base64.StdEncoding.DecodedLen(len(authStr))
+	decoded := make([]byte, decLen)
+	authByte := []byte(authStr)
+	n, err := base64.StdEncoding.Decode(decoded, authByte)
+	if err != nil {
+		return "", "", err
+	}
+	if n > decLen {
+		return "", "", errors.New("something went wrong decoding auth config")
+	}
+	arr := strings.SplitN(string(decoded), ":", 2)
+	if len(arr) != 2 {
+		return "", "", errors.New("invalid auth configuration file")
+	}
+	password := strings.Trim(arr[1], "\x00")
+	return arr[0], password, nil
 }
