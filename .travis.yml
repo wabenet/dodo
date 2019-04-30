@@ -7,7 +7,9 @@ before_install:
   - go get -u github.com/mitchellh/gox
   - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
-script: env GO111MODULES=on make all
+script:
+  - env GO111MODULES=on go test ./...
+  - env GO111MODULES=on gox -arch="amd64" -os="darwin linux" ./...
 
 branches:
   only: 
