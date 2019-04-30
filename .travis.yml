@@ -3,14 +3,11 @@ language: go
 go:
   - 1.12.x
 
-env:
-  - GO111MODULES=on
-
 before_install:
   - go get -u github.com/mitchellh/gox
   - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
-script: make all
+script: env GO111MODULES=on make all
 
 branches:
   only: 
