@@ -12,7 +12,7 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/oclaussen/dodo/pkg/configfiles"
+	"github.com/oclaussen/dodo/pkg/gimme/configfiles"
 	"github.com/oclaussen/dodo/pkg/types"
 	"gopkg.in/yaml.v2"
 )
@@ -20,87 +20,81 @@ import (
 // LoadConfiguration tries to find a backdrop configuration by name in any of
 // the supported locations. If given, will only look in the supplied config
 // file.
-func LoadConfiguration(
-	backdrop string, configfile string,
-) (*types.Backdrop, error) {
-	if configfile != "" {
-		config, err := ParseConfigurationFile(configfile)
-		if err != nil {
-			return nil, err
+func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error) {
+	var opts *configfiles.Options
+	if len(filename) > 0 {
+		opts = &configfiles.Options{
+			FileGlobs:        []string{filename},
+			UseFileGlobsOnly: true,
 		}
-		result, ok := config.Backdrops[backdrop]
-		if !ok {
-			return nil, fmt.Errorf("could not find backdrop %s in file %s", backdrop, configfile)
+	} else {
+		opts = &configfiles.Options{
+			Name:                      "dodo",
+			Extensions:                []string{"yaml", "yml", "json"},
+			IncludeWorkingDirectories: true,
+			Filter: func(c *configfiles.ConfigFile) bool {
+				// TODO: only decode names, groups and includes
+				if config, err := loadConfig(c); err == nil {
+					_, ok := config.Backdrops[backdrop]
+					return ok
+				}
+				return false
+			},
 		}
-		return &result, nil
 	}
 
-	candidates, err := configfiles.FindConfigFiles("dodo", []string{"yaml", "yml", "json"})
+	configFile, err := configfiles.GimmeConfigFiles(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, candidate := range candidates {
-		config, err := ParseConfigurationFile(candidate)
-		if err != nil {
-			return nil, err
-		}
-		if result, ok := config.Backdrops[backdrop]; ok {
-			return &result, nil
-		}
+	config, err := loadConfig(configFile)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("could not find backdrop %s in any configuration file", backdrop)
+	if result, ok := config.Backdrops[backdrop]; ok {
+		return &result, nil
+	}
+
+	return nil, fmt.Errorf("could not find backdrop %s in file %s", backdrop, configFile.Path)
 }
 
 // ListConfigurations prints out all available backdrop names and the file
 // it was found in.
 func ListConfigurations() error {
-	result := map[string]string{}
-	candidates, err := configfiles.FindConfigFiles("dodo", []string{"yaml", "yml", "json"})
-	if err != nil {
-		return err
-	}
-	for _, candidate := range candidates {
-		config, err := ParseConfigurationFile(candidate)
-		if err != nil {
-			return err
-		}
-		for name := range config.Backdrops {
-			if result[name] == "" {
-				fmt.Printf("%s (%s)\n", name, candidate)
-				result[name] = candidate
+	names := map[string]bool{}
+	configfiles.GimmeConfigFiles(&configfiles.Options{
+		Name:                      "dodo",
+		Extensions:                []string{"yaml", "yml", "json"},
+		IncludeWorkingDirectories: true,
+		Filter: func(configFile *configfiles.ConfigFile) bool {
+			// TODO: only decode names, groups and includes
+			config, err := loadConfig(configFile)
+			if err != nil {
+				return false
 			}
-		}
-	}
+			for name := range config.Backdrops {
+				// TODO: handle groups here correctly
+				if !names[name] {
+					fmt.Printf("%s (%s)\n", name, configFile.Path)
+					names[name] = true
+				}
+			}
+			return false
+		},
+	})
 	return nil
 }
 
-// ParseConfigurationFile reads a full dodo configuration from a file.
-func ParseConfigurationFile(filename string) (types.Group, error) {
-	if !filepath.IsAbs(filename) {
-		directory, err := os.Getwd()
-		if err != nil {
-			return types.Group{}, err
-		}
-		filename, err = filepath.Abs(filepath.Join(directory, filename))
-		if err != nil {
-			return types.Group{}, err
-		}
-	}
-
-	bytes, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return types.Group{}, fmt.Errorf("could not read file '%s'", filename)
-	}
-
+func loadConfig(configFile *configfiles.ConfigFile) (types.Group, error) {
 	var mapType map[interface{}]interface{}
-	err = yaml.Unmarshal(bytes, &mapType)
+	err := yaml.Unmarshal(configFile.Content, &mapType)
 	if err != nil {
 		return types.Group{}, err
 	}
 
-	config, err := types.DecodeGroup(filename, mapType)
+	config, err := types.DecodeGroup(configFile.Path, mapType)
 	if err != nil {
 		return types.Group{}, err
 	}
