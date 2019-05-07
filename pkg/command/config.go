@@ -32,13 +32,8 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 			Name:                      "dodo",
 			Extensions:                []string{"yaml", "yml", "json"},
 			IncludeWorkingDirectories: true,
-			Filter: func(c *configfiles.ConfigFile) bool {
-				// TODO: only decode names, groups and includes
-				if config, err := loadConfig(c); err == nil {
-					_, ok := config.Backdrops[backdrop]
-					return ok
-				}
-				return false
+			Filter: func(configFile *configfiles.ConfigFile) bool {
+				return containsBackdrop(configFile, backdrop)
 			},
 		}
 	}
@@ -48,7 +43,12 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 		return nil, err
 	}
 
-	config, err := loadConfig(configFile)
+	var mapType map[interface{}]interface{}
+	if err := yaml.Unmarshal(configFile.Content, &mapType); err != nil {
+		return nil, err
+	}
+
+	config, err := types.DecodeGroup(configFile.Path, mapType)
 	if err != nil {
 		return nil, err
 	}
@@ -60,46 +60,44 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 	return nil, fmt.Errorf("could not find backdrop %s in file %s", backdrop, configFile.Path)
 }
 
+func containsBackdrop(configFile *configfiles.ConfigFile, backdrop string) bool {
+	var mapType map[interface{}]interface{}
+	if err := yaml.Unmarshal(configFile.Content, &mapType); err != nil {
+		return false
+	}
+
+	config, err := types.DecodeNames(configFile.Path, "", mapType)
+	if err != nil {
+		return false
+	}
+
+	_, ok := config.Backdrops[backdrop]
+	return ok
+}
+
 // ListConfigurations prints out all available backdrop names and the file
 // it was found in.
 func ListConfigurations() error {
-	names := map[string]bool{}
+	names := types.Names{}
 	configfiles.GimmeConfigFiles(&configfiles.Options{
 		Name:                      "dodo",
 		Extensions:                []string{"yaml", "yml", "json"},
 		IncludeWorkingDirectories: true,
 		Filter: func(configFile *configfiles.ConfigFile) bool {
-			// TODO: only decode names, groups and includes
-			config, err := loadConfig(configFile)
-			if err != nil {
+			var mapType map[interface{}]interface{}
+			if err := yaml.Unmarshal(configFile.Content, &mapType); err != nil {
 				return false
 			}
-			for name := range config.Backdrops {
-				// TODO: handle groups here correctly
-				if !names[name] {
-					fmt.Printf("%s (%s)\n", name, configFile.Path)
-					names[name] = true
-				}
+			if config, err := types.DecodeNames(configFile.Path, "", mapType); err == nil {
+				names.Merge(&config)
 			}
 			return false
 		},
 	})
+	for _, item := range names.Strings() {
+		fmt.Printf("%s\n", item)
+	}
 	return nil
-}
-
-func loadConfig(configFile *configfiles.ConfigFile) (types.Group, error) {
-	var mapType map[interface{}]interface{}
-	err := yaml.Unmarshal(configFile.Content, &mapType)
-	if err != nil {
-		return types.Group{}, err
-	}
-
-	config, err := types.DecodeGroup(configFile.Path, mapType)
-	if err != nil {
-		return types.Group{}, err
-	}
-
-	return config, nil
 }
 
 func LoadAuthConfig() map[string]dockertypes.AuthConfig {
