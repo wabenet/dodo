@@ -5,13 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 
 	dockertypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/homedir"
 	"github.com/oclaussen/dodo/pkg/gimme/configfiles"
 	"github.com/oclaussen/dodo/pkg/types"
 	"gopkg.in/yaml.v2"
@@ -101,31 +97,25 @@ func ListConfigurations() error {
 }
 
 func LoadAuthConfig() map[string]dockertypes.AuthConfig {
-	configDir := os.Getenv("DOCKER_CONFIG")
-	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), ".docker")
-	}
-	filename := filepath.Join(configDir, "config.json")
-
 	var authConfigs map[string]dockertypes.AuthConfig
 
-	if _, err := os.Stat(filename); err != nil {
-		return authConfigs
-	}
-
-	bytes, err := ioutil.ReadFile(filename)
+	configFile, err := configfiles.GimmeConfigFiles(&configfiles.Options{
+		Name:       "docker",
+		Extensions: []string{"json"},
+		Filter: func(configFile *configfiles.ConfigFile) bool {
+			var config map[string]*json.RawMessage
+			err := json.Unmarshal(configFile.Content, &config)
+			return err == nil && config["auths"] != nil
+		},
+	})
 	if err != nil {
 		return authConfigs
 	}
 
 	var config map[string]*json.RawMessage
-	if err = json.Unmarshal(bytes, &config); err != nil {
+	if err = json.Unmarshal(configFile.Content, &config); err != nil || config["auths"] == nil {
 		return authConfigs
 	}
-	if config["auths"] == nil {
-		return authConfigs
-	}
-
 	if err = json.Unmarshal(*config["auths"], &authConfigs); err != nil {
 		return authConfigs
 	}
