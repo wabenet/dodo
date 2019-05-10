@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	dockertypes "github.com/docker/docker/api/types"
-	"github.com/oclaussen/dodo/pkg/gimme/configfiles"
 	"github.com/oclaussen/dodo/pkg/types"
+	"github.com/oclaussen/go-gimme/configfiles"
 	"gopkg.in/yaml.v2"
 )
 
