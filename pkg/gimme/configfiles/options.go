@@ -9,9 +9,9 @@ import (
 type Options struct {
 	Name                      string
 	Extensions                []string
-	IncludeWorkingDirectories bool
 	FileGlobs                 []string
 	UseFileGlobsOnly          bool
+	IncludeWorkingDirectories bool
 	Filter                    func(*ConfigFile) bool
 }
 
@@ -21,9 +21,10 @@ func (opts *Options) normalize() error {
 	}
 
 	if len(opts.Name) > 0 && len(opts.Extensions) == 0 {
-		ext := filepath.Ext(opts.Name)
-		opts.Extensions = []string{ext}
-		opts.Name = strings.TrimSuffix(opts.Name, ext)
+		if ext := filepath.Ext(opts.Name); len(ext) > 0 {
+			opts.Extensions = []string{ext}
+			opts.Name = strings.TrimSuffix(opts.Name, ext)
+		}
 	}
 
 	if len(opts.FileGlobs) == 0 {

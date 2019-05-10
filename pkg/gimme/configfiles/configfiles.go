@@ -41,16 +41,16 @@ func GimmeConfigFiles(opts *Options) (*ConfigFile, error) {
 		return nil, err
 	}
 
+	patterns := filenameGlobs(opts.Name, opts.Extensions)
 	for _, directory := range directories {
-		for _, prefix := range []string{"", "."} {
-			for _, suffix := range opts.Extensions {
-				var filename string
-				if len(suffix) > 0 {
-					filename = fmt.Sprintf("%s%s.%s", prefix, opts.Name, suffix)
-				} else {
-					filename = fmt.Sprintf("%s%s", prefix, opts.Name)
-				}
-				configFile, ok := tryConfigFile(filepath.Join(directory, filename))
+		for _, pattern := range patterns {
+			matches, err := filepath.Glob(filepath.Join(directory, pattern))
+			if err != nil {
+				// TODO print warning
+				continue
+			}
+			for _, filename := range matches {
+				configFile, ok := tryConfigFile(filename)
 				if ok && opts.Filter(configFile) {
 					return configFile, nil
 				}
@@ -59,6 +59,32 @@ func GimmeConfigFiles(opts *Options) (*ConfigFile, error) {
 	}
 
 	return nil, errors.New("no matching configuration file found")
+}
+
+func filenameGlobs(name string, extensions []string) []string {
+	if len(extensions) == 0 {
+		return []string{
+			name,
+			fmt.Sprintf(".%s", name),
+			filepath.Join(name, "config"),
+			filepath.Join(fmt.Sprintf(".%s", name), "config"),
+			filepath.Join(fmt.Sprintf("%s.d", name), "*"),
+			filepath.Join(fmt.Sprintf(".%s.d", name), "*"),
+		}
+	}
+
+	var candidates []string
+	for _, ext := range extensions {
+		candidates = append(candidates, []string{
+			fmt.Sprintf("%s.%s", name, ext),
+			fmt.Sprintf(".%s.%s", name, ext),
+			filepath.Join(name, fmt.Sprintf("config.%s", ext)),
+			filepath.Join(fmt.Sprintf(".%s", name), fmt.Sprintf("config.%s", ext)),
+			filepath.Join(fmt.Sprintf("%s.%s.d", name, ext), "*"),
+			filepath.Join(fmt.Sprintf(".%s.%s.d", name, ext), "*"),
+		}...)
+	}
+	return candidates
 }
 
 func tryConfigFile(path string) (*ConfigFile, bool) {

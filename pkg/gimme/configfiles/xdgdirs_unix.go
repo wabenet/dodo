@@ -4,6 +4,7 @@ package configfiles
 
 import (
 	"os"
+	"os/user"
 	"path/filepath"
 )
 
@@ -14,17 +15,13 @@ const (
 	xdgDefaultDir = "/etc/etc/xdg"
 )
 
-func getXDGDirectories(name string) ([]string, error) {
+func getXDGDirectories(name string) []string {
 	var directories []string
 
 	if xdgHome := os.Getenv(envXDGHome); xdgHome != "" {
 		directories = append(directories, filepath.Join(xdgHome, name))
-	} else {
-		userHome, err := getHomeDirectory()
-		if err != nil {
-			return directories, err
-		}
-		directories = append(directories, filepath.Join(userHome, ".config", name))
+	} else if user, err := user.Current(); err == nil && user.HomeDir != "" {
+		directories = append(directories, filepath.Join(user.HomeDir, ".config", name))
 	}
 
 	if xdgDirs := os.Getenv(envXDGDirs); xdgDirs != "" {
@@ -35,5 +32,5 @@ func getXDGDirectories(name string) ([]string, error) {
 		directories = append(directories, filepath.Join(xdgDefaultDir, name))
 	}
 
-	return directories, nil
+	return directories
 }

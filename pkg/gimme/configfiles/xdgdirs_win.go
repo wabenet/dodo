@@ -2,6 +2,6 @@
 
 package configfiles
 
-func getXDGDirectories(_ string) ([]string, error) {
-	return []string{}, nil
+func getXDGDirectories(_ string) []string {
+	return []string{}
 }
