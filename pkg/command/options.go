@@ -7,7 +7,6 @@ import (
 
 type options struct {
 	file        string
-	list        bool
 	interactive bool
 	remove      bool
 	noRemove    bool
@@ -29,9 +28,6 @@ func (opts *options) createFlags(cmd *cobra.Command) {
 	flags.StringVarP(
 		&opts.file, "file", "f", "",
 		"specify a dodo configuration file")
-	flags.BoolVarP(
-		&opts.list, "list", "", false,
-		"list all available backdrop configurations")
 	flags.BoolVarP(
 		&opts.interactive, "interactive", "i", false,
 		"run an interactive session")
