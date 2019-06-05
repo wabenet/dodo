@@ -12,6 +12,7 @@ require (
 	github.com/docker/docker v0.7.3-0.20190426040033-8921b59d5df1
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/docker/machine v0.16.1
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.1 // indirect
@@ -22,6 +23,8 @@ require (
 	github.com/oclaussen/go-gimme v0.0.0-20190514132726-5e313a0bf2a2 // indirect
 	github.com/oclaussen/go-gimme/configfiles v0.0.0-20190514132726-5e313a0bf2a2
 	github.com/pkg/errors v0.8.1
+	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471 // indirect
+	github.com/sirupsen/logrus v1.4.1
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.3.0

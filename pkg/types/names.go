@@ -12,6 +12,7 @@ import (
 
 type Names struct {
 	Backdrops map[string]string
+	Stages    map[string]string
 	Groups    map[string]Names
 }
 
@@ -40,6 +41,17 @@ func (target *Names) Merge(source *Names) {
 		for key, value := range source.Backdrops {
 			if _, ok := target.Backdrops[key]; !ok {
 				target.Backdrops[key] = value
+			}
+		}
+	}
+
+	if source.Stages != nil {
+		if target.Stages == nil {
+			target.Stages = map[string]string{}
+		}
+		for key, value := range source.Stages {
+			if _, ok := target.Stages[key]; !ok {
+				target.Stages[key] = value
 			}
 		}
 	}
@@ -80,6 +92,14 @@ func DecodeNames(path string, name string, config interface{}) (Names, error) {
 				for name, path := range decoded {
 					result.Backdrops[name] = path
 				}
+			case "stages":
+				decoded, err := DecodeNamesStages(path, key, v)
+				if err != nil {
+					return result, err
+				}
+				for name, path := range decoded {
+					result.Stages[name] = path
+				}
 			case "include":
 				decoded, err := DecodeNamesIncludes(path, key, v)
 				if err != nil {
@@ -101,6 +121,20 @@ func DecodeNames(path string, name string, config interface{}) (Names, error) {
 }
 
 func DecodeNamesBackdrops(path string, name string, config interface{}) (map[string]string, error) {
+	result := map[string]string{}
+	switch t := reflect.ValueOf(config); t.Kind() {
+	case reflect.Map:
+		for k := range t.Interface().(map[interface{}]interface{}) {
+			key := k.(string)
+			result[key] = path
+		}
+	default:
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
+	}
+	return result, nil
+}
+
+func DecodeNamesStages(path string, name string, config interface{}) (map[string]string, error) {
 	result := map[string]string{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:

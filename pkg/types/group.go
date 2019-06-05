@@ -14,6 +14,7 @@ type Groups map[string]Group
 
 type Group struct {
 	Backdrops Backdrops
+	Stages    Stages
 	Groups    Groups
 }
 
@@ -36,7 +37,7 @@ func DecodeGroups(name string, config interface{}) (Groups, error) {
 }
 
 func DecodeGroup(name string, config interface{}) (Group, error) {
-	result := Group{Backdrops: Backdrops{}, Groups: Groups{}}
+	result := Group{Backdrops: Backdrops{}, Stages: Stages{}, Groups: Groups{}}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
@@ -56,6 +57,14 @@ func DecodeGroup(name string, config interface{}) (Group, error) {
 				}
 				for name, backdrop := range decoded {
 					result.Backdrops[name] = backdrop
+				}
+			case "stages":
+				decoded, err := DecodeStages(key, v)
+				if err != nil {
+					return result, err
+				}
+				for name, stage := range decoded {
+					result.Stages[name] = stage
 				}
 			case "include":
 				decoded, err := DecodeIncludes(key, v)
