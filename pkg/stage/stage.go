@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TODO: make machine dir configurable and default somewhere not docker-machine
+
 type Stage struct {
 	name   string
 	config *types.Stage
@@ -37,7 +39,10 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 			return stage, errors.Wrap(err, "could not load stage")
 		}
 	} else {
-		driverConfig, _ := json.Marshal(&drivers.BaseDriver{MachineName: name})
+		driverConfig, _ := json.Marshal(&drivers.BaseDriver{
+			MachineName: name,
+			StorePath:   machineDir,
+		})
 		stage.host, err = api.NewHost(stage.config.Type, driverConfig)
 		if err != nil {
 			return stage, errors.Wrap(err, "could not create stage")

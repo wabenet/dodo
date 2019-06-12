@@ -42,8 +42,14 @@ func NewUpCommand() *cobra.Command {
 	}
 }
 
+type downOptions struct {
+	remove bool
+	force  bool
+}
+
 func NewDownCommand() *cobra.Command {
-	return &cobra.Command{
+	var opts downOptions
+	cmd := &cobra.Command{
 		Use:   "down",
 		Short: "Remove or pause a stage",
 		Args:  cobra.ExactArgs(1),
@@ -57,9 +63,13 @@ func NewDownCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return target.Down(false)
+			return target.Down(opts.remove, opts.force)
 		},
 	}
+	flags := cmd.Flags()
+	flags.BoolVarP(&opts.remove, "rm", "", false, "remove the stage instead of pausing")
+	flags.BoolVarP(&opts.force, "force", "f", false, "when used with '--rm', don't stop on errors")
+	return cmd
 }
 
 func loadStageConfig(name string) (*types.Stage, error) {

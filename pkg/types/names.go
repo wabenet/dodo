@@ -71,7 +71,7 @@ func (target *Names) Merge(source *Names) {
 }
 
 func DecodeNames(path string, name string, config interface{}) (Names, error) {
-	result := Names{Backdrops: map[string]string{}, Groups: map[string]Names{}}
+	result := Names{Backdrops: map[string]string{}, Stages: map[string]string{}, Groups: map[string]Names{}}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
