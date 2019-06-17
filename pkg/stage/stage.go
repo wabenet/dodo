@@ -2,19 +2,23 @@ package stage
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/machine/libmachine/auth"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
 	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/host"
+	"github.com/docker/machine/libmachine/state"
 	"github.com/docker/machine/libmachine/swarm"
 	"github.com/docker/machine/libmachine/version"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO: make machine dir configurable and default somewhere not docker-machine
@@ -104,6 +108,21 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 	}
 
 	return stage, nil
+}
+
+func (stage *Stage) waitForState(desiredState state.State) error {
+	maxAttempts := 60
+	for i := 0; i < maxAttempts; i++ {
+		currentState, err := stage.host.Driver.GetState()
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
+		}
+		if currentState == desiredState {
+			return nil
+		}
+		time.Sleep(3 * time.Second)
+	}
+	return fmt.Errorf("maximum number of retries (%d) exceeded", maxAttempts)
 }
 
 func home() string {

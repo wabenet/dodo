@@ -8,7 +8,7 @@ import (
 	"github.com/docker/machine/libmachine/check"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
-	"github.com/docker/machine/libmachine/mcnutils"
+	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/provision"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/pkg/errors"
@@ -17,21 +17,35 @@ import (
 
 func (stage *Stage) Up() error {
 	if stage.exists {
-		if err := stage.host.Start(); err != nil {
-			return errors.Wrap(err, "could not start stage")
-		}
+		return stage.start()
 	} else {
-		driverOpts, err := stage.driverOptions()
-		if err != nil {
-			return err
-		}
-		if err = stage.host.Driver.SetConfigFromFlags(driverOpts); err != nil {
-			return errors.Wrap(err, "could not configure stage")
-		}
+		return stage.create()
+	}
+}
 
-		if err = stage.create(); err != nil {
-			return errors.Wrap(err, "could not create stage")
-		}
+func (stage *Stage) start() error {
+	log.WithFields(log.Fields{"name": stage.name}).Info("starting stage...")
+
+	currentState, err := stage.host.Driver.GetState()
+	if err != nil {
+		log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
+	}
+	if currentState == state.Running {
+		log.WithFields(log.Fields{"name": stage.name}).Info("stage is already up")
+		return nil
+	}
+
+	if err := stage.host.Driver.Start(); err != nil {
+		return errors.Wrap(err, "could not start stage")
+	}
+
+	provisioner, err := provision.DetectProvisioner(stage.host.Driver)
+	if err != nil {
+		return errors.Wrap(err, "could not detect provisioner")
+	}
+
+	if err := provision.WaitForDocker(provisioner, engine.DefaultPort); err != nil {
+		return errors.Wrap(err, "docker did start successfully")
 	}
 
 	if err := stage.saveState(); err != nil {
@@ -40,9 +54,18 @@ func (stage *Stage) Up() error {
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("stage is now up")
 	return nil
+
 }
 
 func (stage *Stage) create() error {
+	driverOpts, err := stage.driverOptions()
+	if err != nil {
+		return err
+	}
+	if err = stage.host.Driver.SetConfigFromFlags(driverOpts); err != nil {
+		return errors.Wrap(err, "could not configure stage")
+	}
+
 	if err := cert.BootstrapCertificates(stage.host.AuthOptions()); err != nil {
 		return errors.Wrap(err, "could not generate certificates")
 	}
@@ -68,7 +91,7 @@ func (stage *Stage) create() error {
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("waiting for stage...")
-	if err := mcnutils.WaitFor(drivers.MachineInState(stage.host.Driver, state.Running)); err != nil {
+	if err := stage.waitForState(state.Running); err != nil {
 		return err
 	}
 
@@ -88,7 +111,11 @@ func (stage *Stage) create() error {
 		return errors.Wrap(err, "could not connect to host")
 	}
 
-	log.WithFields(log.Fields{"name": stage.name}).Info("Docker is up and running")
+	if err := stage.saveState(); err != nil {
+		return errors.Wrap(err, "could not store stage")
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("stage is now up")
 	return nil
 }
 

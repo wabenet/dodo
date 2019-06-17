@@ -1,6 +1,7 @@
 package stage
 
 import (
+	"github.com/docker/machine/libmachine/state"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -22,9 +23,25 @@ func (stage *Stage) Down(remove bool, force bool) error {
 
 		log.WithFields(log.Fields{"name": stage.name}).Info("removed stage")
 	} else {
-		if err := stage.host.Stop(); err != nil && !force {
+		log.WithFields(log.Fields{"name": stage.name}).Info("pausing stage...")
+
+		currentState, err := stage.host.Driver.GetState()
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
+		}
+		if currentState == state.Stopped {
+			log.WithFields(log.Fields{"name": stage.name}).Info("stage is already down")
+			return nil
+		}
+
+		if err := stage.host.Driver.Stop(); err != nil {
 			return errors.Wrap(err, "could not pause stage")
 		}
+
+		if err := stage.waitForState(state.Stopped); err != nil {
+			return errors.Wrap(err, "could not pause stage")
+		}
+
 		if err := stage.saveState(); err != nil && !force {
 			return errors.Wrap(err, "could not store stage")
 		}
