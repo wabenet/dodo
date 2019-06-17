@@ -2,8 +2,6 @@ package types
 
 import (
 	"reflect"
-
-	"github.com/docker/machine/libmachine/engine"
 )
 
 type Stages map[string]Stage
@@ -14,20 +12,6 @@ type Stage struct {
 }
 
 type Options map[string]interface{}
-
-func (stage *Stage) EngineOptions() *engine.Options {
-	// TODO: add options for these
-	return &engine.Options{
-		ArbitraryFlags:   []string{},
-		Env:              []string{},
-		InsecureRegistry: []string{},
-		Labels:           []string{},
-		RegistryMirror:   []string{},
-		StorageDriver:    "",
-		TLSVerify:        true,
-		InstallURL:       "",
-	}
-}
 
 func DecodeStages(name string, config interface{}) (Stages, error) {
 	result := map[string]Stage{}

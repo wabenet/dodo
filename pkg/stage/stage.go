@@ -2,12 +2,17 @@ package stage
 
 import (
 	"encoding/json"
+	"os"
 	"os/user"
 	"path/filepath"
 
-	"github.com/docker/machine/libmachine"
+	"github.com/docker/machine/libmachine/auth"
 	"github.com/docker/machine/libmachine/drivers"
+	"github.com/docker/machine/libmachine/drivers/rpc"
+	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/host"
+	"github.com/docker/machine/libmachine/swarm"
+	"github.com/docker/machine/libmachine/version"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
 )
@@ -15,37 +20,86 @@ import (
 // TODO: make machine dir configurable and default somewhere not docker-machine
 
 type Stage struct {
-	name   string
-	config *types.Stage
-	api    libmachine.API
-	host   *host.Host
-	exists bool
+	name     string
+	config   *types.Stage
+	stateDir string
+	host     *host.Host
+	exists   bool
 }
 
 func LoadStage(name string, config *types.Stage) (*Stage, error) {
 	machineDir := filepath.Join(home(), ".docker", "machine")
-	api := libmachine.NewClient(machineDir, filepath.Join(machineDir, "certs"))
-	stage := &Stage{name: name, config: config, api: api}
+	certsDir := filepath.Join(machineDir, "certs")
+	stage := &Stage{
+		name:     name,
+		config:   config,
+		stateDir: machineDir,
+	}
 
-	var err error
-	stage.exists, err = api.Exists(name)
-	if err != nil {
+	_, err := os.Stat(stage.hostDir())
+	if os.IsNotExist(err) {
+		stage.exists = false
+	} else if err == nil {
+		stage.exists = true
+	} else {
 		return stage, errors.Wrap(err, "could not check if stage exists")
 	}
 
+	driverFactory := rpcdriver.NewRPCClientDriverFactory()
+
 	if stage.exists {
-		stage.host, err = api.Load(name)
+		if err := stage.loadState(); err != nil {
+			return stage, errors.Wrap(err, "could not load stage")
+		}
+
+		driver, err := driverFactory.NewRPCClientDriver(stage.host.DriverName, stage.host.RawDriver)
 		if err != nil {
 			return stage, errors.Wrap(err, "could not load stage")
 		}
+		stage.host.Driver = drivers.NewSerialDriver(driver)
 	} else {
 		driverConfig, _ := json.Marshal(&drivers.BaseDriver{
 			MachineName: name,
 			StorePath:   machineDir,
 		})
-		stage.host, err = api.NewHost(stage.config.Type, driverConfig)
+
+		driver, err := driverFactory.NewRPCClientDriver(stage.config.Type, driverConfig)
 		if err != nil {
 			return stage, errors.Wrap(err, "could not create stage")
+		}
+
+		stage.host = &host.Host{
+			ConfigVersion: version.ConfigVersion,
+			Name:          driver.GetMachineName(),
+			Driver:        driver,
+			DriverName:    driver.DriverName(),
+			HostOptions: &host.Options{
+				AuthOptions: &auth.Options{
+					StorePath:        stage.hostDir(),
+					CertDir:          certsDir,
+					CaCertPath:       filepath.Join(certsDir, "ca.pem"),
+					CaPrivateKeyPath: filepath.Join(certsDir, "ca-key.pem"),
+					ClientCertPath:   filepath.Join(certsDir, "cert.pem"),
+					ClientKeyPath:    filepath.Join(certsDir, "key.pem"),
+					ServerCertPath:   filepath.Join(stage.hostDir(), "server.pem"),
+					ServerKeyPath:    filepath.Join(stage.hostDir(), "server-key.pem"),
+				},
+				EngineOptions: &engine.Options{
+					InstallURL:       drivers.DefaultEngineInstallURL,
+					StorageDriver:    "overlay2",
+					TLSVerify:        true,
+					ArbitraryFlags:   []string{},
+					Env:              []string{},
+					InsecureRegistry: []string{},
+					Labels:           []string{},
+					RegistryMirror:   []string{},
+				},
+				SwarmOptions: &swarm.Options{
+					Host:     "tcp://0.0.0.0:3376",
+					Image:    "swarm:latest",
+					Strategy: "spread",
+				},
+			},
 		}
 	}
 

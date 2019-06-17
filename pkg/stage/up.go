@@ -2,14 +2,15 @@ package stage
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
-	"github.com/docker/machine/libmachine/auth"
+	"github.com/docker/machine/libmachine/cert"
+	"github.com/docker/machine/libmachine/check"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
-	"github.com/docker/machine/libmachine/host"
-	"github.com/docker/machine/libmachine/swarm"
+	"github.com/docker/machine/libmachine/mcnutils"
+	"github.com/docker/machine/libmachine/provision"
+	"github.com/docker/machine/libmachine/state"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -20,12 +21,6 @@ func (stage *Stage) Up() error {
 			return errors.Wrap(err, "could not start stage")
 		}
 	} else {
-		stage.host.HostOptions = &host.Options{
-			AuthOptions:   authOptions(stage.name),
-			EngineOptions: stage.config.EngineOptions(),
-			SwarmOptions:  &swarm.Options{},
-		}
-
 		driverOpts, err := stage.driverOptions()
 		if err != nil {
 			return err
@@ -34,12 +29,12 @@ func (stage *Stage) Up() error {
 			return errors.Wrap(err, "could not configure stage")
 		}
 
-		if err = stage.api.Create(stage.host); err != nil {
+		if err = stage.create(); err != nil {
 			return errors.Wrap(err, "could not create stage")
 		}
 	}
 
-	if err := stage.api.Save(stage.host); err != nil {
+	if err := stage.saveState(); err != nil {
 		return errors.Wrap(err, "could not store stage")
 	}
 
@@ -47,20 +42,54 @@ func (stage *Stage) Up() error {
 	return nil
 }
 
-func authOptions(name string) *auth.Options {
-	configDir := filepath.Join(home(), ".docker", "machine")
-	certDir := filepath.Join(configDir, "certs")
-	machineDir := filepath.Join(configDir, "machines", name)
-	return &auth.Options{
-		StorePath:        machineDir,
-		CertDir:          certDir,
-		CaCertPath:       filepath.Join(certDir, "ca.pem"),
-		CaPrivateKeyPath: filepath.Join(certDir, "ca-key.pem"),
-		ClientCertPath:   filepath.Join(certDir, "cert.pem"),
-		ClientKeyPath:    filepath.Join(certDir, "key.pem"),
-		ServerCertPath:   filepath.Join(machineDir, "server.pem"),
-		ServerKeyPath:    filepath.Join(machineDir, "server-key.pem"),
+func (stage *Stage) create() error {
+	if err := cert.BootstrapCertificates(stage.host.AuthOptions()); err != nil {
+		return errors.Wrap(err, "could not generate certificates")
 	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("running pre-create checks...")
+
+	if err := stage.host.Driver.PreCreateCheck(); err != nil {
+		return err
+	}
+
+	if err := stage.saveState(); err != nil {
+		return errors.Wrap(err, "could not save stage before creation")
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("creating stage...")
+
+	if err := stage.host.Driver.Create(); err != nil {
+		return errors.Wrap(err, "could not run driver")
+	}
+
+	if err := stage.saveState(); err != nil {
+		return errors.Wrap(err, "could not save stage after creation")
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("waiting for stage...")
+	if err := mcnutils.WaitFor(drivers.MachineInState(stage.host.Driver, state.Running)); err != nil {
+		return err
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("detecting operating system...")
+	provisioner, err := provision.DetectProvisioner(stage.host.Driver)
+	if err != nil {
+		return errors.Wrap(err, "could not detect operating system")
+	}
+
+	log.WithFields(log.Fields{"name": stage.name, "provisioner": provisioner.String()}).Info("provisioning...")
+	if err := provisioner.Provision(*stage.host.HostOptions.SwarmOptions, *stage.host.HostOptions.AuthOptions, *stage.host.HostOptions.EngineOptions); err != nil {
+		return errors.Wrap(err, "could not provision stage")
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("checking connection...")
+	if _, _, err = check.DefaultConnChecker.Check(stage.host, false); err != nil {
+		return errors.Wrap(err, "could not connect to host")
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("Docker is up and running")
+	return nil
 }
 
 func (stage *Stage) driverOptions() (drivers.DriverOptions, error) {

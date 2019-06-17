@@ -16,7 +16,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return errors.Wrap(err, "could not remove remote stage")
 		}
 
-		if err := stage.api.Remove(stage.name); err != nil && !force {
+		if err := stage.deleteState(); err != nil && !force {
 			return errors.Wrap(err, "could not remove local stage")
 		}
 
@@ -25,7 +25,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 		if err := stage.host.Stop(); err != nil && !force {
 			return errors.Wrap(err, "could not pause stage")
 		}
-		if err := stage.api.Save(stage.host); err != nil && !force {
+		if err := stage.saveState(); err != nil && !force {
 			return errors.Wrap(err, "could not store stage")
 		}
 
