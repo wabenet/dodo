@@ -13,7 +13,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return nil
 		}
 
-		if err := stage.host.Driver.Remove(); err != nil && !force {
+		if err := stage.driver.Remove(); err != nil && !force {
 			return errors.Wrap(err, "could not remove remote stage")
 		}
 
@@ -25,7 +25,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 	} else {
 		log.WithFields(log.Fields{"name": stage.name}).Info("pausing stage...")
 
-		currentState, err := stage.host.Driver.GetState()
+		currentState, err := stage.driver.GetState()
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
 		}
@@ -34,7 +34,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return nil
 		}
 
-		if err := stage.host.Driver.Stop(); err != nil {
+		if err := stage.driver.Stop(); err != nil {
 			return errors.Wrap(err, "could not pause stage")
 		}
 
@@ -42,7 +42,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return errors.Wrap(err, "could not pause stage")
 		}
 
-		if err := stage.saveState(); err != nil && !force {
+		if err := stage.exportState(); err != nil && !force {
 			return errors.Wrap(err, "could not store stage")
 		}
 
