@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/machine/libmachine/auth"
-	"github.com/docker/machine/libmachine/cert"
+	machineauth "github.com/docker/machine/libmachine/auth"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
 	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/provision"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/docker/machine/libmachine/swarm"
+	"github.com/oclaussen/dodo/pkg/stage/auth"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -72,7 +72,7 @@ func (stage *Stage) create() error {
 		return errors.Wrap(err, "could not configure stage")
 	}
 
-	if err := cert.BootstrapCertificates(&authOptions); err != nil {
+	if err := auth.BootstrapCertificates(filepath.Join(stage.hostDir(), "certs")); err != nil {
 		return errors.Wrap(err, "could not generate certificates")
 	}
 
@@ -124,7 +124,7 @@ func (stage *Stage) create() error {
 		return errors.Wrap(err, "could not parse Docker URL")
 	}
 
-	if valid, err := cert.ValidateCertificate(parsedURL.Host, &authOptions); !valid || err != nil {
+	if valid, err := auth.ValidateCertificate(parsedURL.Host, filepath.Join(stage.hostDir(), "certs")); !valid || err != nil {
 		return errors.Wrap(err, "invalid certificate")
 	}
 
@@ -136,8 +136,8 @@ func (stage *Stage) create() error {
 	return nil
 }
 
-func authOptions(baseDir string) auth.Options {
-	return auth.Options{
+func authOptions(baseDir string) machineauth.Options {
+	return machineauth.Options{
 		StorePath:        baseDir,
 		CertDir:          filepath.Join(baseDir, "certs"),
 		CaCertPath:       filepath.Join(baseDir, "certs", "ca.pem"),
