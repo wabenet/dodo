@@ -10,7 +10,6 @@ import (
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
 	"github.com/docker/machine/libmachine/engine"
-	"github.com/docker/machine/libmachine/provision"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/docker/machine/libmachine/swarm"
 	"github.com/oclaussen/dodo/pkg/stage/auth"
@@ -42,12 +41,7 @@ func (stage *Stage) start() error {
 		return errors.Wrap(err, "could not start stage")
 	}
 
-	provisioner, err := provision.DetectProvisioner(stage.driver)
-	if err != nil {
-		return errors.Wrap(err, "could not detect provisioner")
-	}
-
-	if err := provision.WaitForDocker(provisioner, engine.DefaultPort); err != nil {
+	if err := stage.waitForDocker(); err != nil {
 		return errors.Wrap(err, "docker did start successfully")
 	}
 
@@ -61,19 +55,12 @@ func (stage *Stage) start() error {
 }
 
 func (stage *Stage) create() error {
-	authOptions := authOptions(stage.hostDir())
-	swarmOptions := swarmOptions()
-	engineOptions := engineOptions()
 	driverOpts, err := stage.driverOptions()
 	if err != nil {
 		return err
 	}
 	if err = stage.driver.SetConfigFromFlags(driverOpts); err != nil {
 		return errors.Wrap(err, "could not configure stage")
-	}
-
-	if err := auth.BootstrapCertificates(filepath.Join(stage.hostDir(), "certs")); err != nil {
-		return errors.Wrap(err, "could not generate certificates")
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("running pre-create checks...")
@@ -101,14 +88,8 @@ func (stage *Stage) create() error {
 		return err
 	}
 
-	log.WithFields(log.Fields{"name": stage.name}).Info("detecting operating system...")
-	provisioner, err := provision.DetectProvisioner(stage.driver)
-	if err != nil {
-		return errors.Wrap(err, "could not detect operating system")
-	}
-
-	log.WithFields(log.Fields{"name": stage.name, "provisioner": provisioner.String()}).Info("provisioning...")
-	if err := provisioner.Provision(swarmOptions, authOptions, engineOptions); err != nil {
+	log.WithFields(log.Fields{"name": stage.name}).Info("provisioning...")
+	if err := stage.Provision(); err != nil {
 		return errors.Wrap(err, "could not provision stage")
 	}
 
@@ -124,7 +105,7 @@ func (stage *Stage) create() error {
 		return errors.Wrap(err, "could not parse Docker URL")
 	}
 
-	if valid, err := auth.ValidateCertificate(parsedURL.Host, filepath.Join(stage.hostDir(), "certs")); !valid || err != nil {
+	if valid, err := auth.ValidateCertificate(parsedURL.Host, filepath.Join(stage.hostDir())); !valid || err != nil {
 		return errors.Wrap(err, "invalid certificate")
 	}
 
@@ -139,11 +120,11 @@ func (stage *Stage) create() error {
 func authOptions(baseDir string) machineauth.Options {
 	return machineauth.Options{
 		StorePath:        baseDir,
-		CertDir:          filepath.Join(baseDir, "certs"),
-		CaCertPath:       filepath.Join(baseDir, "certs", "ca.pem"),
-		CaPrivateKeyPath: filepath.Join(baseDir, "certs", "ca-key.pem"),
-		ClientCertPath:   filepath.Join(baseDir, "certs", "cert.pem"),
-		ClientKeyPath:    filepath.Join(baseDir, "certs", "key.pem"),
+		CertDir:          baseDir,
+		CaCertPath:       filepath.Join(baseDir, "ca.pem"),
+		CaPrivateKeyPath: filepath.Join(baseDir, "ca-key.pem"),
+		ClientCertPath:   filepath.Join(baseDir, "cert.pem"),
+		ClientKeyPath:    filepath.Join(baseDir, "key.pem"),
 		ServerCertPath:   filepath.Join(baseDir, "server.pem"),
 		ServerKeyPath:    filepath.Join(baseDir, "server-key.pem"),
 	}

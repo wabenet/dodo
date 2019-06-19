@@ -6,10 +6,13 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
+	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
@@ -67,6 +70,33 @@ func (stage *Stage) waitForState(desiredState state.State) error {
 			return nil
 		}
 		time.Sleep(3 * time.Second)
+	}
+	return fmt.Errorf("maximum number of retries (%d) exceeded", maxAttempts)
+}
+
+func (stage *Stage) waitForDocker() error {
+	maxAttempts := 60
+	reDaemonListening := fmt.Sprintf(":%d\\s+.*:.*", engine.DefaultPort)
+	cmd := "if ! type netstat 1>/dev/null; then ss -tln; else netstat -tln; fi"
+
+	for i := 0; i < maxAttempts; i++ {
+		output, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd)
+		if err != nil {
+			log.WithFields(log.Fields{"cmd": cmd}).Debug("error running SSH command")
+		}
+
+		for _, line := range strings.Split(output, "\n") {
+			match, err := regexp.MatchString(reDaemonListening, line)
+			if err != nil {
+				log.Warnf("Regex warning: %s", err)
+			}
+			if match && line != "" {
+				return nil
+			}
+		}
+
+		time.Sleep(3 * time.Second)
+
 	}
 	return fmt.Errorf("maximum number of retries (%d) exceeded", maxAttempts)
 }
