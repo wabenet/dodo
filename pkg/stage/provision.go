@@ -5,20 +5,18 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/url"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/docker/machine/libmachine/drivers"
-	"github.com/docker/machine/libmachine/engine"
-	"github.com/oclaussen/go-gimme/ssl"
 	log "github.com/sirupsen/logrus"
 )
+
+const defaultPort = 2376
 
 const dockerDir = "/var/lib/boot2docker"
 
@@ -62,95 +60,6 @@ type dockerOptionsContext struct {
 	ServerKey     string
 	Environment   []string
 	DockerArgs    []string
-}
-
-func (stage *Stage) Provision() error {
-	if err := stage.setHostname(); err != nil {
-		return err
-	}
-
-	if err := stage.waitForDocker(); err != nil {
-		return err
-	}
-
-	if err := stage.makeDockerOptionsDir(); err != nil {
-		return err
-	}
-
-	ip, err := stage.driver.GetIP()
-	if err != nil {
-		return err
-	}
-
-	_, files, err := ssl.GimmeCertificates(&ssl.Options{
-		Org:          "dodo." + stage.name,
-		Hosts:        []string{ip, "localhost"},
-		WriteToFiles: &ssl.Files{Directory: stage.hostDir()},
-	})
-	if err != nil {
-		return err
-	}
-
-	if err := stage.stopDocker(); err != nil {
-		return err
-	}
-
-	if err := stage.deleteDockerLink(); err != nil {
-		return err
-	}
-
-	log.Info("copying certs to the remote machine...")
-
-	if err := stage.writeRemoteFile(files.CAFile, path.Join(dockerDir, "ca.pem")); err != nil {
-		return err
-	}
-	if err := stage.writeRemoteFile(files.ServerCertFile, path.Join(dockerDir, "server.pem")); err != nil {
-		return err
-	}
-	if err := stage.writeRemoteFile(files.ServerKeyFile, path.Join(dockerDir, "server-key.pem")); err != nil {
-		return err
-	}
-
-	dockerURL, err := stage.driver.GetURL()
-	if err != nil {
-		return err
-	}
-	dockerPort, err := parseDockerPort(dockerURL)
-	if err != nil {
-		return err
-	}
-
-	if err := stage.writeDockerOptions(dockerPort); err != nil {
-		return err
-	}
-
-	if err := stage.startDocker(); err != nil {
-		return err
-	}
-
-	if err := stage.waitForDocker(); err != nil {
-		return err
-	}
-
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, dockerPort), 5*time.Second)
-	if err != nil {
-		log.Warn(`
-This machine has been allocated an IP address, but Docker Machine could not
-reach it successfully.
-
-SSH for the machine should still work, but connecting to exposed ports, such as
-the Docker daemon port, may not work properly.
-
-You may need to add the route manually, or use another related workaround.
-
-This could be due to a VPN, proxy, or host file configuration issue.
-
-You also might want to clear any VirtualBox host only interfaces you are not using.`)
-	} else {
-		conn.Close()
-	}
-
-	return nil
 }
 
 func (stage *Stage) writeRemoteFile(localPath string, remotePath string) error {
@@ -229,7 +138,7 @@ func (stage *Stage) writeDockerOptions(dockerPort int) error {
 		ServerKey:     path.Join(dockerDir, "server-key.pem"),
 		Environment:   []string{},
 		DockerArgs: []string{
-			fmt.Sprintf("--label provider=%s", stage.driver.DriverName()),
+			fmt.Sprintf("label provider=%s", stage.driver.DriverName()),
 		},
 	})
 
@@ -256,7 +165,7 @@ func parseDockerPort(dockerURL string) (int, error) {
 		return strconv.Atoi(parts[1])
 	}
 
-	return engine.DefaultPort, nil
+	return defaultPort, nil
 }
 
 func copyFile(src, dst string) error {

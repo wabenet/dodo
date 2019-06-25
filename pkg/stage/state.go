@@ -6,7 +6,11 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/machine/libmachine/auth"
+	"github.com/docker/machine/libmachine/drivers"
+	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/host"
+	"github.com/docker/machine/libmachine/swarm"
 	"github.com/docker/machine/libmachine/version"
 )
 
@@ -29,22 +33,7 @@ func (stage *Stage) exportState() error {
 		return err
 	}
 
-	authOptions := authOptions(stage.hostDir())
-	swarmOptions := swarmOptions()
-	engineOptions := engineOptions()
-	machineHost := &host.Host{
-		ConfigVersion: version.ConfigVersion,
-		Name:          stage.driver.GetMachineName(),
-		Driver:        stage.driver,
-		DriverName:    stage.driver.DriverName(),
-		HostOptions: &host.Options{
-			AuthOptions:   &authOptions,
-			EngineOptions: &engineOptions,
-			SwarmOptions:  &swarmOptions,
-		},
-	}
-
-	data, err := json.MarshalIndent(machineHost, "", "    ")
+	data, err := json.MarshalIndent(stage.dockerMachineHost(), "", "    ")
 	if err != nil {
 		return err
 	}
@@ -72,4 +61,43 @@ func (stage *Stage) exportState() error {
 	}
 
 	return os.Rename(tmpfile.Name(), file)
+}
+
+// TODO: fix paths to certificates
+func (stage *Stage) dockerMachineHost() *host.Host {
+	baseDir := stage.hostDir()
+	return &host.Host{
+		ConfigVersion: version.ConfigVersion,
+		Name:          stage.driver.GetMachineName(),
+		Driver:        stage.driver,
+		DriverName:    stage.driver.DriverName(),
+		HostOptions: &host.Options{
+			AuthOptions: &auth.Options{
+				StorePath:        baseDir,
+				CertDir:          baseDir,
+				CaCertPath:       filepath.Join(baseDir, "ca.pem"),
+				CaPrivateKeyPath: filepath.Join(baseDir, "ca-key.pem"),
+				ClientCertPath:   filepath.Join(baseDir, "client.pem"),
+				ClientKeyPath:    filepath.Join(baseDir, "client-key.pem"),
+				ServerCertPath:   filepath.Join(baseDir, "server.pem"),
+				ServerKeyPath:    filepath.Join(baseDir, "server-key.pem"),
+			},
+			EngineOptions: &engine.Options{
+				InstallURL:       drivers.DefaultEngineInstallURL,
+				StorageDriver:    "overlay2",
+				TLSVerify:        true,
+				ArbitraryFlags:   []string{},
+				Env:              []string{},
+				InsecureRegistry: []string{},
+				Labels:           []string{},
+				RegistryMirror:   []string{},
+			},
+			SwarmOptions: &swarm.Options{
+				Host:     "tcp://0.0.0.0:3376",
+				Image:    "swarm:latest",
+				Strategy: "spread",
+			},
+		},
+	}
+
 }

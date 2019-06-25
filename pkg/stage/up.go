@@ -1,18 +1,19 @@
 package stage
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net"
 	"net/url"
-	"path/filepath"
+	"path"
 	"strings"
+	"time"
 
-	machineauth "github.com/docker/machine/libmachine/auth"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/rpc"
-	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/state"
-	"github.com/docker/machine/libmachine/swarm"
-	"github.com/oclaussen/dodo/pkg/stage/auth"
+	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -89,23 +90,100 @@ func (stage *Stage) create() error {
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("provisioning...")
-	if err := stage.Provision(); err != nil {
-		return errors.Wrap(err, "could not provision stage")
+
+	if err := stage.setHostname(); err != nil {
+		return err
 	}
 
-	log.WithFields(log.Fields{"name": stage.name}).Info("checking connection...")
+	if err := stage.waitForDocker(); err != nil {
+		return err
+	}
+
+	if err := stage.makeDockerOptionsDir(); err != nil {
+		return err
+	}
+
+	ip, err := stage.driver.GetIP()
+	if err != nil {
+		return err
+	}
+
+	certs, files, err := ssl.GimmeCertificates(&ssl.Options{
+		Org:          "dodo." + stage.name,
+		Hosts:        []string{ip, "localhost"},
+		WriteToFiles: &ssl.Files{Directory: stage.hostDir()},
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := stage.stopDocker(); err != nil {
+		return err
+	}
+
+	if err := stage.deleteDockerLink(); err != nil {
+		return err
+	}
+
+	log.Info("copying certs to the remote machine...")
+
+	if err := stage.writeRemoteFile(files.CAFile, path.Join(dockerDir, "ca.pem")); err != nil {
+		return err
+	}
+	if err := stage.writeRemoteFile(files.ServerCertFile, path.Join(dockerDir, "server.pem")); err != nil {
+		return err
+	}
+	if err := stage.writeRemoteFile(files.ServerKeyFile, path.Join(dockerDir, "server-key.pem")); err != nil {
+		return err
+	}
 
 	dockerURL, err := stage.driver.GetURL()
 	if err != nil {
-		return errors.Wrap(err, "could get Docker URL")
+		return err
 	}
+	dockerPort, err := parseDockerPort(dockerURL)
+	if err != nil {
+		return err
+	}
+
+	if err := stage.writeDockerOptions(dockerPort); err != nil {
+		return err
+	}
+
+	if err := stage.startDocker(); err != nil {
+		return err
+	}
+
+	if err := stage.waitForDocker(); err != nil {
+		return err
+	}
+
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, dockerPort), 5*time.Second)
+	if err != nil {
+		log.Warn(`
+This machine has been allocated an IP address, but Docker Machine could not
+reach it successfully.
+
+SSH for the machine should still work, but connecting to exposed ports, such as
+the Docker daemon port, may not work properly.
+
+You may need to add the route manually, or use another related workaround.
+
+This could be due to a VPN, proxy, or host file configuration issue.
+
+You also might want to clear any VirtualBox host only interfaces you are not using.`)
+	} else {
+		conn.Close()
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("checking connection...")
 
 	parsedURL, err := url.Parse(dockerURL)
 	if err != nil {
 		return errors.Wrap(err, "could not parse Docker URL")
 	}
 
-	if valid, err := auth.ValidateCertificate(parsedURL.Host, filepath.Join(stage.hostDir())); !valid || err != nil {
+	if valid, err := validateCertificate(parsedURL.Host, certs); !valid || err != nil {
 		return errors.Wrap(err, "invalid certificate")
 	}
 
@@ -117,38 +195,37 @@ func (stage *Stage) create() error {
 	return nil
 }
 
-func authOptions(baseDir string) machineauth.Options {
-	return machineauth.Options{
-		StorePath:        baseDir,
-		CertDir:          baseDir,
-		CaCertPath:       filepath.Join(baseDir, "ca.pem"),
-		CaPrivateKeyPath: filepath.Join(baseDir, "ca-key.pem"),
-		ClientCertPath:   filepath.Join(baseDir, "cert.pem"),
-		ClientKeyPath:    filepath.Join(baseDir, "key.pem"),
-		ServerCertPath:   filepath.Join(baseDir, "server.pem"),
-		ServerKeyPath:    filepath.Join(baseDir, "server-key.pem"),
+func validateCertificate(addr string, certs *ssl.Certificates) (bool, error) {
+	keyPair, err := tls.X509KeyPair(certs.CA, certs.CAKey)
+	if err != nil {
+		return false, err
 	}
-}
 
-func swarmOptions() swarm.Options {
-	return swarm.Options{
-		Host:     "tcp://0.0.0.0:3376",
-		Image:    "swarm:latest",
-		Strategy: "spread",
+	caCert, err := x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		return false, err
 	}
-}
 
-func engineOptions() engine.Options {
-	return engine.Options{
-		InstallURL:       drivers.DefaultEngineInstallURL,
-		StorageDriver:    "overlay2",
-		TLSVerify:        true,
-		ArbitraryFlags:   []string{},
-		Env:              []string{},
-		InsecureRegistry: []string{},
-		Labels:           []string{},
-		RegistryMirror:   []string{},
+	certPool := x509.NewCertPool()
+	certPool.AddCert(caCert)
+
+	keyPair, err = tls.X509KeyPair(certs.ClientCert, certs.ClientKey)
+	if err != nil {
+		return false, err
 	}
+
+	dialer := &net.Dialer{Timeout: 20 * time.Second}
+	tlsConfig := &tls.Config{
+		RootCAs:            certPool,
+		InsecureSkipVerify: false,
+		Certificates:       []tls.Certificate{keyPair},
+	}
+
+	if _, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (stage *Stage) driverOptions() (drivers.DriverOptions, error) {
