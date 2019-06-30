@@ -1,7 +1,9 @@
 package stage
 
 import (
-	"github.com/docker/machine/libmachine/state"
+	"os"
+
+	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -13,11 +15,11 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return nil
 		}
 
-		if err := stage.driver.Remove(); err != nil && !force {
+		if err := vbox.Remove(stage.name); err != nil && !force {
 			return errors.Wrap(err, "could not remove remote stage")
 		}
 
-		if err := stage.deleteState(); err != nil && !force {
+		if err := os.RemoveAll(stage.hostDir()); err != nil && !force {
 			return errors.Wrap(err, "could not remove local stage")
 		}
 
@@ -25,25 +27,21 @@ func (stage *Stage) Down(remove bool, force bool) error {
 	} else {
 		log.WithFields(log.Fields{"name": stage.name}).Info("pausing stage...")
 
-		currentState, err := stage.driver.GetState()
+		currentStatus, err := vbox.GetStatus(stage.name)
 		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
+			log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
 		}
-		if currentState == state.Stopped {
+		if currentStatus == vbox.Stopped {
 			log.WithFields(log.Fields{"name": stage.name}).Info("stage is already down")
 			return nil
 		}
 
-		if err := stage.driver.Stop(); err != nil {
+		if err := vbox.Stop(stage.name); err != nil {
 			return errors.Wrap(err, "could not pause stage")
 		}
 
-		if err := stage.waitForState(state.Stopped); err != nil {
+		if err := stage.waitForStatus(vbox.Stopped); err != nil {
 			return errors.Wrap(err, "could not pause stage")
-		}
-
-		if err := stage.exportState(); err != nil && !force {
-			return errors.Wrap(err, "could not store stage")
 		}
 
 		log.WithFields(log.Fields{"name": stage.name}).Info("paused stage")

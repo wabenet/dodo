@@ -1,7 +1,6 @@
 package stage
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/user"
@@ -10,10 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/machine/libmachine/drivers"
-	"github.com/docker/machine/libmachine/drivers/rpc"
-	"github.com/docker/machine/libmachine/engine"
-	"github.com/docker/machine/libmachine/state"
+	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -25,7 +21,6 @@ type Stage struct {
 	name     string
 	config   *types.Stage
 	stateDir string
-	driver   drivers.Driver
 	exists   bool
 }
 
@@ -45,28 +40,21 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 		return stage, errors.Wrap(err, "could not check if stage exists")
 	}
 
-	driverConfig, _ := json.Marshal(&drivers.BaseDriver{
-		MachineName: name,
-		StorePath:   stage.stateDir,
-	})
-
-	driver, err := rpcdriver.NewRPCClientDriverFactory().NewRPCClientDriver(stage.config.Type, driverConfig)
-	if err != nil {
-		return stage, errors.Wrap(err, "could not create stage")
-	}
-	stage.driver = drivers.NewSerialDriver(driver)
-
 	return stage, nil
 }
 
-func (stage *Stage) waitForState(desiredState state.State) error {
+func (stage *Stage) hostDir() string {
+	return filepath.Join(stage.stateDir, "machines", stage.name)
+}
+
+func (stage *Stage) waitForStatus(desiredStatus vbox.Status) error {
 	maxAttempts := 60
 	for i := 0; i < maxAttempts; i++ {
-		currentState, err := stage.driver.GetState()
+		currentStatus, err := vbox.GetStatus(stage.name)
 		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
+			log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
 		}
-		if currentState == desiredState {
+		if currentStatus == desiredStatus {
 			return nil
 		}
 		time.Sleep(3 * time.Second)
@@ -76,11 +64,11 @@ func (stage *Stage) waitForState(desiredState state.State) error {
 
 func (stage *Stage) waitForDocker() error {
 	maxAttempts := 60
-	reDaemonListening := fmt.Sprintf(":%d\\s+.*:.*", engine.DefaultPort)
+	reDaemonListening := fmt.Sprintf(":%d\\s+.*:.*", defaultPort)
 	cmd := "if ! type netstat 1>/dev/null; then ss -tln; else netstat -tln; fi"
 
 	for i := 0; i < maxAttempts; i++ {
-		output, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd)
+		output, err := stage.RunSSHCommand(cmd)
 		if err != nil {
 			log.WithFields(log.Fields{"cmd": cmd}).Debug("error running SSH command")
 		}

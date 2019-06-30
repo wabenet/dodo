@@ -12,7 +12,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/docker/machine/libmachine/drivers"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,7 +68,7 @@ func (stage *Stage) writeRemoteFile(localPath string, remotePath string) error {
 	}
 
 	cmd := fmt.Sprintf("printf '%%s' '%s' | sudo tee %s", string(bytes), remotePath)
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 
@@ -77,13 +76,12 @@ func (stage *Stage) writeRemoteFile(localPath string, remotePath string) error {
 }
 
 func (stage *Stage) setHostname() error {
-	hostname := stage.driver.GetMachineName()
 	cmd := fmt.Sprintf(
 		"sudo /usr/bin/sethostname %s && echo %q | sudo tee /var/lib/boot2docker/etc/hostname",
-		hostname,
-		hostname,
+		stage.name,
+		stage.name,
 	)
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 	return nil
@@ -92,7 +90,7 @@ func (stage *Stage) setHostname() error {
 func (stage *Stage) makeDockerOptionsDir() error {
 	dockerDir := "/var/lib/boot2docker"
 	cmd := fmt.Sprintf("sudo mkdir -p %s", dockerDir)
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 	return nil
@@ -100,7 +98,7 @@ func (stage *Stage) makeDockerOptionsDir() error {
 
 func (stage *Stage) deleteDockerLink() error {
 	cmd := `if [ ! -z "$(ip link show docker0)" ]; then sudo ip link delete docker0; fi`
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 	return nil
@@ -108,7 +106,7 @@ func (stage *Stage) deleteDockerLink() error {
 
 func (stage *Stage) startDocker() error {
 	cmd := "sudo /etc/init.d/docker start"
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 	return nil
@@ -116,7 +114,7 @@ func (stage *Stage) startDocker() error {
 
 func (stage *Stage) stopDocker() error {
 	cmd := "sudo /etc/init.d/docker stop"
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 	return nil
@@ -137,9 +135,7 @@ func (stage *Stage) writeDockerOptions(dockerPort int) error {
 		ServerCert:    path.Join(dockerDir, "server.pem"),
 		ServerKey:     path.Join(dockerDir, "server-key.pem"),
 		Environment:   []string{},
-		DockerArgs: []string{
-			fmt.Sprintf("label provider=%s", stage.driver.DriverName()),
-		},
+		DockerArgs:    []string{},
 	})
 
 	log.Info("writing Docker configuration on the remote daemon...")
@@ -147,7 +143,7 @@ func (stage *Stage) writeDockerOptions(dockerPort int) error {
 	dockerDir := "/var/lib/boot2docker"
 	targetPath := path.Join(dockerDir, "profile")
 	cmd := fmt.Sprintf("printf '%%s' \"%s\" | sudo tee %s", config.String(), targetPath)
-	if _, err := drivers.RunSSHCommandFromDriver(stage.driver, cmd); err != nil {
+	if _, err := stage.RunSSHCommand(cmd); err != nil {
 		return err
 	}
 

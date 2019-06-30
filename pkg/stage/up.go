@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"path"
-	"strings"
+	"path/filepath"
 	"time"
 
-	"github.com/docker/machine/libmachine/drivers"
-	"github.com/docker/machine/libmachine/drivers/rpc"
-	"github.com/docker/machine/libmachine/state"
+	"github.com/oclaussen/dodo/pkg/stage/boot2docker"
+	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
 	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -29,25 +29,21 @@ func (stage *Stage) Up() error {
 func (stage *Stage) start() error {
 	log.WithFields(log.Fields{"name": stage.name}).Info("starting stage...")
 
-	currentState, err := stage.driver.GetState()
+	currentStatus, err := vbox.GetStatus(stage.name)
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Debug("could not get machine state")
+		log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
 	}
-	if currentState == state.Running {
+	if currentStatus == vbox.Running {
 		log.WithFields(log.Fields{"name": stage.name}).Info("stage is already up")
 		return nil
 	}
 
-	if err := stage.driver.Start(); err != nil {
+	if err := vbox.Start(stage.name, filepath.Join(stage.stateDir, "machines", stage.name)); err != nil {
 		return errors.Wrap(err, "could not start stage")
 	}
 
 	if err := stage.waitForDocker(); err != nil {
 		return errors.Wrap(err, "docker did start successfully")
-	}
-
-	if err := stage.exportState(); err != nil {
-		return errors.Wrap(err, "could not store stage")
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("stage is now up")
@@ -56,36 +52,40 @@ func (stage *Stage) start() error {
 }
 
 func (stage *Stage) create() error {
-	driverOpts, err := stage.driverOptions()
-	if err != nil {
-		return err
-	}
-	if err = stage.driver.SetConfigFromFlags(driverOpts); err != nil {
-		return errors.Wrap(err, "could not configure stage")
-	}
-
 	log.WithFields(log.Fields{"name": stage.name}).Info("running pre-create checks...")
-
-	if err := stage.driver.PreCreateCheck(); err != nil {
+	if err := vbox.PreCreateCheck(); err != nil {
 		return err
 	}
 
-	if err := stage.exportState(); err != nil {
-		return errors.Wrap(err, "could not save stage before creation")
+	if err := boot2docker.UpdateISOCache(filepath.Join(stage.stateDir, "cache")); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(stage.hostDir(), 0700); err != nil {
+		return err
+	}
+
+	log.WithFields(log.Fields{"name": stage.name}).Info("copying boot2docker.iso...")
+	if err := copyFile(
+		filepath.Join(stage.stateDir, "cache", "boot2docker.iso"),
+		filepath.Join(stage.hostDir(), "boot2docker.iso"),
+	); err != nil {
+		return err
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("creating stage...")
-
-	if err := stage.driver.Create(); err != nil {
-		return errors.Wrap(err, "could not run driver")
+	opts := vbox.Options{CPU: 1, Memory: 1024, DiskSize: 20000}
+	if err := vbox.Create(stage.name, filepath.Join(stage.stateDir, "machines", stage.name), opts); err != nil {
+		return errors.Wrap(err, "could not create stage")
 	}
 
-	if err := stage.exportState(); err != nil {
-		return errors.Wrap(err, "could not save stage after creation")
+	log.WithFields(log.Fields{"name": stage.name}).Info("starting stage...")
+	if err := vbox.Start(stage.name, filepath.Join(stage.stateDir, "machines", stage.name)); err != nil {
+		return errors.Wrap(err, "could not start stage")
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("waiting for stage...")
-	if err := stage.waitForState(state.Running); err != nil {
+	if err := stage.waitForStatus(vbox.Running); err != nil {
 		return err
 	}
 
@@ -103,7 +103,7 @@ func (stage *Stage) create() error {
 		return err
 	}
 
-	ip, err := stage.driver.GetIP()
+	ip, err := vbox.GetIP(stage.name, filepath.Join(stage.stateDir, "machines", stage.name))
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (stage *Stage) create() error {
 		return err
 	}
 
-	dockerURL, err := stage.driver.GetURL()
+	dockerURL, err := vbox.GetURL(stage.name, filepath.Join(stage.stateDir, "machines", stage.name))
 	if err != nil {
 		return err
 	}
@@ -187,10 +187,6 @@ You also might want to clear any VirtualBox host only interfaces you are not usi
 		return errors.Wrap(err, "invalid certificate")
 	}
 
-	if err := stage.exportState(); err != nil {
-		return errors.Wrap(err, "could not store stage")
-	}
-
 	log.WithFields(log.Fields{"name": stage.name}).Info("stage is now up")
 	return nil
 }
@@ -226,47 +222,4 @@ func validateCertificate(addr string, certs *ssl.Certificates) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func (stage *Stage) driverOptions() (drivers.DriverOptions, error) {
-	options := make(map[string]interface{})
-
-	// Somehow, these are expected by the driver
-	options["swarm-master"] = false
-	options["swarm-host"] = ""
-	options["swarm-discovery"] = ""
-
-	for _, flag := range stage.driver.GetCreateFlags() {
-		if flag.Default() == nil {
-			options[flag.String()] = false
-		} else {
-			options[flag.String()] = flag.Default()
-		}
-	}
-
-	for name, option := range stage.config.Options {
-		validOption := false
-		driverName := stage.driver.DriverName()
-		for _, fuzzyName := range fuzzyOptionNames(driverName, name) {
-			if _, ok := options[fuzzyName]; ok {
-				options[fuzzyName] = option
-				validOption = true
-			}
-		}
-		if !validOption {
-			return nil, fmt.Errorf("unsupported option for stage type '%s': '%s'", driverName, name)
-		}
-	}
-
-	return rpcdriver.RPCFlags{Values: options}, nil
-}
-
-func fuzzyOptionNames(driver string, name string) []string {
-	prefixed := fmt.Sprintf("%s-%s", driver, name)
-	return []string{
-		name,
-		prefixed,
-		strings.ReplaceAll(name, "_", "-"),
-		strings.ReplaceAll(prefixed, "_", "-"),
-	}
 }
