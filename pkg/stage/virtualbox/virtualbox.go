@@ -2,21 +2,17 @@ package virtualbox
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/oclaussen/dodo/pkg/stage/boot2docker"
-	gssh "github.com/oclaussen/go-gimme/ssh"
+	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
 )
 
 type Options struct {
@@ -41,7 +37,7 @@ func Create(name string, path string, opts Options) error {
 	log.Info("creating VirtualBox VM...")
 
 	log.Info("creating SSH key...")
-	if _, err := gssh.GimmeKeyPair(filepath.Join(path, "id_rsa")); err != nil {
+	if _, err := ssh.GimmeKeyPair(filepath.Join(path, "id_rsa")); err != nil {
 		return err
 	}
 
@@ -327,10 +323,23 @@ func GetIP(name string, storePath string) (string, error) {
 
 	macAddress := strings.ToLower(groups[1])
 
-	output, err := RunSSHCommand(name, storePath, "ip addr show")
+	opts, err := GetSSHOptions(name)
 	if err != nil {
 		return "", err
 	}
+
+	executor, err := ssh.GimmeExecutor(&ssh.Options{
+		Host:              opts.Hostname,
+		Port:              opts.Port,
+		User:              opts.Username,
+		IdentityFileGlobs: []string{filepath.Join(storePath, "id_rsa")},
+		NonInteractive:    true,
+	})
+	if err != nil {
+		return "", nil
+	}
+	defer executor.Close()
+	output, err := executor.Execute("ip addr show")
 
 	inTargetMacBlock := false
 	for _, line := range strings.Split(output, "\n") {
@@ -353,42 +362,4 @@ func GetIP(name string, storePath string) (string, error) {
 	}
 
 	return "", errors.New("could not find IP")
-}
-
-func RunSSHCommand(name string, storePath string, command string) (string, error) {
-	opts, err := GetSSHOptions(name)
-	if err != nil {
-		return "", err
-	}
-
-	key, err := ioutil.ReadFile(filepath.Join(storePath, "id_rsa"))
-	if err != nil {
-		return "", err
-	}
-
-	privateKey, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return "", err
-	}
-
-	authMethods := []ssh.AuthMethod{ssh.PublicKeys(privateKey)}
-
-	conn, err := ssh.Dial("tcp", net.JoinHostPort(opts.Hostname, strconv.Itoa(opts.Port)), &ssh.ClientConfig{
-		User:            opts.Username,
-		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "could not connect to SSH")
-	}
-	defer conn.Close()
-
-	session, err := conn.NewSession()
-	if err != nil {
-		return "", nil
-	}
-	defer session.Close()
-
-	output, err := session.CombinedOutput(command)
-	return string(output), err
 }

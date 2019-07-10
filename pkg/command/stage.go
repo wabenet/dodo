@@ -20,6 +20,7 @@ func NewStageCommand() *cobra.Command {
 
 	cmd.AddCommand(NewUpCommand())
 	cmd.AddCommand(NewDownCommand())
+	cmd.AddCommand(NewSSHCommand())
 	return cmd
 }
 
@@ -70,6 +71,26 @@ func NewDownCommand() *cobra.Command {
 	flags.BoolVarP(&opts.remove, "rm", "", false, "remove the stage instead of pausing")
 	flags.BoolVarP(&opts.force, "force", "f", false, "when used with '--rm', don't stop on errors")
 	return cmd
+}
+
+func NewSSHCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "ssh",
+		Short: "login to the stage",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// TODO: do we actually need the config?
+			conf, err := loadStageConfig(args[0])
+			if err != nil {
+				return err
+			}
+			target, err := stage.LoadStage(args[0], conf)
+			if err != nil {
+				return err
+			}
+			return target.SSH()
+		},
+	}
 }
 
 func loadStageConfig(name string) (*types.Stage, error) {
