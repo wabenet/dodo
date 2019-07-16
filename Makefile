@@ -3,6 +3,8 @@ all: clean test build
 .PHONY: clean
 clean:
 	rm -f dodo_*
+	rm -f virtualbox_*
+	rm -f proto/*.pb.go
 
 .PHONY: fmt
 fmt:
@@ -20,10 +22,9 @@ lint:
 test:
 	go test -cover ./...
 
-.PHONY: vendor
-vendor: Gopkg.lock Gopkg.toml
-	dep ensure
-
 .PHONY: build
-build: clean
+build: clean proto/provider.pb.go
 	gox -arch="amd64" -os="darwin linux" ./...
+
+proto/%.pb.go: proto/%.proto
+	protoc --go_out=plugins=grpc:. $<

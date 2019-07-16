@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/oclaussen/dodo/pkg/stage/boot2docker"
-	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
+	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -29,16 +29,16 @@ func (stage *Stage) Up() error {
 func (stage *Stage) start() error {
 	log.WithFields(log.Fields{"name": stage.name}).Info("starting stage...")
 
-	currentStatus, err := vbox.GetStatus(stage.name)
+	currentStatus, err := stage.provider.Status()
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
 	}
-	if currentStatus == vbox.Running {
+	if currentStatus == provider.Up {
 		log.WithFields(log.Fields{"name": stage.name}).Info("stage is already up")
 		return nil
 	}
 
-	if err := vbox.Start(stage.name, filepath.Join(stage.stateDir, "machines", stage.name)); err != nil {
+	if err := stage.provider.Start(); err != nil {
 		return errors.Wrap(err, "could not start stage")
 	}
 
@@ -52,11 +52,6 @@ func (stage *Stage) start() error {
 }
 
 func (stage *Stage) create() error {
-	log.WithFields(log.Fields{"name": stage.name}).Info("running pre-create checks...")
-	if err := vbox.PreCreateCheck(); err != nil {
-		return err
-	}
-
 	if err := boot2docker.UpdateISOCache(filepath.Join(stage.stateDir, "cache")); err != nil {
 		return err
 	}
@@ -74,18 +69,18 @@ func (stage *Stage) create() error {
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("creating stage...")
-	opts := vbox.Options{CPU: 1, Memory: 1024, DiskSize: 20000}
-	if err := vbox.Create(stage.name, filepath.Join(stage.stateDir, "machines", stage.name), opts); err != nil {
+	//opts := provider.Options{CPU: 1, Memory: 1024, DiskSize: 20000}
+	if err := stage.provider.Create(); err != nil {
 		return errors.Wrap(err, "could not create stage")
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("starting stage...")
-	if err := vbox.Start(stage.name, filepath.Join(stage.stateDir, "machines", stage.name)); err != nil {
+	if err := stage.provider.Start(); err != nil {
 		return errors.Wrap(err, "could not start stage")
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("waiting for stage...")
-	if err := stage.waitForStatus(vbox.Running); err != nil {
+	if err := stage.waitForStatus(provider.Up); err != nil {
 		return err
 	}
 
@@ -103,7 +98,7 @@ func (stage *Stage) create() error {
 		return err
 	}
 
-	ip, err := vbox.GetIP(stage.name, filepath.Join(stage.stateDir, "machines", stage.name))
+	ip, err := stage.provider.GetIP()
 	if err != nil {
 		return err
 	}
@@ -137,7 +132,7 @@ func (stage *Stage) create() error {
 		return err
 	}
 
-	dockerURL, err := vbox.GetURL(stage.name, filepath.Join(stage.stateDir, "machines", stage.name))
+	dockerURL, err := stage.provider.GetURL()
 	if err != nil {
 		return err
 	}

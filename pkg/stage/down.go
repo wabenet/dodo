@@ -3,7 +3,7 @@ package stage
 import (
 	"os"
 
-	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
+	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,7 +15,7 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return nil
 		}
 
-		if err := vbox.Remove(stage.name); err != nil && !force {
+		if err := stage.provider.Remove(); err != nil && !force {
 			return errors.Wrap(err, "could not remove remote stage")
 		}
 
@@ -27,20 +27,20 @@ func (stage *Stage) Down(remove bool, force bool) error {
 	} else {
 		log.WithFields(log.Fields{"name": stage.name}).Info("pausing stage...")
 
-		currentStatus, err := vbox.GetStatus(stage.name)
+		currentStatus, err := stage.provider.Status()
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
 		}
-		if currentStatus == vbox.Stopped {
+		if currentStatus == provider.Paused {
 			log.WithFields(log.Fields{"name": stage.name}).Info("stage is already down")
 			return nil
 		}
 
-		if err := vbox.Stop(stage.name); err != nil {
+		if err := stage.provider.Stop(); err != nil {
 			return errors.Wrap(err, "could not pause stage")
 		}
 
-		if err := stage.waitForStatus(vbox.Stopped); err != nil {
+		if err := stage.waitForStatus(provider.Paused); err != nil {
 			return errors.Wrap(err, "could not pause stage")
 		}
 

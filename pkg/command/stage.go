@@ -38,6 +38,7 @@ func NewUpCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer target.Save()
 			return target.Up()
 		},
 	}
@@ -64,6 +65,7 @@ func NewDownCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer target.Save()
 			return target.Down(opts.remove, opts.force)
 		},
 	}
@@ -88,6 +90,7 @@ func NewSSHCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			defer target.Save()
 			return target.SSH()
 		},
 	}

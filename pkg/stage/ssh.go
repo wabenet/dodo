@@ -3,13 +3,13 @@ package stage
 import (
 	"path/filepath"
 
-	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
+	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 )
 
 func (stage *Stage) RunSSHCommand(command string) (string, error) {
-	opts, err := vbox.GetSSHOptions(stage.name)
+	opts, err := stage.provider.GetSSHOptions()
 	if err != nil {
 		return "", err
 	}
@@ -30,16 +30,16 @@ func (stage *Stage) RunSSHCommand(command string) (string, error) {
 }
 
 func (stage *Stage) SSH() error {
-	currentStatus, err := vbox.GetStatus(stage.name)
+	currentStatus, err := stage.provider.Status()
 	if err != nil {
 		return err
 	}
 
-	if currentStatus != vbox.Running {
+	if currentStatus != provider.Up {
 		return errors.New("stage is not up")
 	}
 
-	opts, err := vbox.GetSSHOptions(stage.name)
+	opts, err := stage.provider.GetSSHOptions()
 	if err != nil {
 		return err
 	}

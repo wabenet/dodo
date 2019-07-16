@@ -1,4 +1,4 @@
-package virtualbox
+package main
 
 import (
 	"fmt"
@@ -9,55 +9,72 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/stage/boot2docker"
+	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
-type Options struct {
-	CPU      int
-	Memory   int
-	DiskSize int
+type VirtualBoxProvider struct {
+	VMName      string
+	StoragePath string
 }
 
-func PreCreateCheck() error {
+func main() {
+	plugin.Serve(&plugin.ServeConfig{
+		GRPCServer:      plugin.DefaultGRPCServer,
+		HandshakeConfig: provider.HandshakeConfig("virtualbox"),
+		Plugins: map[string]plugin.Plugin{
+			"provider": &provider.ProviderPlugin{
+				Impl: &VirtualBoxProvider{},
+			},
+		},
+	})
+}
+
+func (vbox *VirtualBoxProvider) Initialize(config map[string]string) (bool, error) {
+	vbox.VMName = config["vmName"] // TODO: check if these exist
+	vbox.StoragePath = config["storagePath"]
+
 	if err := checkVBoxManageVersion(); err != nil {
-		return err
+		return false, err
 	}
 
 	if _, err := ListHostOnlyAdapters(); err != nil {
-		return err
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
-func Create(name string, path string, opts Options) error {
+func (vbox *VirtualBoxProvider) Create() error {
+	opts := provider.Options{CPU: 1, Memory: 1024, DiskSize: 20000}
 	log.Info("creating VirtualBox VM...")
 
 	log.Info("creating SSH key...")
-	if _, err := ssh.GimmeKeyPair(filepath.Join(path, "id_rsa")); err != nil {
-		return err
+	if _, err := ssh.GimmeKeyPair(filepath.Join(vbox.StoragePath, "id_rsa")); err != nil {
+		return errors.Wrap(err, "could not generate SSH key")
 	}
 
 	log.Info("creating disk image...")
-	tarBuf, err := boot2docker.MakeDiskImage(filepath.Join(path, "id_rsa.pub"))
+	tarBuf, err := boot2docker.MakeDiskImage(filepath.Join(vbox.StoragePath, "id_rsa.pub"))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "could not create disk tarball")
 	}
 
-	if err := CreateDiskImage(filepath.Join(path, "disk.vmdk"), opts.DiskSize, tarBuf); err != nil {
-		return err
+	if err := CreateDiskImage(filepath.Join(vbox.StoragePath, "disk.vmdk"), opts.DiskSize, tarBuf); err != nil {
+		return errors.Wrap(err, "cloud not create disk image")
 	}
 
 	if _, err := vbm(
 		"createvm",
-		"--basefolder", path,
-		"--name", name,
+		"--basefolder", vbox.StoragePath,
+		"--name", vbox.VMName,
 		"--register",
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not create VM")
 	}
 
 	cpus := opts.CPU
@@ -69,7 +86,7 @@ func Create(name string, path string, opts Options) error {
 	}
 
 	if _, err := vbm(
-		"modifyvm", name,
+		"modifyvm", vbox.VMName,
 		"--firmware", "bios",
 		"--bioslogofadein", "off",
 		"--bioslogofadeout", "off",
@@ -93,60 +110,60 @@ func Create(name string, path string, opts Options) error {
 		"--accelerate3d", "off",
 		"--boot1", "dvd",
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not configure general VM settings")
 	}
 
 	if _, err := vbm(
-		"modifyvm", name,
+		"modifyvm", vbox.VMName,
 		"--nic1", "nat",
 		"--nictype1", "82540EM",
 		"--cableconnected1", "on",
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not create nat controller")
 	}
 
 	if _, err := vbm(
-		"storagectl", name,
+		"storagectl", vbox.VMName,
 		"--name", "SATA",
 		"--add", "sata",
 		"--hostiocache", "on",
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not create SATA controller")
 	}
 
 	if _, err := vbm(
-		"storageattach", name,
+		"storageattach", vbox.VMName,
 		"--storagectl", "SATA",
 		"--port", "0",
 		"--device", "0",
 		"--type", "dvddrive",
-		"--medium", filepath.Join(path, "boot2docker.iso"),
+		"--medium", filepath.Join(vbox.StoragePath, "boot2docker.iso"),
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not attach boot2docker iso")
 	}
 
 	if _, err := vbm(
-		"storageattach", name,
+		"storageattach", vbox.VMName,
 		"--storagectl", "SATA",
 		"--port", "1",
 		"--device", "0",
 		"--type", "hdd",
-		"--medium", filepath.Join(path, "disk.vmdk"),
+		"--medium", filepath.Join(vbox.StoragePath, "disk.vmdk"),
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not attach main disk")
 	}
 
 	if _, err := vbm(
-		"guestproperty", "set", name,
+		"guestproperty", "set", vbox.VMName,
 		"/VirtualBox/GuestAdd/SharedFolders/MountPrefix", "/",
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not set mount prefxi")
 	}
 	if _, err := vbm(
-		"guestproperty", "set", name,
+		"guestproperty", "set", vbox.VMName,
 		"/VirtualBox/GuestAdd/SharedFolders/MountDir", "/",
 	); err != nil {
-		return err
+		return errors.Wrap(err, "could not set mount dir")
 	}
 
 	shareName, shareDir := getShareDriveAndName()
@@ -158,27 +175,27 @@ func Create(name string, path string, opts Options) error {
 		}
 
 		if _, err := vbm(
-			"sharedfolder", "add", name,
+			"sharedfolder", "add", vbox.VMName,
 			"--name", shareName,
 			"--hostpath", shareDir,
 			"--automount",
 		); err != nil {
-			return err
+			return errors.Wrap(err, "could not mount shared folder")
 		}
 
 		if _, err := vbm(
-			"setextradata", name,
+			"setextradata", vbox.VMName,
 			"VBoxInternal2/SharedFoldersEnableSymlinksCreate/"+shareName, "1",
 		); err != nil {
-			return err
+			return errors.Wrap(err, "could not set shared folder extra data")
 		}
 	}
 
 	return nil
 }
 
-func Start(name string, storePath string) error {
-	status, err := GetStatus(name)
+func (vbox *VirtualBoxProvider) Start() error {
+	status, err := vbox.Status()
 	if err != nil {
 		return err
 	}
@@ -190,44 +207,26 @@ func Start(name string, storePath string) error {
 		GuestPort: 22,
 	}
 
-	switch status {
-	case Paused:
-		log.Info("resuming VM ...")
-		if _, err := vbm("controlvm", name, "resume", "--type", "headless"); err != nil {
-			return err
-		}
-
-	case Saved:
-		log.Info("resuming VM ...")
-		if err := ConfigurePortForwarding(name, sshForwarding); err != nil {
-			return err
-		}
-
-		if _, err := vbm("startvm", name, "--type", "headless"); err != nil {
-			return err
-		}
-
-	case Stopped:
-		log.Info("check network to re-create if needed...")
-		if err := SetupHostOnlyNetwork(name, "192.168.99.1/24"); err != nil {
-			return err
-		}
-
-		if err := ConfigurePortForwarding(name, sshForwarding); err != nil {
-			return err
-		}
-
-		if _, err := vbm("startvm", name, "--type", "headless"); err != nil {
-			return err
-		}
-
-	default:
+	if status != provider.Paused {
 		return errors.New("VM not in startable state")
+	}
+
+	log.Info("check network to re-create if needed...")
+	if err := SetupHostOnlyNetwork(vbox.VMName, "192.168.99.1/24"); err != nil {
+		return errors.Wrap(err, "could not set up host-only network")
+	}
+
+	if err := ConfigurePortForwarding(vbox.VMName, sshForwarding); err != nil {
+		return errors.Wrap(err, "could not configure port forwarding")
+	}
+
+	if _, err := vbm("startvm", vbox.VMName, "--type", "headless"); err != nil {
+		return errors.Wrap(err, "could not start VM")
 	}
 
 	log.Info("waiting for an IP...")
 	for i := 0; i < 60; i++ {
-		if ip, err := GetIP(name, storePath); err == nil && ip != "" {
+		if ip, err := vbox.GetIP(); err == nil && ip != "" {
 			return nil
 		}
 		time.Sleep(4 * time.Second)
@@ -237,28 +236,21 @@ func Start(name string, storePath string) error {
 
 }
 
-func Stop(name string) error {
-	status, err := GetStatus(name)
+func (vbox *VirtualBoxProvider) Stop() error {
+	status, err := vbox.Status()
 	if err != nil {
 		return err
 	}
 
-	if status == Paused {
-		if _, err := vbm("controlvm", name, "resume"); err != nil {
-			return err
-		}
-		log.Info("resuming VM...")
-	}
-
-	if _, err := vbm("controlvm", name, "acpipowerbutton"); err != nil {
+	if _, err := vbm("controlvm", vbox.VMName, "acpipowerbutton"); err != nil {
 		return err
 	}
 	for {
-		status, err = GetStatus(name)
+		status, err = vbox.Status()
 		if err != nil {
 			return err
 		}
-		if status == Running {
+		if status == provider.Up {
 			time.Sleep(1 * time.Second)
 		} else {
 			break
@@ -268,24 +260,24 @@ func Stop(name string) error {
 	return nil
 }
 
-func Remove(name string) error {
-	status, err := GetStatus(name)
+func (vbox *VirtualBoxProvider) Remove() error {
+	status, err := vbox.Status()
 	if err != nil {
 		return err
 	}
 
-	if status != Stopped && status != Saved {
-		if _, err := vbm("controlvm", name, "poweroff"); err != nil {
+	if status != provider.Paused {
+		if _, err := vbm("controlvm", vbox.VMName, "poweroff"); err != nil {
 			return err
 		}
 	}
 
-	_, err = vbm("unregistervm", "--delete", name)
+	_, err = vbm("unregistervm", "--delete", vbox.VMName)
 	return err
 }
 
-func GetURL(name string, storePath string) (string, error) {
-	ip, err := GetIP(name, storePath)
+func (vbox *VirtualBoxProvider) GetURL() (string, error) {
+	ip, err := vbox.GetIP()
 	if err != nil {
 		return "", err
 	}
@@ -295,16 +287,16 @@ func GetURL(name string, storePath string) (string, error) {
 	return fmt.Sprintf("tcp://%s:2376", ip), nil
 }
 
-func GetIP(name string, storePath string) (string, error) {
-	status, err := GetStatus(name)
+func (vbox *VirtualBoxProvider) GetIP() (string, error) {
+	status, err := vbox.Status()
 	if err != nil {
 		return "", err
 	}
-	if status != Running {
+	if status != provider.Up {
 		return "", errors.New("VM is not running")
 	}
 
-	stdout, err := vbm("showvminfo", name, "--machinereadable")
+	stdout, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
 	if err != nil {
 		return "", err
 	}
@@ -323,7 +315,7 @@ func GetIP(name string, storePath string) (string, error) {
 
 	macAddress := strings.ToLower(groups[1])
 
-	opts, err := GetSSHOptions(name)
+	opts, err := vbox.GetSSHOptions()
 	if err != nil {
 		return "", err
 	}
@@ -332,7 +324,7 @@ func GetIP(name string, storePath string) (string, error) {
 		Host:              opts.Hostname,
 		Port:              opts.Port,
 		User:              opts.Username,
-		IdentityFileGlobs: []string{filepath.Join(storePath, "id_rsa")},
+		IdentityFileGlobs: []string{filepath.Join(vbox.StoragePath, "id_rsa")},
 		NonInteractive:    true,
 	})
 	if err != nil {

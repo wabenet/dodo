@@ -14,8 +14,10 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/docker/machine v0.16.1
 	github.com/gogo/protobuf v1.2.1 // indirect
+	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.1 // indirect
+	github.com/hashicorp/go-plugin v1.0.1
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -37,6 +39,6 @@ require (
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20190425145619-16072639606e // indirect
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
-	google.golang.org/grpc v1.20.1 // indirect
+	google.golang.org/grpc v1.20.1
 	gopkg.in/yaml.v2 v2.2.2
 )

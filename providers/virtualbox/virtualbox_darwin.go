@@ -1,6 +1,6 @@
 // +build darwin
 
-package virtualbox
+package main
 
 func getShareDriveAndName() (string, string) {
 	return "Users", "/Users"

@@ -5,6 +5,7 @@ go:
 
 before_install:
   - go get -u github.com/mitchellh/gox
+  - go get -u github.com/golang/protobuf/protoc-gen-go
   - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 
 script:

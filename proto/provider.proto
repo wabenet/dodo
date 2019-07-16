@@ -1,0 +1,50 @@
+syntax = "proto3";
+package proto;
+
+message Empty {}
+
+message InitRequest {
+  map<string, string> config = 1;
+}
+
+message InitResponse {
+  bool success = 1;
+}
+
+message StatusResponse {
+  enum Status {
+    Unknown = 0;
+    Down    = 1;
+    Up      = 2;
+    Paused  = 3;
+    Error   = 4;
+  }
+  Status status = 1;
+}
+
+message IPResponse {
+  string ip = 1;
+}
+
+message URLResponse {
+  string url = 1;
+}
+
+message SSHOptionsResponse {
+  string hostname         = 1;
+  int32  port             = 2;
+  string username         = 3;
+  string private_key_file = 4;
+}
+
+service Provider {
+  rpc Initialize(InitRequest) returns (InitResponse);
+  rpc Status(Empty) returns (StatusResponse);
+  rpc Create(Empty) returns (Empty);
+  rpc Remove(Empty) returns (Empty);
+  rpc Start(Empty) returns (Empty);
+  rpc Stop(Empty) returns (Empty);
+  rpc GetIP(Empty) returns (IPResponse);
+  rpc GetURL(Empty) returns (URLResponse);
+  rpc GetSSHOptions(Empty) returns (SSHOptionsResponse);
+}

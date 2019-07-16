@@ -1,17 +1,12 @@
-package virtualbox
+package main
 
 import (
+	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/pkg/errors"
 )
 
-type SSHOptions struct {
-	Hostname string
-	Port     int
-	Username string
-}
-
-func GetSSHOptions(name string) (*SSHOptions, error) {
-	portForwardings, err := ListPortForwardings(name)
+func (vbox *VirtualBoxProvider) GetSSHOptions() (*provider.SSHOptions, error) {
+	portForwardings, err := ListPortForwardings(vbox.VMName)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +22,7 @@ func GetSSHOptions(name string) (*SSHOptions, error) {
 		return nil, errors.New("no port forwarding matching ssh port found")
 	}
 
-	return &SSHOptions{
+	return &provider.SSHOptions{
 		Hostname: "127.0.0.1",
 		Port:     port,
 		Username: "docker",

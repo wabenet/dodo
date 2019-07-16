@@ -3,13 +3,15 @@ package stage
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
-	vbox "github.com/oclaussen/dodo/pkg/stage/virtualbox"
+	"github.com/hashicorp/go-plugin"
+	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -22,6 +24,8 @@ type Stage struct {
 	config   *types.Stage
 	stateDir string
 	exists   bool
+	client   *plugin.Client
+	provider provider.Provider
 }
 
 func LoadStage(name string, config *types.Stage) (*Stage, error) {
@@ -31,7 +35,26 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 		stateDir: filepath.Join(home(), ".docker", "machine"),
 	}
 
-	_, err := os.Stat(stage.hostDir())
+	client := plugin.NewClient(&plugin.ClientConfig{
+		HandshakeConfig:  provider.HandshakeConfig("virtualbox"),
+		Plugins:          provider.PluginMap,
+		Cmd:              exec.Command("./virtualbox"),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
+	})
+	stage.client = client
+
+	c, err := client.Client()
+	if err != nil {
+		return nil, err
+	}
+	raw, err := c.Dispense("provider")
+	if err != nil {
+		return nil, err
+	}
+
+	stage.provider = raw.(provider.Provider)
+
+	_, err = os.Stat(stage.hostDir())
 	if os.IsNotExist(err) {
 		stage.exists = false
 	} else if err == nil {
@@ -40,17 +63,29 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 		return stage, errors.Wrap(err, "could not check if stage exists")
 	}
 
+	success, err := stage.provider.Initialize(map[string]string{
+		"vmName":      name,
+		"storagePath": stage.hostDir(),
+	})
+	if err != nil || !success {
+		return nil, errors.Wrap(err, "initialization failed")
+	}
+
 	return stage, nil
+}
+
+func (stage *Stage) Save() {
+	stage.client.Kill()
 }
 
 func (stage *Stage) hostDir() string {
 	return filepath.Join(stage.stateDir, "machines", stage.name)
 }
 
-func (stage *Stage) waitForStatus(desiredStatus vbox.Status) error {
+func (stage *Stage) waitForStatus(desiredStatus provider.Status) error {
 	maxAttempts := 60
 	for i := 0; i < maxAttempts; i++ {
-		currentStatus, err := vbox.GetStatus(stage.name)
+		currentStatus, err := stage.provider.Status()
 		if err != nil {
 			log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
 		}
