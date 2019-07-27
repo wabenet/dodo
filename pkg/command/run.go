@@ -1,9 +1,11 @@
 package command
 
 import (
-	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
+	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/stage/provider"
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +39,23 @@ func runCommand(opts *options, name string, command []string) error {
 
 	conf.Merge(optsConfig)
 
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+	var stageConfig *types.Stage
+	if len(conf.Stage) > 0 {
+		stageConfig, err = loadStageConfig(conf.Stage)
+		if err != nil {
+			return err
+		}
+	} else {
+		stageConfig = &types.Stage{Type: provider.DefaultProviderName}
+	}
+
+	s, err := stage.LoadStage(conf.Stage, stageConfig)
+	if err != nil {
+		return err
+	}
+	defer s.Save()
+
+	dockerClient, err := s.GetDockerClient()
 	if err != nil {
 		return err
 	}

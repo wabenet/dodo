@@ -7,6 +7,7 @@ import (
 type Backdrops map[string]Backdrop
 
 type Backdrop struct {
+	Stage         string
 	Image         *Image
 	ContainerName string
 	Remove        *bool
@@ -24,6 +25,9 @@ type Backdrop struct {
 }
 
 func (target *Backdrop) Merge(source *Backdrop) {
+	if len(source.Stage) > 0 {
+		target.Stage = source.Stage
+	}
 	if source.Image != nil {
 		target.Image.Merge(source.Image)
 	}
@@ -84,6 +88,12 @@ func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
+			case "stage":
+				decoded, err := DecodeString(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Stage = decoded
 			case "build", "image":
 				decoded, err := DecodeImage(key, v)
 				if err != nil {

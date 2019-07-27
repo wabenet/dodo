@@ -22,6 +22,14 @@ type SSHOptions struct {
 	Username string
 }
 
+type DockerOptions struct {
+	Version  string
+	Host     string
+	CAFile   string
+	CertFile string
+	KeyFile  string
+}
+
 type Provider interface {
 	Initialize(map[string]string) (bool, error)
 	Status() (Status, error)
@@ -32,4 +40,9 @@ type Provider interface {
 	GetURL() (string, error)
 	GetIP() (string, error)
 	GetSSHOptions() (*SSHOptions, error)
+	GetDockerOptions() (*DockerOptions, error)
+}
+
+var BuiltInProviders = map[string]Provider{
+	DefaultProviderName: &DefaultProvider{},
 }

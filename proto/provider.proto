@@ -37,6 +37,14 @@ message SSHOptionsResponse {
   string private_key_file = 4;
 }
 
+message DockerOptionsResponse {
+  string version   = 1;
+  string host      = 2;
+  string ca_file   = 3;
+  string cert_file = 4;
+  string key_file  = 5;
+}
+
 service Provider {
   rpc Initialize(InitRequest) returns (InitResponse);
   rpc Status(Empty) returns (StatusResponse);
@@ -47,4 +55,5 @@ service Provider {
   rpc GetIP(Empty) returns (IPResponse);
   rpc GetURL(Empty) returns (URLResponse);
   rpc GetSSHOptions(Empty) returns (SSHOptionsResponse);
+  rpc GetDockerOptions(Empty) returns (DockerOptionsResponse);
 }

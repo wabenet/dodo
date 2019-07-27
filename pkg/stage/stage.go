@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/dodo/pkg/types"
@@ -33,6 +34,11 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 		name:     name,
 		config:   config,
 		stateDir: filepath.Join(home(), ".docker", "machine"),
+	}
+
+	if prov, ok := provider.BuiltInProviders[config.Type]; ok {
+		stage.provider = prov
+		return stage, nil
 	}
 
 	client := plugin.NewClient(&plugin.ClientConfig{
@@ -75,7 +81,34 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 }
 
 func (stage *Stage) Save() {
-	stage.client.Kill()
+	if stage.client != nil {
+		stage.client.Kill()
+	}
+}
+
+func (stage *Stage) GetDockerClient() (*client.Client, error) {
+	status, err := stage.provider.Status()
+	if err != nil {
+		return nil, err
+	}
+	if status != provider.Up {
+		return nil, errors.New("stage is not up")
+	}
+	opts, err := stage.provider.GetDockerOptions()
+	if err != nil {
+		return nil, err
+	}
+	mutators := []client.Opt{}
+	if len(opts.Version) > 0 {
+		mutators = append(mutators, client.WithVersion(opts.Version))
+	}
+	if len(opts.Host) > 0 {
+		mutators = append(mutators, client.WithHost(opts.Host))
+	}
+	if len(opts.CAFile)+len(opts.CertFile)+len(opts.KeyFile) > 0 {
+		mutators = append(mutators, client.WithTLSClientConfig(opts.CAFile, opts.CertFile, opts.KeyFile))
+	}
+	return client.NewClientWithOpts(mutators...)
 }
 
 func (stage *Stage) hostDir() string {

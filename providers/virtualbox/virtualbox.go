@@ -170,10 +170,6 @@ func (vbox *VirtualBoxProvider) Create() error {
 	if _, err := os.Stat(shareDir); err != nil && !os.IsNotExist(err) {
 		return err
 	} else if !os.IsNotExist(err) {
-		if shareName == "" {
-			shareName = strings.TrimLeft(shareDir, "/")
-		}
-
 		if _, err := vbm(
 			"sharedfolder", "add", vbox.VMName,
 			"--name", shareName,
@@ -354,4 +350,17 @@ func (vbox *VirtualBoxProvider) GetIP() (string, error) {
 	}
 
 	return "", errors.New("could not find IP")
+}
+
+func (vbox *VirtualBoxProvider) GetDockerOptions() (*provider.DockerOptions, error) {
+	url, err := vbox.GetURL()
+	if err != nil {
+		return nil, err
+	}
+	return &provider.DockerOptions{
+		Host:     url,
+		CAFile:   filepath.Join(vbox.StoragePath, "ca.pem"),
+		CertFile: filepath.Join(vbox.StoragePath, "client.pem"),
+		KeyFile:  filepath.Join(vbox.StoragePath, "client-key.pem"),
+	}, nil
 }

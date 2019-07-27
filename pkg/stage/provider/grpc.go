@@ -117,6 +117,20 @@ func (client *GRPCClient) GetSSHOptions() (*SSHOptions, error) {
 	}, nil
 }
 
+func (client *GRPCClient) GetDockerOptions() (*DockerOptions, error) {
+	response, err := client.client.GetDockerOptions(context.Background(), &proto.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return &DockerOptions{
+		Version:  response.Version,
+		Host:     response.Host,
+		CAFile:   response.CaFile,
+		CertFile: response.CertFile,
+		KeyFile:  response.KeyFile,
+	}, nil
+}
+
 type GRPCServer struct {
 	Impl Provider
 }
@@ -191,5 +205,19 @@ func (server *GRPCServer) GetSSHOptions(ctx context.Context, _ *proto.Empty) (*p
 		Hostname: opts.Hostname,
 		Port:     int32(opts.Port),
 		Username: opts.Username,
+	}, nil
+}
+
+func (server *GRPCServer) GetDockerOptions(ctx context.Context, _ *proto.Empty) (*proto.DockerOptionsResponse, error) {
+	opts, err := server.Impl.GetDockerOptions()
+	if err != nil {
+		return nil, err
+	}
+	return &proto.DockerOptionsResponse{
+		Version:  opts.Version,
+		Host:     opts.Host,
+		CaFile:   opts.CAFile,
+		CertFile: opts.CertFile,
+		KeyFile:  opts.KeyFile,
 	}, nil
 }
