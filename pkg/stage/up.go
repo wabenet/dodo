@@ -12,14 +12,17 @@ import (
 	"time"
 
 	"github.com/oclaussen/dodo/pkg/stage/boot2docker"
-	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 func (stage *Stage) Up() error {
-	if stage.exists {
+	exist, err := stage.provider.Exist()
+	if err != nil {
+		return err
+	}
+	if exist {
 		return stage.start()
 	} else {
 		return stage.create()
@@ -29,11 +32,11 @@ func (stage *Stage) Up() error {
 func (stage *Stage) start() error {
 	log.WithFields(log.Fields{"name": stage.name}).Info("starting stage...")
 
-	currentStatus, err := stage.provider.Status()
+	available, err := stage.provider.Available()
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
+		log.WithFields(log.Fields{"error": err}).Debug("could not get stage status")
 	}
-	if currentStatus == provider.Up {
+	if available {
 		log.WithFields(log.Fields{"name": stage.name}).Info("stage is already up")
 		return nil
 	}
@@ -80,8 +83,18 @@ func (stage *Stage) create() error {
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("waiting for stage...")
-	if err := stage.waitForStatus(provider.Up); err != nil {
-		return err
+	for attempts := 0; ; attempts++ {
+		available, err := stage.provider.Available()
+		if err != nil {
+			log.WithFields(log.Fields{"error": err}).Debug("could not get stage status")
+		}
+		if available {
+			break
+		}
+		if attempts >= 60 {
+			return errors.New("stage did not come up successfully")
+		}
+		time.Sleep(3 * time.Second)
 	}
 
 	log.WithFields(log.Fields{"name": stage.name}).Info("provisioning...")

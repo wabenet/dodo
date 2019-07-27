@@ -3,7 +3,6 @@ package stage
 import (
 	"path/filepath"
 
-	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 )
@@ -30,12 +29,12 @@ func (stage *Stage) RunSSHCommand(command string) (string, error) {
 }
 
 func (stage *Stage) SSH() error {
-	currentStatus, err := stage.provider.Status()
+	available, err := stage.provider.Available()
 	if err != nil {
 		return err
 	}
 
-	if currentStatus != provider.Up {
+	if !available {
 		return errors.New("stage is not up")
 	}
 

@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 func vbm(args ...string) (string, error) {

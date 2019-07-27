@@ -17,6 +17,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type Options struct {
+	CPU      int
+	Memory   int
+	DiskSize int
+}
+
 type VirtualBoxProvider struct {
 	VMName      string
 	StoragePath string
@@ -51,7 +57,7 @@ func (vbox *VirtualBoxProvider) Initialize(config map[string]string) (bool, erro
 }
 
 func (vbox *VirtualBoxProvider) Create() error {
-	opts := provider.Options{CPU: 1, Memory: 1024, DiskSize: 20000}
+	opts := Options{CPU: 1, Memory: 1024, DiskSize: 20000}
 	log.Info("creating VirtualBox VM...")
 
 	log.Info("creating SSH key...")
@@ -192,9 +198,13 @@ func (vbox *VirtualBoxProvider) Create() error {
 }
 
 func (vbox *VirtualBoxProvider) Start() error {
-	status, err := vbox.Status()
+	running, err := vbox.Available()
 	if err != nil {
 		return err
+	}
+
+	if running {
+		return errors.New("VM is already running")
 	}
 
 	sshForwarding := &PortForwarding{
@@ -202,10 +212,6 @@ func (vbox *VirtualBoxProvider) Start() error {
 		Interface: 1,
 		Protocol:  "tcp",
 		GuestPort: 22,
-	}
-
-	if status != provider.Paused {
-		return errors.New("VM not in startable state")
 	}
 
 	log.Info("check network to re-create if needed...")
@@ -234,36 +240,31 @@ func (vbox *VirtualBoxProvider) Start() error {
 }
 
 func (vbox *VirtualBoxProvider) Stop() error {
-	status, err := vbox.Status()
-	if err != nil {
-		return err
-	}
-
 	if _, err := vbm("controlvm", vbox.VMName, "acpipowerbutton"); err != nil {
 		return err
 	}
+
 	for {
-		status, err = vbox.Status()
+		running, err := vbox.Available()
 		if err != nil {
 			return err
 		}
-		if status == provider.Up {
-			time.Sleep(1 * time.Second)
-		} else {
+		if !running {
 			break
 		}
+		time.Sleep(1 * time.Second)
 	}
 
 	return nil
 }
 
 func (vbox *VirtualBoxProvider) Remove() error {
-	status, err := vbox.Status()
+	running, err := vbox.Available()
 	if err != nil {
 		return err
 	}
 
-	if status != provider.Paused {
+	if running {
 		if _, err := vbm("controlvm", vbox.VMName, "poweroff"); err != nil {
 			return err
 		}
@@ -271,6 +272,32 @@ func (vbox *VirtualBoxProvider) Remove() error {
 
 	_, err = vbm("unregistervm", "--delete", vbox.VMName)
 	return err
+}
+
+func (vbox *VirtualBoxProvider) Exist() (bool, error) {
+	if _, err := os.Stat(vbox.StoragePath); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+
+	_, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
+	return err == nil, nil
+}
+
+func (vbox *VirtualBoxProvider) Available() (bool, error) {
+	stdout, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
+	if err != nil {
+		return false, err
+	}
+	re := regexp.MustCompile(`(?m)^VMState="(\w+)"`)
+	groups := re.FindStringSubmatch(stdout)
+	if len(groups) < 1 {
+		return false, errors.New("no vm state in VBoxManage output")
+	}
+	return groups[1] == "running", nil
 }
 
 func (vbox *VirtualBoxProvider) GetURL() (string, error) {
@@ -285,11 +312,11 @@ func (vbox *VirtualBoxProvider) GetURL() (string, error) {
 }
 
 func (vbox *VirtualBoxProvider) GetIP() (string, error) {
-	status, err := vbox.Status()
+	running, err := vbox.Available()
 	if err != nil {
 		return "", err
 	}
-	if status != provider.Up {
+	if !running {
 		return "", errors.New("VM is not running")
 	}
 

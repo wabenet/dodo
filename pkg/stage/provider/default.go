@@ -10,14 +10,12 @@ const (
 	DefaultAPIVersion   = "1.39"
 )
 
+// TODO: replace with a generic and environment provider
+
 type DefaultProvider struct{}
 
 func (prov *DefaultProvider) Initialize(_ map[string]string) (bool, error) {
 	return true, nil
-}
-
-func (prov *DefaultProvider) Status() (Status, error) {
-	return Up, nil
 }
 
 func (prov *DefaultProvider) Create() error {
@@ -34,6 +32,14 @@ func (prov *DefaultProvider) Stop() error {
 
 func (prov *DefaultProvider) Remove() error {
 	return nil
+}
+
+func (prov *DefaultProvider) Exist() (bool, error) {
+	return true, nil
+}
+
+func (prov *DefaultProvider) Available() (bool, error) {
+	return true, nil // TODO: actually check for this
 }
 
 func (prov *DefaultProvider) GetURL() (string, error) {

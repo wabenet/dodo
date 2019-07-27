@@ -1,19 +1,7 @@
 package provider
 
-type Status int
-
-const (
-	Unknown Status = iota
-	Down
-	Up
-	Paused
-	Error
-)
-
-type Options struct {
-	CPU      int
-	Memory   int
-	DiskSize int
+var BuiltInProviders = map[string]Provider{
+	DefaultProviderName: &DefaultProvider{},
 }
 
 type SSHOptions struct {
@@ -32,17 +20,14 @@ type DockerOptions struct {
 
 type Provider interface {
 	Initialize(map[string]string) (bool, error)
-	Status() (Status, error)
 	Create() error
 	Start() error
 	Stop() error
 	Remove() error
+	Exist() (bool, error)
+	Available() (bool, error)
 	GetURL() (string, error)
 	GetIP() (string, error)
 	GetSSHOptions() (*SSHOptions, error)
 	GetDockerOptions() (*DockerOptions, error)
-}
-
-var BuiltInProviders = map[string]Provider{
-	DefaultProviderName: &DefaultProvider{},
 }

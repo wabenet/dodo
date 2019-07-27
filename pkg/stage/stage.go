@@ -2,7 +2,6 @@ package stage
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
@@ -24,7 +23,6 @@ type Stage struct {
 	name     string
 	config   *types.Stage
 	stateDir string
-	exists   bool
 	client   *plugin.Client
 	provider provider.Provider
 }
@@ -60,16 +58,6 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 	}
 
 	stage.provider = raw.(provider.Provider)
-
-	_, err = os.Stat(stage.hostDir())
-	if os.IsNotExist(err) {
-		stage.exists = false
-	} else if err == nil {
-		stage.exists = true
-	} else {
-		return stage, errors.Wrap(err, "could not check if stage exists")
-	}
-
 	success, err := stage.provider.Initialize(map[string]string{
 		"vmName":      name,
 		"storagePath": stage.hostDir(),
@@ -88,11 +76,11 @@ func (stage *Stage) Save() {
 }
 
 func (stage *Stage) GetDockerClient() (*client.Client, error) {
-	status, err := stage.provider.Status()
+	available, err := stage.provider.Available()
 	if err != nil {
 		return nil, err
 	}
-	if status != provider.Up {
+	if !available {
 		return nil, errors.New("stage is not up")
 	}
 	opts, err := stage.provider.GetDockerOptions()
@@ -114,21 +102,6 @@ func (stage *Stage) GetDockerClient() (*client.Client, error) {
 
 func (stage *Stage) hostDir() string {
 	return filepath.Join(stage.stateDir, "machines", stage.name)
-}
-
-func (stage *Stage) waitForStatus(desiredStatus provider.Status) error {
-	maxAttempts := 60
-	for i := 0; i < maxAttempts; i++ {
-		currentStatus, err := stage.provider.Status()
-		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
-		}
-		if currentStatus == desiredStatus {
-			return nil
-		}
-		time.Sleep(3 * time.Second)
-	}
-	return fmt.Errorf("maximum number of retries (%d) exceeded", maxAttempts)
 }
 
 func (stage *Stage) waitForDocker() error {

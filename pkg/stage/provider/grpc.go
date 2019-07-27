@@ -3,7 +3,6 @@ package provider
 import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/proto"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -48,27 +47,6 @@ func (client *GRPCClient) Initialize(config map[string]string) (bool, error) {
 	return response.Success, nil
 }
 
-func (client *GRPCClient) Status() (Status, error) {
-	response, err := client.client.Status(context.Background(), &proto.Empty{})
-	if err != nil {
-		return Error, err
-	}
-	switch response.Status {
-	case proto.StatusResponse_Unknown:
-		return Unknown, nil
-	case proto.StatusResponse_Down:
-		return Down, nil
-	case proto.StatusResponse_Up:
-		return Up, nil
-	case proto.StatusResponse_Paused:
-		return Paused, nil
-	case proto.StatusResponse_Error:
-		return Error, nil
-	default:
-		return Unknown, errors.New("unexpected status response")
-	}
-}
-
 func (client *GRPCClient) Create() error {
 	_, err := client.client.Create(context.Background(), &proto.Empty{})
 	return err
@@ -87,6 +65,22 @@ func (client *GRPCClient) Start() error {
 func (client *GRPCClient) Stop() error {
 	_, err := client.client.Stop(context.Background(), &proto.Empty{})
 	return err
+}
+
+func (client *GRPCClient) Exist() (bool, error) {
+	response, err := client.client.Exist(context.Background(), &proto.Empty{})
+	if err != nil {
+		return false, err
+	}
+	return response.Exist, nil
+}
+
+func (client *GRPCClient) Available() (bool, error) {
+	response, err := client.client.Available(context.Background(), &proto.Empty{})
+	if err != nil {
+		return false, err
+	}
+	return response.Available, nil
 }
 
 func (client *GRPCClient) GetIP() (string, error) {
@@ -143,27 +137,6 @@ func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitReq
 	return &proto.InitResponse{Success: success}, nil
 }
 
-func (server *GRPCServer) Status(ctx context.Context, _ *proto.Empty) (*proto.StatusResponse, error) {
-	status, err := server.Impl.Status()
-	if err != nil {
-		return nil, err
-	}
-	switch status {
-	case Unknown:
-		return &proto.StatusResponse{Status: proto.StatusResponse_Unknown}, nil
-	case Down:
-		return &proto.StatusResponse{Status: proto.StatusResponse_Down}, nil
-	case Up:
-		return &proto.StatusResponse{Status: proto.StatusResponse_Up}, nil
-	case Paused:
-		return &proto.StatusResponse{Status: proto.StatusResponse_Paused}, nil
-	case Error:
-		return &proto.StatusResponse{Status: proto.StatusResponse_Error}, nil
-	default:
-		return &proto.StatusResponse{Status: proto.StatusResponse_Unknown}, errors.New("unexpected status")
-	}
-}
-
 func (server *GRPCServer) Create(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
 	return &proto.Empty{}, server.Impl.Create()
 }
@@ -178,6 +151,22 @@ func (server *GRPCServer) Start(ctx context.Context, _ *proto.Empty) (*proto.Emp
 
 func (server *GRPCServer) Stop(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
 	return &proto.Empty{}, server.Impl.Stop()
+}
+
+func (server *GRPCServer) Exist(ctx context.Context, _ *proto.Empty) (*proto.ExistResponse, error) {
+	exist, err := server.Impl.Exist()
+	if err != nil {
+		return nil, err
+	}
+	return &proto.ExistResponse{Exist: exist}, nil
+}
+
+func (server *GRPCServer) Available(ctx context.Context, _ *proto.Empty) (*proto.AvailableResponse, error) {
+	available, err := server.Impl.Available()
+	if err != nil {
+		return nil, err
+	}
+	return &proto.AvailableResponse{Available: available}, nil
 }
 
 func (server *GRPCServer) GetIP(ctx context.Context, _ *proto.Empty) (*proto.IPResponse, error) {

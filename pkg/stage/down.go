@@ -2,15 +2,20 @@ package stage
 
 import (
 	"os"
+	"time"
 
-	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 func (stage *Stage) Down(remove bool, force bool) error {
 	if remove {
-		if !stage.exists && !force {
+		exist, err := stage.provider.Exist()
+		if err != nil && !force {
+			return err
+		}
+
+		if !exist && !force {
 			log.WithFields(log.Fields{"name": stage.name}).Info("stage is not up")
 			return nil
 		}
@@ -27,11 +32,11 @@ func (stage *Stage) Down(remove bool, force bool) error {
 	} else {
 		log.WithFields(log.Fields{"name": stage.name}).Info("pausing stage...")
 
-		currentStatus, err := stage.provider.Status()
+		available, err := stage.provider.Available()
 		if err != nil {
-			log.WithFields(log.Fields{"error": err}).Debug("could not get machine status")
+			log.WithFields(log.Fields{"error": err}).Debug("could not get stage status")
 		}
-		if currentStatus == provider.Paused {
+		if !available {
 			log.WithFields(log.Fields{"name": stage.name}).Info("stage is already down")
 			return nil
 		}
@@ -40,8 +45,18 @@ func (stage *Stage) Down(remove bool, force bool) error {
 			return errors.Wrap(err, "could not pause stage")
 		}
 
-		if err := stage.waitForStatus(provider.Paused); err != nil {
-			return errors.Wrap(err, "could not pause stage")
+		for attempts := 0; ; attempts++ {
+			available, err := stage.provider.Available()
+			if err != nil {
+				log.WithFields(log.Fields{"error": err}).Debug("could not get stage status")
+			}
+			if !available {
+				break
+			}
+			if attempts >= 60 {
+				return errors.New("stage did pause successfully")
+			}
+			time.Sleep(3 * time.Second)
 		}
 
 		log.WithFields(log.Fields{"name": stage.name}).Info("paused stage")
