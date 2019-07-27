@@ -1,7 +1,10 @@
 package main
 
 import (
+	"path/filepath"
+
 	"github.com/oclaussen/dodo/pkg/stage/provider"
+	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 )
 
@@ -27,4 +30,25 @@ func (vbox *VirtualBoxProvider) GetSSHOptions() (*provider.SSHOptions, error) {
 		Port:     port,
 		Username: "docker",
 	}, nil
+}
+
+func (vbox *VirtualBoxProvider) ssh(command string) (string, error) {
+	opts, err := vbox.GetSSHOptions()
+	if err != nil {
+		return "", err
+	}
+
+	executor, err := ssh.GimmeExecutor(&ssh.Options{
+		Host:              opts.Hostname,
+		Port:              opts.Port,
+		User:              opts.Username,
+		IdentityFileGlobs: []string{filepath.Join(vbox.StoragePath, "id_rsa")},
+		NonInteractive:    true,
+	})
+	if err != nil {
+		return "", nil
+	}
+	defer executor.Close()
+
+	return executor.Execute(command)
 }

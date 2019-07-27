@@ -30,7 +30,7 @@ func (prov *DefaultProvider) Stop() error {
 	return nil
 }
 
-func (prov *DefaultProvider) Remove() error {
+func (prov *DefaultProvider) Remove(_ bool) error {
 	return nil
 }
 

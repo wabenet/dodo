@@ -11,6 +11,10 @@ message InitResponse {
   bool success = 1;
 }
 
+message RemoveRequest {
+  bool force = 1;
+}
+
 message ExistResponse {
   bool exist = 1;
 }
@@ -45,7 +49,7 @@ message DockerOptionsResponse {
 service Provider {
   rpc Initialize(InitRequest) returns (InitResponse);
   rpc Create(Empty) returns (Empty);
-  rpc Remove(Empty) returns (Empty);
+  rpc Remove(RemoveRequest) returns (Empty);
   rpc Start(Empty) returns (Empty);
   rpc Stop(Empty) returns (Empty);
   rpc Exist(Empty) returns (ExistResponse);

@@ -1,20 +1,15 @@
 package stage
 
 import (
-	"fmt"
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 )
 
 // TODO: make machine dir configurable and default somewhere not docker-machine
@@ -61,6 +56,7 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 	success, err := stage.provider.Initialize(map[string]string{
 		"vmName":      name,
 		"storagePath": stage.hostDir(),
+		"cachePath":   filepath.Join(stage.stateDir, "cache"),
 	})
 	if err != nil || !success {
 		return nil, errors.Wrap(err, "initialization failed")
@@ -72,6 +68,26 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 func (stage *Stage) Save() {
 	if stage.client != nil {
 		stage.client.Kill()
+	}
+}
+
+func (stage *Stage) Up() error {
+	exist, err := stage.provider.Exist()
+	if err != nil {
+		return err
+	}
+	if exist {
+		return stage.provider.Start()
+	} else {
+		return stage.provider.Create()
+	}
+}
+
+func (stage *Stage) Down(remove bool, force bool) error {
+	if remove {
+		return stage.provider.Remove(force)
+	} else {
+		return stage.provider.Stop()
 	}
 }
 
@@ -102,33 +118,6 @@ func (stage *Stage) GetDockerClient() (*client.Client, error) {
 
 func (stage *Stage) hostDir() string {
 	return filepath.Join(stage.stateDir, "machines", stage.name)
-}
-
-func (stage *Stage) waitForDocker() error {
-	maxAttempts := 60
-	reDaemonListening := fmt.Sprintf(":%d\\s+.*:.*", defaultPort)
-	cmd := "if ! type netstat 1>/dev/null; then ss -tln; else netstat -tln; fi"
-
-	for i := 0; i < maxAttempts; i++ {
-		output, err := stage.RunSSHCommand(cmd)
-		if err != nil {
-			log.WithFields(log.Fields{"cmd": cmd}).Debug("error running SSH command")
-		}
-
-		for _, line := range strings.Split(output, "\n") {
-			match, err := regexp.MatchString(reDaemonListening, line)
-			if err != nil {
-				log.Warnf("Regex warning: %s", err)
-			}
-			if match && line != "" {
-				return nil
-			}
-		}
-
-		time.Sleep(3 * time.Second)
-
-	}
-	return fmt.Errorf("maximum number of retries (%d) exceeded", maxAttempts)
 }
 
 func home() string {

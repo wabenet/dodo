@@ -52,8 +52,8 @@ func (client *GRPCClient) Create() error {
 	return err
 }
 
-func (client *GRPCClient) Remove() error {
-	_, err := client.client.Remove(context.Background(), &proto.Empty{})
+func (client *GRPCClient) Remove(force bool) error {
+	_, err := client.client.Remove(context.Background(), &proto.RemoveRequest{Force: force})
 	return err
 }
 
@@ -141,8 +141,8 @@ func (server *GRPCServer) Create(ctx context.Context, _ *proto.Empty) (*proto.Em
 	return &proto.Empty{}, server.Impl.Create()
 }
 
-func (server *GRPCServer) Remove(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
-	return &proto.Empty{}, server.Impl.Remove()
+func (server *GRPCServer) Remove(ctx context.Context, request *proto.RemoveRequest) (*proto.Empty, error) {
+	return &proto.Empty{}, server.Impl.Remove(request.Force)
 }
 
 func (server *GRPCServer) Start(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {

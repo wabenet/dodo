@@ -23,7 +23,7 @@ type Provider interface {
 	Create() error
 	Start() error
 	Stop() error
-	Remove() error
+	Remove(bool) error
 	Exist() (bool, error)
 	Available() (bool, error)
 	GetURL() (string, error)

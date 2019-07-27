@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -10,12 +13,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/oclaussen/dodo/pkg/stage/boot2docker"
 	"github.com/oclaussen/dodo/pkg/stage/provider"
+	"github.com/oclaussen/dodo/providers/virtualbox/boot2docker"
 	"github.com/oclaussen/go-gimme/ssh"
+	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
+
+const defaultPort = 2376 // TODO: get this from docker directly
 
 type Options struct {
 	CPU      int
@@ -26,6 +32,7 @@ type Options struct {
 type VirtualBoxProvider struct {
 	VMName      string
 	StoragePath string
+	CachePath   string
 }
 
 func main() {
@@ -44,6 +51,7 @@ func main() {
 func (vbox *VirtualBoxProvider) Initialize(config map[string]string) (bool, error) {
 	vbox.VMName = config["vmName"] // TODO: check if these exist
 	vbox.StoragePath = config["storagePath"]
+	vbox.CachePath = config["cachePath"]
 
 	if err := checkVBoxManageVersion(); err != nil {
 		return false, err
@@ -58,7 +66,22 @@ func (vbox *VirtualBoxProvider) Initialize(config map[string]string) (bool, erro
 
 func (vbox *VirtualBoxProvider) Create() error {
 	opts := Options{CPU: 1, Memory: 1024, DiskSize: 20000}
-	log.Info("creating VirtualBox VM...")
+
+	if err := boot2docker.UpdateISOCache(vbox.CachePath); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(vbox.StoragePath, 0700); err != nil {
+		return err
+	}
+
+	log.Info("copying boot2docker.iso...")
+	if err := copyFile(
+		filepath.Join(vbox.CachePath, "boot2docker.iso"),
+		filepath.Join(vbox.StoragePath, "boot2docker.iso"),
+	); err != nil {
+		return err
+	}
 
 	log.Info("creating SSH key...")
 	if _, err := ssh.GimmeKeyPair(filepath.Join(vbox.StoragePath, "id_rsa")); err != nil {
@@ -194,6 +217,93 @@ func (vbox *VirtualBoxProvider) Create() error {
 		}
 	}
 
+	if err := vbox.Start(); err != nil {
+		return errors.Wrap(err, "could not start VM")
+	}
+
+	log.Info("provisioning VM...")
+
+	if err := vbox.setHostname(); err != nil {
+		return err
+	}
+
+	if err := vbox.makeDockerOptionsDir(); err != nil {
+		return err
+	}
+
+	ip, err := vbox.GetIP()
+	if err != nil {
+		return err
+	}
+
+	certs, files, err := ssl.GimmeCertificates(&ssl.Options{
+		Org:          fmt.Sprintf("dodo.%s", vbox.VMName),
+		Hosts:        []string{ip, "localhost"},
+		WriteToFiles: &ssl.Files{Directory: vbox.StoragePath},
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := vbox.stopDocker(); err != nil {
+		return err
+	}
+
+	if err := vbox.deleteDockerLink(); err != nil {
+		return err
+	}
+
+	log.Info("copying certs to the VM...")
+
+	if err := vbox.writeRemoteFile(files.CAFile, path.Join(dockerDir, "ca.pem")); err != nil {
+		return err
+	}
+	if err := vbox.writeRemoteFile(files.ServerCertFile, path.Join(dockerDir, "server.pem")); err != nil {
+		return err
+	}
+	if err := vbox.writeRemoteFile(files.ServerKeyFile, path.Join(dockerDir, "server-key.pem")); err != nil {
+		return err
+	}
+
+	dockerURL, err := vbox.GetURL()
+	if err != nil {
+		return err
+	}
+	dockerPort, err := parseDockerPort(dockerURL)
+	if err != nil {
+		return err
+	}
+
+	if err := vbox.writeDockerOptions(dockerPort); err != nil {
+		return err
+	}
+
+	if err := vbox.startDocker(); err != nil {
+		return err
+	}
+
+	if err := vbox.waitForDocker(); err != nil {
+		return err
+	}
+
+	log.Info("checking connection...")
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, dockerPort), 5*time.Second)
+	if err != nil {
+		return errors.Wrap(err, "could not reach docker port")
+	} else {
+		conn.Close()
+	}
+
+	parsedURL, err := url.Parse(dockerURL)
+	if err != nil {
+		return errors.Wrap(err, "could not parse Docker URL")
+	}
+
+	if valid, err := validateCertificate(parsedURL.Host, certs); !valid || err != nil {
+		return errors.Wrap(err, "invalid certificate")
+	}
+
+	log.Info("VM is fully provisioned")
 	return nil
 }
 
@@ -205,6 +315,8 @@ func (vbox *VirtualBoxProvider) Start() error {
 
 	if running {
 		return errors.New("VM is already running")
+	} else {
+		log.Info("starting VM...")
 	}
 
 	sshForwarding := &PortForwarding{
@@ -228,50 +340,88 @@ func (vbox *VirtualBoxProvider) Start() error {
 	}
 
 	log.Info("waiting for an IP...")
-	for i := 0; i < 60; i++ {
+	for attempts := 0; ; attempts++ {
 		if ip, err := vbox.GetIP(); err == nil && ip != "" {
 			return nil
+		}
+		if attempts >= 60 {
+			return errors.New("could not get IP address")
 		}
 		time.Sleep(4 * time.Second)
 	}
 
-	return errors.New("could not get IP address")
-
-}
-
-func (vbox *VirtualBoxProvider) Stop() error {
-	if _, err := vbm("controlvm", vbox.VMName, "acpipowerbutton"); err != nil {
+	if err := vbox.waitForDocker(); err != nil {
 		return err
-	}
-
-	for {
-		running, err := vbox.Available()
-		if err != nil {
-			return err
-		}
-		if !running {
-			break
-		}
-		time.Sleep(1 * time.Second)
 	}
 
 	return nil
 }
 
-func (vbox *VirtualBoxProvider) Remove() error {
-	running, err := vbox.Available()
+func (vbox *VirtualBoxProvider) Stop() error {
+	log.Info("stopping VM...")
+
+	available, err := vbox.Available()
 	if err != nil {
+		return err
+	}
+	if !available {
+		log.Info("VM is already stopped")
+		return nil
+	}
+
+	if _, err := vbm("controlvm", vbox.VMName, "acpipowerbutton"); err != nil {
+		return err
+	}
+
+	for attempts := 0; attempts < 60; attempts++ {
+		running, err := vbox.Available()
+		if err != nil {
+			return err
+		}
+		if !running {
+			return nil
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	return errors.New("VM did not stop successfully")
+}
+
+func (vbox *VirtualBoxProvider) Remove(force bool) error {
+	// TODO: log errors if force=true
+	exist, err := vbox.Exist()
+	if err != nil && !force {
+		return err
+	}
+
+	if !exist && !force {
+		log.Info("VM does not exist")
+		return nil
+	}
+
+	log.Info("removing VM...")
+
+	running, err := vbox.Available()
+	if err != nil && !force {
 		return err
 	}
 
 	if running {
-		if _, err := vbm("controlvm", vbox.VMName, "poweroff"); err != nil {
+		if _, err := vbm("controlvm", vbox.VMName, "poweroff"); err != nil && !force {
 			return err
 		}
 	}
 
-	_, err = vbm("unregistervm", "--delete", vbox.VMName)
-	return err
+	if _, err = vbm("unregistervm", "--delete", vbox.VMName); err != nil && !force {
+		return err
+	}
+
+	if err := os.RemoveAll(vbox.StoragePath); err != nil && !force {
+		return errors.Wrap(err, "could not remove storage dir")
+	}
+
+	log.Info("removed VM")
+	return nil
 }
 
 func (vbox *VirtualBoxProvider) Exist() (bool, error) {
@@ -339,23 +489,10 @@ func (vbox *VirtualBoxProvider) GetIP() (string, error) {
 
 	macAddress := strings.ToLower(groups[1])
 
-	opts, err := vbox.GetSSHOptions()
+	output, err := vbox.ssh("ip addr show")
 	if err != nil {
 		return "", err
 	}
-
-	executor, err := ssh.GimmeExecutor(&ssh.Options{
-		Host:              opts.Hostname,
-		Port:              opts.Port,
-		User:              opts.Username,
-		IdentityFileGlobs: []string{filepath.Join(vbox.StoragePath, "id_rsa")},
-		NonInteractive:    true,
-	})
-	if err != nil {
-		return "", nil
-	}
-	defer executor.Close()
-	output, err := executor.Execute("ip addr show")
 
 	inTargetMacBlock := false
 	for _, line := range strings.Split(output, "\n") {
