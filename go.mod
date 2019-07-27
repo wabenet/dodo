@@ -17,6 +17,7 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.1 // indirect
+	github.com/hashicorp/go-hclog v0.0.0-20180709165350-ff2cf002a8dd
 	github.com/hashicorp/go-plugin v1.0.1
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect

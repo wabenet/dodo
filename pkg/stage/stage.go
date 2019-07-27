@@ -46,6 +46,7 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 		Plugins:          provider.PluginMap,
 		Cmd:              exec.Command("./virtualbox"),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
+		Logger:           provider.NewPluginLogger(),
 	})
 	stage.client = client
 

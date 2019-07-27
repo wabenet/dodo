@@ -23,6 +23,7 @@ type VirtualBoxProvider struct {
 }
 
 func main() {
+	log.SetFormatter(new(log.JSONFormatter))
 	plugin.Serve(&plugin.ServeConfig{
 		GRPCServer:      plugin.DefaultGRPCServer,
 		HandshakeConfig: provider.HandshakeConfig("virtualbox"),
