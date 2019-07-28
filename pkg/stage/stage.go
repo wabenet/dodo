@@ -10,8 +10,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	DefaultStageName  = "environment"
+	DefaultAPIVersion = "1.39"
+)
+
 var BuiltInStages = map[string]Stage{
-	DefaultStageName: &DefaultStage{},
+	"environment": &EnvStage{},
+	"generic":     &GenericStage{},
 }
 
 type Stage interface {

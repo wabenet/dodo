@@ -4,7 +4,7 @@ go:
   - 1.12.x
 
 before_install:
-  - apt-get install -y protobuf
+  - sudo apt-get install -y protobuf
   - go get -u github.com/mitchellh/gox
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
