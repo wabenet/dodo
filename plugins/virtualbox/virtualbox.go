@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -43,10 +44,22 @@ func main() {
 	})
 }
 
-func (vbox *Stage) Initialize(config map[string]string) (bool, error) {
-	vbox.VMName = config["vmName"] // TODO: check if these exist
-	vbox.StoragePath = config["storagePath"]
-	vbox.CachePath = config["cachePath"]
+func (vbox *Stage) Initialize(name string, config map[string]string) (bool, error) {
+	if vmName, ok := config["name"]; ok {
+		vbox.VMName = vmName
+	} else {
+		vbox.VMName = name
+	}
+
+	baseDir := filepath.FromSlash("/var/lib/dodo") // TODO: choose a better default
+	if path, ok := config["path"]; ok {
+		baseDir = path
+	} else if user, err := user.Current(); err == nil && user.HomeDir != "" {
+		baseDir = filepath.Join(user.HomeDir, ".dodo")
+	}
+
+	vbox.StoragePath = filepath.Join(baseDir, "stages", name)
+	vbox.CachePath = filepath.Join(baseDir, "cache")
 
 	if err := checkVBoxManageVersion(); err != nil {
 		return false, err

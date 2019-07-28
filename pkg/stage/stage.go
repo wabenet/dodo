@@ -3,8 +3,6 @@ package stage
 import (
 	"fmt"
 	"os/exec"
-	"os/user"
-	"path/filepath"
 
 	"github.com/docker/docker/client"
 	"github.com/hashicorp/go-plugin"
@@ -17,7 +15,7 @@ var BuiltInStages = map[string]Stage{
 }
 
 type Stage interface {
-	Initialize(map[string]string) (bool, error)
+	Initialize(string, map[string]string) (bool, error)
 	Create() error
 	Start() error
 	Stop() error
@@ -43,16 +41,9 @@ type DockerOptions struct {
 	KeyFile  string
 }
 
-// TODO: make machine dir configurable and default somewhere not docker-machine
 // TODO: sort out when and how to cleanup the plugin process properly
 
 func Load(name string, config *types.Stage) (Stage, func(), error) {
-	stateDir := filepath.FromSlash("/tmp/docker/machine")
-
-	if user, err := user.Current(); err == nil && user.HomeDir != "" {
-		stateDir = filepath.Join(user.HomeDir, ".docker", "machine")
-	}
-
 	if stage, ok := BuiltInStages[config.Type]; ok {
 		return stage, func() {}, nil
 	}
@@ -75,12 +66,7 @@ func Load(name string, config *types.Stage) (Stage, func(), error) {
 	}
 
 	stage := raw.(Stage)
-	success, err := stage.Initialize(map[string]string{
-		"vmName":      name,
-		"storagePath": filepath.Join(stateDir, "machines", name),
-		"cachePath":   filepath.Join(stateDir, "cache"),
-	})
-	if err != nil || !success {
+	if success, err := stage.Initialize(name, config.Options); err != nil || !success {
 		return nil, client.Kill, errors.Wrap(err, "initialization failed")
 	}
 

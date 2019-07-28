@@ -14,7 +14,7 @@ const (
 
 type DefaultStage struct{}
 
-func (stage *DefaultStage) Initialize(_ map[string]string) (bool, error) {
+func (stage *DefaultStage) Initialize(_ string, _ map[string]string) (bool, error) {
 	return true, nil
 }
 

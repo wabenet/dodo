@@ -11,7 +11,7 @@ type Stage struct {
 	Options Options
 }
 
-type Options map[string]interface{}
+type Options map[string]string
 
 func DecodeStages(name string, config interface{}) (Stages, error) {
 	result := map[string]Stage{}
@@ -60,12 +60,16 @@ func DecodeStage(name string, config interface{}) (Stage, error) {
 }
 
 func DecodeOptions(name string, config interface{}) (Options, error) {
-	result := map[string]interface{}{}
+	result := map[string]string{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			result[key] = v
+			decoded, err := DecodeString(key, v)
+			if err != nil {
+				return result, err
+			}
+			result[key] = decoded
 		}
 	default:
 		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}

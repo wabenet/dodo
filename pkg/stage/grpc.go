@@ -39,8 +39,8 @@ type GRPCClient struct {
 	client proto.StageClient
 }
 
-func (client *GRPCClient) Initialize(config map[string]string) (bool, error) {
-	response, err := client.client.Initialize(context.Background(), &proto.InitRequest{Config: config})
+func (client *GRPCClient) Initialize(name string, config map[string]string) (bool, error) {
+	response, err := client.client.Initialize(context.Background(), &proto.InitRequest{Name: name, Config: config})
 	if err != nil {
 		return false, err
 	}
@@ -115,7 +115,7 @@ type GRPCServer struct {
 }
 
 func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitRequest) (*proto.InitResponse, error) {
-	success, err := server.Impl.Initialize(request.Config)
+	success, err := server.Impl.Initialize(request.Name, request.Config)
 	if err != nil {
 		return nil, err
 	}
