@@ -6,6 +6,8 @@ import (
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/go-gimme/configfiles"
+	"github.com/oclaussen/go-gimme/ssh"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -34,12 +36,21 @@ func NewUpCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			target, err := stage.LoadStage(args[0], conf)
+			s, cleanup, err := stage.Load(args[0], conf)
+			defer cleanup()
 			if err != nil {
 				return err
 			}
-			defer target.Save()
-			return target.Up()
+
+			exist, err := s.Exist()
+			if err != nil {
+				return err
+			}
+
+			if !exist {
+				return s.Create()
+			}
+			return s.Start()
 		},
 	}
 }
@@ -61,12 +72,16 @@ func NewDownCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			target, err := stage.LoadStage(args[0], conf)
+			s, cleanup, err := stage.Load(args[0], conf)
+			defer cleanup()
 			if err != nil {
 				return err
 			}
-			defer target.Save()
-			return target.Down(opts.remove, opts.force)
+
+			if opts.remove {
+				return s.Remove(opts.force)
+			}
+			return s.Stop()
 		},
 	}
 	flags := cmd.Flags()
@@ -86,12 +101,33 @@ func NewSSHCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			target, err := stage.LoadStage(args[0], conf)
+			s, cleanup, err := stage.Load(args[0], conf)
+			defer cleanup()
 			if err != nil {
 				return err
 			}
-			defer target.Save()
-			return target.SSH()
+
+			available, err := s.Available()
+			if err != nil {
+				return err
+			}
+
+			if !available {
+				return errors.New("stage is not up")
+			}
+
+			opts, err := s.GetSSHOptions()
+			if err != nil {
+				return err
+			}
+
+			return ssh.GimmeShell(&ssh.Options{
+				Host:              opts.Hostname,
+				Port:              opts.Port,
+				User:              opts.Username,
+				IdentityFileGlobs: []string{opts.PrivateKeyFile},
+				NonInteractive:    true,
+			})
 		},
 	}
 }

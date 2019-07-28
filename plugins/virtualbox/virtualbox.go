@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/oclaussen/dodo/pkg/stage/provider"
-	"github.com/oclaussen/dodo/providers/virtualbox/boot2docker"
+	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/plugins/virtualbox/boot2docker"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
@@ -26,7 +26,7 @@ type Options struct {
 	DiskSize int
 }
 
-type VirtualBoxProvider struct {
+type Stage struct {
 	VMName      string
 	StoragePath string
 	CachePath   string
@@ -36,16 +36,14 @@ func main() {
 	log.SetFormatter(new(log.JSONFormatter))
 	plugin.Serve(&plugin.ServeConfig{
 		GRPCServer:      plugin.DefaultGRPCServer,
-		HandshakeConfig: provider.HandshakeConfig("virtualbox"),
+		HandshakeConfig: stage.HandshakeConfig("virtualbox"),
 		Plugins: map[string]plugin.Plugin{
-			"provider": &provider.ProviderPlugin{
-				Impl: &VirtualBoxProvider{},
-			},
+			"stage": &stage.Plugin{Impl: &Stage{}},
 		},
 	})
 }
 
-func (vbox *VirtualBoxProvider) Initialize(config map[string]string) (bool, error) {
+func (vbox *Stage) Initialize(config map[string]string) (bool, error) {
 	vbox.VMName = config["vmName"] // TODO: check if these exist
 	vbox.StoragePath = config["storagePath"]
 	vbox.CachePath = config["cachePath"]
@@ -61,7 +59,7 @@ func (vbox *VirtualBoxProvider) Initialize(config map[string]string) (bool, erro
 	return true, nil
 }
 
-func (vbox *VirtualBoxProvider) Create() error {
+func (vbox *Stage) Create() error {
 	opts := Options{CPU: 1, Memory: 1024, DiskSize: 20000}
 
 	if err := boot2docker.UpdateISOCache(vbox.CachePath); err != nil {
@@ -291,7 +289,7 @@ func (vbox *VirtualBoxProvider) Create() error {
 	return nil
 }
 
-func (vbox *VirtualBoxProvider) Start() error {
+func (vbox *Stage) Start() error {
 	running, err := vbox.Available()
 	if err != nil {
 		return err
@@ -299,9 +297,8 @@ func (vbox *VirtualBoxProvider) Start() error {
 
 	if running {
 		return errors.New("VM is already running")
-	} else {
-		log.Info("starting VM...")
 	}
+	log.Info("starting VM...")
 
 	sshForwarding := &PortForwarding{
 		Name:      "ssh",
@@ -342,7 +339,7 @@ func (vbox *VirtualBoxProvider) Start() error {
 	return nil
 }
 
-func (vbox *VirtualBoxProvider) Stop() error {
+func (vbox *Stage) Stop() error {
 	log.Info("stopping VM...")
 
 	available, err := vbox.Available()
@@ -368,7 +365,7 @@ func (vbox *VirtualBoxProvider) Stop() error {
 	return errors.New("VM did not stop successfully")
 }
 
-func (vbox *VirtualBoxProvider) Remove(force bool) error {
+func (vbox *Stage) Remove(force bool) error {
 	// TODO: log errors if force=true
 	exist, err := vbox.Exist()
 	if err != nil && !force {
@@ -405,7 +402,7 @@ func (vbox *VirtualBoxProvider) Remove(force bool) error {
 	return nil
 }
 
-func (vbox *VirtualBoxProvider) Exist() (bool, error) {
+func (vbox *Stage) Exist() (bool, error) {
 	if _, err := os.Stat(vbox.StoragePath); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -418,11 +415,11 @@ func (vbox *VirtualBoxProvider) Exist() (bool, error) {
 	return err == nil, nil
 }
 
-func (vbox *VirtualBoxProvider) Available() (bool, error) {
+func (vbox *Stage) Available() (bool, error) {
 	return vbox.isVMRunning()
 }
 
-func (vbox *VirtualBoxProvider) GetURL() (string, error) {
+func (vbox *Stage) GetURL() (string, error) {
 	ip, err := vbox.GetIP()
 	if err != nil {
 		return "", err
@@ -433,7 +430,7 @@ func (vbox *VirtualBoxProvider) GetURL() (string, error) {
 	return fmt.Sprintf("tcp://%s:%d", ip, defaultPort), nil
 }
 
-func (vbox *VirtualBoxProvider) GetIP() (string, error) {
+func (vbox *Stage) GetIP() (string, error) {
 	running, err := vbox.Available()
 	if err != nil {
 		return "", err
@@ -489,12 +486,12 @@ func (vbox *VirtualBoxProvider) GetIP() (string, error) {
 	return "", errors.New("could not find IP")
 }
 
-func (vbox *VirtualBoxProvider) GetDockerOptions() (*provider.DockerOptions, error) {
+func (vbox *Stage) GetDockerOptions() (*stage.DockerOptions, error) {
 	url, err := vbox.GetURL()
 	if err != nil {
 		return nil, err
 	}
-	return &provider.DockerOptions{
+	return &stage.DockerOptions{
 		Host:     url,
 		CAFile:   filepath.Join(vbox.StoragePath, "ca.pem"),
 		CertFile: filepath.Join(vbox.StoragePath, "client.pem"),

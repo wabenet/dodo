@@ -56,7 +56,7 @@ type dockerOptionsContext struct {
 	DockerArgs    []string
 }
 
-func (vbox *VirtualBoxProvider) writeRemoteFile(localPath string, remotePath string) error {
+func (vbox *Stage) writeRemoteFile(localPath string, remotePath string) error {
 	bytes, err := ioutil.ReadFile(localPath)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func (vbox *VirtualBoxProvider) writeRemoteFile(localPath string, remotePath str
 	return err
 }
 
-func (vbox *VirtualBoxProvider) setHostname() error {
+func (vbox *Stage) setHostname() error {
 	_, err := vbox.ssh(fmt.Sprintf(
 		"sudo /usr/bin/sethostname %s && echo %q | sudo tee /var/lib/boot2docker/etc/hostname",
 		vbox.VMName,
@@ -75,27 +75,27 @@ func (vbox *VirtualBoxProvider) setHostname() error {
 	return err
 }
 
-func (vbox *VirtualBoxProvider) makeDockerOptionsDir() error {
+func (vbox *Stage) makeDockerOptionsDir() error {
 	_, err := vbox.ssh(fmt.Sprintf("sudo mkdir -p %s", dockerDir))
 	return err
 }
 
-func (vbox *VirtualBoxProvider) deleteDockerLink() error {
+func (vbox *Stage) deleteDockerLink() error {
 	_, err := vbox.ssh(`if [ ! -z "$(ip link show docker0)" ]; then sudo ip link delete docker0; fi`)
 	return err
 }
 
-func (vbox *VirtualBoxProvider) startDocker() error {
+func (vbox *Stage) startDocker() error {
 	_, err := vbox.ssh("sudo /etc/init.d/docker start")
 	return err
 }
 
-func (vbox *VirtualBoxProvider) stopDocker() error {
+func (vbox *Stage) stopDocker() error {
 	_, err := vbox.ssh("sudo /etc/init.d/docker stop")
 	return err
 }
 
-func (vbox *VirtualBoxProvider) writeDockerOptions(dockerPort int) error {
+func (vbox *Stage) writeDockerOptions(dockerPort int) error {
 	tmpl, err := template.New("engineConfig").Parse(dockerOptionsTemplate)
 	if err != nil {
 		return err

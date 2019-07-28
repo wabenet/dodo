@@ -3,12 +3,12 @@ package main
 import (
 	"path/filepath"
 
-	"github.com/oclaussen/dodo/pkg/stage/provider"
+	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 )
 
-func (vbox *VirtualBoxProvider) GetSSHOptions() (*provider.SSHOptions, error) {
+func (vbox *Stage) GetSSHOptions() (*stage.SSHOptions, error) {
 	portForwardings, err := ListPortForwardings(vbox.VMName)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (vbox *VirtualBoxProvider) GetSSHOptions() (*provider.SSHOptions, error) {
 		return nil, errors.New("no port forwarding matching ssh port found")
 	}
 
-	return &provider.SSHOptions{
+	return &stage.SSHOptions{
 		Hostname:       "127.0.0.1",
 		Port:           port,
 		Username:       "docker",
@@ -33,7 +33,7 @@ func (vbox *VirtualBoxProvider) GetSSHOptions() (*provider.SSHOptions, error) {
 	}, nil
 }
 
-func (vbox *VirtualBoxProvider) ssh(command string) (string, error) {
+func (vbox *Stage) ssh(command string) (string, error) {
 	opts, err := vbox.GetSSHOptions()
 	if err != nil {
 		return "", err

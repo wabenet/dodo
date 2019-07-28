@@ -1,4 +1,4 @@
-package provider
+package stage
 
 import (
 	"os"
@@ -6,47 +6,47 @@ import (
 )
 
 const (
-	DefaultProviderName = "default"
-	DefaultAPIVersion   = "1.39"
+	DefaultStageName  = "default"
+	DefaultAPIVersion = "1.39"
 )
 
 // TODO: replace with a generic and environment provider
 
-type DefaultProvider struct{}
+type DefaultStage struct{}
 
-func (prov *DefaultProvider) Initialize(_ map[string]string) (bool, error) {
+func (stage *DefaultStage) Initialize(_ map[string]string) (bool, error) {
 	return true, nil
 }
 
-func (prov *DefaultProvider) Create() error {
+func (stage *DefaultStage) Create() error {
 	return nil
 }
 
-func (prov *DefaultProvider) Start() error {
+func (stage *DefaultStage) Start() error {
 	return nil
 }
 
-func (prov *DefaultProvider) Stop() error {
+func (stage *DefaultStage) Stop() error {
 	return nil
 }
 
-func (prov *DefaultProvider) Remove(_ bool) error {
+func (stage *DefaultStage) Remove(_ bool) error {
 	return nil
 }
 
-func (prov *DefaultProvider) Exist() (bool, error) {
+func (stage *DefaultStage) Exist() (bool, error) {
 	return true, nil
 }
 
-func (prov *DefaultProvider) Available() (bool, error) {
+func (stage *DefaultStage) Available() (bool, error) {
 	return true, nil // TODO: actually check for this
 }
 
-func (prov *DefaultProvider) GetSSHOptions() (*SSHOptions, error) {
+func (stage *DefaultStage) GetSSHOptions() (*SSHOptions, error) {
 	return nil, nil
 }
 
-func (prov *DefaultProvider) GetDockerOptions() (*DockerOptions, error) {
+func (stage *DefaultStage) GetDockerOptions() (*DockerOptions, error) {
 	opts := &DockerOptions{
 		Version: DefaultAPIVersion,
 		Host:    os.Getenv("DOCKER_HOST"),

@@ -1,111 +1,101 @@
 package stage
 
 import (
+	"fmt"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 
 	"github.com/docker/docker/client"
 	"github.com/hashicorp/go-plugin"
-	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
 )
 
-// TODO: make machine dir configurable and default somewhere not docker-machine
-
-type Stage struct {
-	name     string
-	config   *types.Stage
-	stateDir string
-	client   *plugin.Client
-	provider provider.Provider
+var BuiltInStages = map[string]Stage{
+	DefaultStageName: &DefaultStage{},
 }
 
-func LoadStage(name string, config *types.Stage) (*Stage, error) {
+type Stage interface {
+	Initialize(map[string]string) (bool, error)
+	Create() error
+	Start() error
+	Stop() error
+	Remove(bool) error
+	Exist() (bool, error)
+	Available() (bool, error)
+	GetSSHOptions() (*SSHOptions, error)
+	GetDockerOptions() (*DockerOptions, error)
+}
+
+type SSHOptions struct {
+	Hostname       string
+	Port           int
+	Username       string
+	PrivateKeyFile string
+}
+
+type DockerOptions struct {
+	Version  string
+	Host     string
+	CAFile   string
+	CertFile string
+	KeyFile  string
+}
+
+// TODO: make machine dir configurable and default somewhere not docker-machine
+// TODO: sort out when and how to cleanup the plugin process properly
+
+func Load(name string, config *types.Stage) (Stage, func(), error) {
 	stateDir := filepath.FromSlash("/tmp/docker/machine")
 
 	if user, err := user.Current(); err == nil && user.HomeDir != "" {
 		stateDir = filepath.Join(user.HomeDir, ".docker", "machine")
 	}
 
-	stage := &Stage{
-		name:     name,
-		config:   config,
-		stateDir: stateDir,
-	}
-
-	if prov, ok := provider.BuiltInProviders[config.Type]; ok {
-		stage.provider = prov
-		return stage, nil
+	if stage, ok := BuiltInStages[config.Type]; ok {
+		return stage, func() {}, nil
 	}
 
 	client := plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig:  provider.HandshakeConfig("virtualbox"),
-		Plugins:          provider.PluginMap,
-		Cmd:              exec.Command("./virtualbox"),
+		HandshakeConfig:  HandshakeConfig(config.Type),
+		Plugins:          PluginMap,
+		Cmd:              exec.Command(fmt.Sprintf("./%s", config.Type)),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
-		Logger:           provider.NewPluginLogger(),
+		Logger:           NewPluginLogger(),
 	})
-	stage.client = client
 
 	c, err := client.Client()
 	if err != nil {
-		return nil, err
+		return nil, client.Kill, err
 	}
-	raw, err := c.Dispense("provider")
+	raw, err := c.Dispense("stage")
 	if err != nil {
-		return nil, err
+		return nil, client.Kill, err
 	}
 
-	stage.provider = raw.(provider.Provider)
-	success, err := stage.provider.Initialize(map[string]string{
+	stage := raw.(Stage)
+	success, err := stage.Initialize(map[string]string{
 		"vmName":      name,
-		"storagePath": filepath.Join(stage.stateDir, "machines", stage.name),
-		"cachePath":   filepath.Join(stage.stateDir, "cache"),
+		"storagePath": filepath.Join(stateDir, "machines", name),
+		"cachePath":   filepath.Join(stateDir, "cache"),
 	})
 	if err != nil || !success {
-		return nil, errors.Wrap(err, "initialization failed")
+		return nil, client.Kill, errors.Wrap(err, "initialization failed")
 	}
 
-	return stage, nil
+	return stage, client.Kill, nil
 }
 
-func (stage *Stage) Save() {
-	if stage.client != nil {
-		stage.client.Kill()
-	}
-}
-
-func (stage *Stage) Up() error {
-	exist, err := stage.provider.Exist()
-	if err != nil {
-		return err
-	}
-	if exist {
-		return stage.provider.Start()
-	} else {
-		return stage.provider.Create()
-	}
-}
-
-func (stage *Stage) Down(remove bool, force bool) error {
-	if remove {
-		return stage.provider.Remove(force)
-	} else {
-		return stage.provider.Stop()
-	}
-}
-
-func (stage *Stage) GetDockerClient() (*client.Client, error) {
-	available, err := stage.provider.Available()
+func GetDockerClient(stage Stage) (*client.Client, error) {
+	available, err := stage.Available()
 	if err != nil {
 		return nil, err
 	}
 	if !available {
 		return nil, errors.New("stage is not up")
 	}
-	opts, err := stage.provider.GetDockerOptions()
+	opts, err := stage.GetDockerOptions()
 	if err != nil {
 		return nil, err
 	}

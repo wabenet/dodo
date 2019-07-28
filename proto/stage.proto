@@ -38,7 +38,7 @@ message DockerOptionsResponse {
   string key_file  = 5;
 }
 
-service Provider {
+service Stage {
   rpc Initialize(InitRequest) returns (InitResponse);
   rpc Create(Empty) returns (Empty);
   rpc Remove(RemoveRequest) returns (Empty);

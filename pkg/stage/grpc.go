@@ -1,4 +1,4 @@
-package provider
+package stage
 
 import (
 	"github.com/hashicorp/go-plugin"
@@ -10,33 +10,33 @@ import (
 const ProtocolVersion = 1
 
 var PluginMap = map[string]plugin.Plugin{
-	"provider": &ProviderPlugin{},
+	"stage": &Plugin{},
 }
 
-func HandshakeConfig(providerName string) plugin.HandshakeConfig {
+func HandshakeConfig(stageType string) plugin.HandshakeConfig {
 	return plugin.HandshakeConfig{
 		ProtocolVersion:  ProtocolVersion,
-		MagicCookieKey:   "DODO_STAGE_PROVIDER",
-		MagicCookieValue: providerName,
+		MagicCookieKey:   "DODO_STAGE",
+		MagicCookieValue: stageType,
 	}
 }
 
-type ProviderPlugin struct {
+type Plugin struct {
 	plugin.NetRPCUnsupportedPlugin
-	Impl Provider
+	Impl Stage
 }
 
-func (p *ProviderPlugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server) error {
-	proto.RegisterProviderServer(server, &GRPCServer{Impl: p.Impl})
+func (p *Plugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server) error {
+	proto.RegisterStageServer(server, &GRPCServer{Impl: p.Impl})
 	return nil
 }
 
-func (p *ProviderPlugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, client *grpc.ClientConn) (interface{}, error) {
-	return &GRPCClient{client: proto.NewProviderClient(client)}, nil
+func (p *Plugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, client *grpc.ClientConn) (interface{}, error) {
+	return &GRPCClient{client: proto.NewStageClient(client)}, nil
 }
 
 type GRPCClient struct {
-	client proto.ProviderClient
+	client proto.StageClient
 }
 
 func (client *GRPCClient) Initialize(config map[string]string) (bool, error) {
@@ -111,7 +111,7 @@ func (client *GRPCClient) GetDockerOptions() (*DockerOptions, error) {
 }
 
 type GRPCServer struct {
-	Impl Provider
+	Impl Stage
 }
 
 func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitRequest) (*proto.InitResponse, error) {

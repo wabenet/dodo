@@ -4,7 +4,6 @@ import (
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
 	"github.com/oclaussen/dodo/pkg/stage"
-	"github.com/oclaussen/dodo/pkg/stage/provider"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/spf13/cobra"
 )
@@ -46,16 +45,16 @@ func runCommand(opts *options, name string, command []string) error {
 			return err
 		}
 	} else {
-		stageConfig = &types.Stage{Type: provider.DefaultProviderName}
+		stageConfig = &types.Stage{Type: stage.DefaultStageName}
 	}
 
-	s, err := stage.LoadStage(conf.Stage, stageConfig)
+	s, cleanup, err := stage.Load(conf.Stage, stageConfig)
+	defer cleanup()
 	if err != nil {
 		return err
 	}
-	defer s.Save()
 
-	dockerClient, err := s.GetDockerClient()
+	dockerClient, err := stage.GetDockerClient(s)
 	if err != nil {
 		return err
 	}

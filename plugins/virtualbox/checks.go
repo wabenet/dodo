@@ -34,7 +34,7 @@ func await(test func() (bool, error)) error {
 	return errors.New("max retries reached")
 }
 
-func (vbox *VirtualBoxProvider) isVMRunning() (bool, error) {
+func (vbox *Stage) isVMRunning() (bool, error) {
 	stdout, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
 	if err != nil {
 		return false, err
@@ -47,7 +47,7 @@ func (vbox *VirtualBoxProvider) isVMRunning() (bool, error) {
 	return groups[1] == "running", nil
 }
 
-func (vbox *VirtualBoxProvider) isDockerRunning(port int) (bool, error) {
+func (vbox *Stage) isDockerRunning(port int) (bool, error) {
 	output, err := vbox.ssh("if ! type netstat 1>/dev/null; then ss -tln; else netstat -tln; fi")
 	if err != nil {
 		log.Debug("error running SSH command")
@@ -66,7 +66,7 @@ func (vbox *VirtualBoxProvider) isDockerRunning(port int) (bool, error) {
 	return false, nil
 }
 
-func (vbox *VirtualBoxProvider) isPortOpen(port int) (bool, error) {
+func (vbox *Stage) isPortOpen(port int) (bool, error) {
 	ip, err := vbox.GetIP()
 	if err != nil {
 		return false, err
@@ -80,7 +80,7 @@ func (vbox *VirtualBoxProvider) isPortOpen(port int) (bool, error) {
 	return true, nil
 }
 
-func (vbox *VirtualBoxProvider) isDockerResponding(certs *ssl.Certificates) (bool, error) {
+func (vbox *Stage) isDockerResponding(certs *ssl.Certificates) (bool, error) {
 	keyPair, err := tls.X509KeyPair(certs.CA, certs.CAKey)
 	if err != nil {
 		return false, err
