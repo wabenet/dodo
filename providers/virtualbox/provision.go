@@ -2,23 +2,13 @@ package main
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
-	"net/url"
 	"os"
 	"path"
-	"regexp"
-	"strconv"
-	"strings"
 	"text/template"
-	"time"
 
-	"github.com/oclaussen/go-gimme/ssl"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -130,20 +120,6 @@ func (vbox *VirtualBoxProvider) writeDockerOptions(dockerPort int) error {
 	return err
 }
 
-func parseDockerPort(dockerURL string) (int, error) {
-	parsed, err := url.Parse(dockerURL)
-	if err != nil {
-		return 0, err
-	}
-
-	parts := strings.Split(parsed.Host, ":")
-	if len(parts) == 2 {
-		return strconv.Atoi(parts[1])
-	}
-
-	return defaultPort, nil
-}
-
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -169,65 +145,4 @@ func copyFile(src, dst string) error {
 	}
 
 	return os.Chmod(dst, fi.Mode())
-}
-
-func validateCertificate(addr string, certs *ssl.Certificates) (bool, error) {
-	keyPair, err := tls.X509KeyPair(certs.CA, certs.CAKey)
-	if err != nil {
-		return false, err
-	}
-
-	caCert, err := x509.ParseCertificate(keyPair.Certificate[0])
-	if err != nil {
-		return false, err
-	}
-
-	certPool := x509.NewCertPool()
-	certPool.AddCert(caCert)
-
-	keyPair, err = tls.X509KeyPair(certs.ClientCert, certs.ClientKey)
-	if err != nil {
-		return false, err
-	}
-
-	dialer := &net.Dialer{Timeout: 20 * time.Second}
-	tlsConfig := &tls.Config{
-		RootCAs:            certPool,
-		InsecureSkipVerify: false,
-		Certificates:       []tls.Certificate{keyPair},
-	}
-
-	if _, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (vbox *VirtualBoxProvider) waitForDocker() error {
-	maxAttempts := 60
-	reDaemonListening := fmt.Sprintf(":%d\\s+.*:.*", defaultPort)
-	cmd := "if ! type netstat 1>/dev/null; then ss -tln; else netstat -tln; fi"
-
-	log.Info("waiting for Docker daemon...")
-	for i := 0; i < maxAttempts; i++ {
-		output, err := vbox.ssh(cmd)
-		if err != nil {
-			log.WithFields(log.Fields{"cmd": cmd}).Debug("error running SSH command")
-		}
-
-		for _, line := range strings.Split(output, "\n") {
-			match, err := regexp.MatchString(reDaemonListening, line)
-			if err != nil {
-				log.Warnf("Regex warning: %s", err)
-			}
-			if match && line != "" {
-				return nil
-			}
-		}
-
-		time.Sleep(3 * time.Second)
-
-	}
-	return errors.New("the Docker daemon did not start successfully")
 }

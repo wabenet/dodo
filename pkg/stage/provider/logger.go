@@ -74,9 +74,8 @@ func (logger *PluginLogger) With(args ...interface{}) hclog.Logger {
 func (logger *PluginLogger) Named(name string) hclog.Logger {
 	if len(logger.name) > 0 {
 		return logger.ResetNamed(fmt.Sprintf("%s.%s", logger.name, name))
-	} else {
-		return logger.ResetNamed(name)
 	}
+	return logger.ResetNamed(name)
 }
 
 func (logger *PluginLogger) ResetNamed(name string) hclog.Logger {
@@ -90,9 +89,8 @@ func (logger *PluginLogger) StandardLogger(_ *hclog.StandardLoggerOptions) *log.
 func (logger *PluginLogger) StandardWriter(_ *hclog.StandardLoggerOptions) io.Writer {
 	if l, ok := logger.logger.(*logrus.Logger); ok {
 		return l.Out
-	} else {
-		return os.Stderr
 	}
+	return os.Stderr
 }
 
 func argsToFields(args []interface{}) logrus.Fields {

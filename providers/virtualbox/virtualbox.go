@@ -2,15 +2,12 @@ package main
 
 import (
 	"fmt"
-	"net"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/stage/provider"
@@ -265,16 +262,7 @@ func (vbox *VirtualBoxProvider) Create() error {
 		return err
 	}
 
-	dockerURL, err := vbox.GetURL()
-	if err != nil {
-		return err
-	}
-	dockerPort, err := parseDockerPort(dockerURL)
-	if err != nil {
-		return err
-	}
-
-	if err := vbox.writeDockerOptions(dockerPort); err != nil {
+	if err := vbox.writeDockerOptions(defaultPort); err != nil {
 		return err
 	}
 
@@ -282,25 +270,21 @@ func (vbox *VirtualBoxProvider) Create() error {
 		return err
 	}
 
-	if err := vbox.waitForDocker(); err != nil {
-		return err
+	log.Info("waiting for Docker daemon...")
+	if err := await(func() (bool, error) {
+		ok, err := vbox.isDockerRunning(defaultPort)
+		return ok, err
+	}); err != nil {
+		return errors.Wrap(err, "the Docker daemon did not start successfully")
 	}
 
 	log.Info("checking connection...")
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, dockerPort), 5*time.Second)
-	if err != nil {
+	if ok, err := vbox.isPortOpen(defaultPort); err != nil || !ok {
 		return errors.Wrap(err, "could not reach docker port")
-	} else {
-		conn.Close()
 	}
 
-	parsedURL, err := url.Parse(dockerURL)
-	if err != nil {
-		return errors.Wrap(err, "could not parse Docker URL")
-	}
-
-	if valid, err := validateCertificate(parsedURL.Host, certs); !valid || err != nil {
-		return errors.Wrap(err, "invalid certificate")
+	if ok, err := vbox.isDockerResponding(certs); err != nil || !ok {
+		return errors.Wrap(err, "docker is not responding")
 	}
 
 	log.Info("VM is fully provisioned")
@@ -326,7 +310,7 @@ func (vbox *VirtualBoxProvider) Start() error {
 		GuestPort: 22,
 	}
 
-	log.Info("check network to re-create if needed...")
+	log.Info("configure network...")
 	if err := SetupHostOnlyNetwork(vbox.VMName, "192.168.99.1/24"); err != nil {
 		return errors.Wrap(err, "could not set up host-only network")
 	}
@@ -340,18 +324,19 @@ func (vbox *VirtualBoxProvider) Start() error {
 	}
 
 	log.Info("waiting for an IP...")
-	for attempts := 0; ; attempts++ {
-		if ip, err := vbox.GetIP(); err == nil && ip != "" {
-			return nil
-		}
-		if attempts >= 60 {
-			return errors.New("could not get IP address")
-		}
-		time.Sleep(4 * time.Second)
+	if err = await(func() (bool, error) {
+		ip, err := vbox.GetIP()
+		return err == nil && ip != "", nil
+	}); err != nil {
+		return err
 	}
 
-	if err := vbox.waitForDocker(); err != nil {
-		return err
+	log.Info("waiting for Docker daemon...")
+	if err := await(func() (bool, error) {
+		ok, err := vbox.isDockerRunning(defaultPort)
+		return ok, err
+	}); err != nil {
+		return errors.Wrap(err, "the Docker daemon did not start successfully")
 	}
 
 	return nil
@@ -373,15 +358,11 @@ func (vbox *VirtualBoxProvider) Stop() error {
 		return err
 	}
 
-	for attempts := 0; attempts < 60; attempts++ {
-		running, err := vbox.Available()
-		if err != nil {
-			return err
-		}
-		if !running {
-			return nil
-		}
-		time.Sleep(1 * time.Second)
+	if err := await(func() (bool, error) {
+		available, err := vbox.Available()
+		return !available, err
+	}); err != nil {
+		return err
 	}
 
 	return errors.New("VM did not stop successfully")
@@ -438,16 +419,7 @@ func (vbox *VirtualBoxProvider) Exist() (bool, error) {
 }
 
 func (vbox *VirtualBoxProvider) Available() (bool, error) {
-	stdout, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
-	if err != nil {
-		return false, err
-	}
-	re := regexp.MustCompile(`(?m)^VMState="(\w+)"`)
-	groups := re.FindStringSubmatch(stdout)
-	if len(groups) < 1 {
-		return false, errors.New("no vm state in VBoxManage output")
-	}
-	return groups[1] == "running", nil
+	return vbox.isVMRunning()
 }
 
 func (vbox *VirtualBoxProvider) GetURL() (string, error) {
@@ -458,7 +430,7 @@ func (vbox *VirtualBoxProvider) GetURL() (string, error) {
 	if ip == "" {
 		return "", errors.New("could not get IP")
 	}
-	return fmt.Sprintf("tcp://%s:2376", ip), nil
+	return fmt.Sprintf("tcp://%s:%d", ip, defaultPort), nil
 }
 
 func (vbox *VirtualBoxProvider) GetIP() (string, error) {

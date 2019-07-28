@@ -23,14 +23,6 @@ message AvailableResponse {
   bool available = 1;
 }
 
-message IPResponse {
-  string ip = 1;
-}
-
-message URLResponse {
-  string url = 1;
-}
-
 message SSHOptionsResponse {
   string hostname         = 1;
   int32  port             = 2;
@@ -54,8 +46,6 @@ service Provider {
   rpc Stop(Empty) returns (Empty);
   rpc Exist(Empty) returns (ExistResponse);
   rpc Available(Empty) returns (AvailableResponse);
-  rpc GetIP(Empty) returns (IPResponse);
-  rpc GetURL(Empty) returns (URLResponse);
   rpc GetSSHOptions(Empty) returns (SSHOptionsResponse);
   rpc GetDockerOptions(Empty) returns (DockerOptionsResponse);
 }

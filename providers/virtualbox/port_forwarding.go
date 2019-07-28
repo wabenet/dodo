@@ -120,7 +120,7 @@ func findAvailableTCPPort() (int, error) {
 			return port, nil
 		}
 		port = 0
-		time.Sleep(1)
+		time.Sleep(1 * time.Second)
 	}
 	return 0, fmt.Errorf("unable to allocate tcp port")
 }

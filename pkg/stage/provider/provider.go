@@ -5,9 +5,10 @@ var BuiltInProviders = map[string]Provider{
 }
 
 type SSHOptions struct {
-	Hostname string
-	Port     int
-	Username string
+	Hostname       string
+	Port           int
+	Username       string
+	PrivateKeyFile string
 }
 
 type DockerOptions struct {
@@ -26,8 +27,6 @@ type Provider interface {
 	Remove(bool) error
 	Exist() (bool, error)
 	Available() (bool, error)
-	GetURL() (string, error)
-	GetIP() (string, error)
 	GetSSHOptions() (*SSHOptions, error)
 	GetDockerOptions() (*DockerOptions, error)
 }

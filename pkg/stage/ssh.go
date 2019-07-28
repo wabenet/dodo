@@ -1,32 +1,9 @@
 package stage
 
 import (
-	"path/filepath"
-
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 )
-
-func (stage *Stage) RunSSHCommand(command string) (string, error) {
-	opts, err := stage.provider.GetSSHOptions()
-	if err != nil {
-		return "", err
-	}
-
-	executor, err := ssh.GimmeExecutor(&ssh.Options{
-		Host:              opts.Hostname,
-		Port:              opts.Port,
-		User:              opts.Username,
-		IdentityFileGlobs: []string{filepath.Join(stage.stateDir, "machines", stage.name, "id_rsa")},
-		NonInteractive:    true,
-	})
-	if err != nil {
-		return "", nil
-	}
-	defer executor.Close()
-
-	return executor.Execute(command)
-}
 
 func (stage *Stage) SSH() error {
 	available, err := stage.provider.Available()
@@ -47,7 +24,7 @@ func (stage *Stage) SSH() error {
 		Host:              opts.Hostname,
 		Port:              opts.Port,
 		User:              opts.Username,
-		IdentityFileGlobs: []string{filepath.Join(stage.stateDir, "machines", stage.name, "id_rsa")},
+		IdentityFileGlobs: []string{opts.PrivateKeyFile},
 		NonInteractive:    true,
 	})
 }

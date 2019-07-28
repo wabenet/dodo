@@ -29,7 +29,7 @@ func ListHostOnlyAdapters() (map[string]*hostOnlyNetwork, error) {
 
 	result := map[string]*hostOnlyNetwork{}
 	current := &hostOnlyNetwork{}
-	re := regexp.MustCompile("(.+):\\s+(.*)")
+	re := regexp.MustCompile(`(.+):\s+(.*)`)
 	for _, line := range strings.Split(stdout, "\n") {
 		if line == "" {
 			continue

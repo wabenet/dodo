@@ -23,10 +23,16 @@ type Stage struct {
 }
 
 func LoadStage(name string, config *types.Stage) (*Stage, error) {
+	stateDir := filepath.FromSlash("/tmp/docker/machine")
+
+	if user, err := user.Current(); err == nil && user.HomeDir != "" {
+		stateDir = filepath.Join(user.HomeDir, ".docker", "machine")
+	}
+
 	stage := &Stage{
 		name:     name,
 		config:   config,
-		stateDir: filepath.Join(home(), ".docker", "machine"),
+		stateDir: stateDir,
 	}
 
 	if prov, ok := provider.BuiltInProviders[config.Type]; ok {
@@ -55,7 +61,7 @@ func LoadStage(name string, config *types.Stage) (*Stage, error) {
 	stage.provider = raw.(provider.Provider)
 	success, err := stage.provider.Initialize(map[string]string{
 		"vmName":      name,
-		"storagePath": stage.hostDir(),
+		"storagePath": filepath.Join(stage.stateDir, "machines", stage.name),
 		"cachePath":   filepath.Join(stage.stateDir, "cache"),
 	})
 	if err != nil || !success {
@@ -114,19 +120,4 @@ func (stage *Stage) GetDockerClient() (*client.Client, error) {
 		mutators = append(mutators, client.WithTLSClientConfig(opts.CAFile, opts.CertFile, opts.KeyFile))
 	}
 	return client.NewClientWithOpts(mutators...)
-}
-
-func (stage *Stage) hostDir() string {
-	return filepath.Join(stage.stateDir, "machines", stage.name)
-}
-
-func home() string {
-	user, err := user.Current()
-	if err != nil {
-		return filepath.FromSlash("/")
-	}
-	if user.HomeDir == "" {
-		return filepath.FromSlash("/")
-	}
-	return user.HomeDir
 }

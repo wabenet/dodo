@@ -26,9 +26,10 @@ func (vbox *VirtualBoxProvider) GetSSHOptions() (*provider.SSHOptions, error) {
 	}
 
 	return &provider.SSHOptions{
-		Hostname: "127.0.0.1",
-		Port:     port,
-		Username: "docker",
+		Hostname:       "127.0.0.1",
+		Port:           port,
+		Username:       "docker",
+		PrivateKeyFile: filepath.Join(vbox.StoragePath, "id_rsa"),
 	}, nil
 }
 
@@ -42,7 +43,7 @@ func (vbox *VirtualBoxProvider) ssh(command string) (string, error) {
 		Host:              opts.Hostname,
 		Port:              opts.Port,
 		User:              opts.Username,
-		IdentityFileGlobs: []string{filepath.Join(vbox.StoragePath, "id_rsa")},
+		IdentityFileGlobs: []string{opts.PrivateKeyFile},
 		NonInteractive:    true,
 	})
 	if err != nil {

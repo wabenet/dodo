@@ -45,7 +45,7 @@ func ListDHCPServers() (map[string]*DHCPServer, error) {
 
 	result := map[string]*DHCPServer{}
 	current := &DHCPServer{}
-	re := regexp.MustCompile("(.+):\\s+(.*)")
+	re := regexp.MustCompile(`(.+):\s+(.*)`)
 	for _, line := range strings.Split(stdout, "\n") {
 		if line == "" {
 			continue

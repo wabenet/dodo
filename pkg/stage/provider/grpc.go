@@ -83,31 +83,16 @@ func (client *GRPCClient) Available() (bool, error) {
 	return response.Available, nil
 }
 
-func (client *GRPCClient) GetIP() (string, error) {
-	response, err := client.client.GetIP(context.Background(), &proto.Empty{})
-	if err != nil {
-		return "", err
-	}
-	return response.Ip, nil
-}
-
-func (client *GRPCClient) GetURL() (string, error) {
-	response, err := client.client.GetURL(context.Background(), &proto.Empty{})
-	if err != nil {
-		return "", err
-	}
-	return response.Url, nil
-}
-
 func (client *GRPCClient) GetSSHOptions() (*SSHOptions, error) {
 	response, err := client.client.GetSSHOptions(context.Background(), &proto.Empty{})
 	if err != nil {
 		return nil, err
 	}
 	return &SSHOptions{
-		Hostname: response.Hostname,
-		Port:     int(response.Port),
-		Username: response.Username,
+		Hostname:       response.Hostname,
+		Port:           int(response.Port),
+		Username:       response.Username,
+		PrivateKeyFile: response.PrivateKeyFile,
 	}, nil
 }
 
@@ -169,31 +154,16 @@ func (server *GRPCServer) Available(ctx context.Context, _ *proto.Empty) (*proto
 	return &proto.AvailableResponse{Available: available}, nil
 }
 
-func (server *GRPCServer) GetIP(ctx context.Context, _ *proto.Empty) (*proto.IPResponse, error) {
-	ip, err := server.Impl.GetIP()
-	if err != nil {
-		return nil, err
-	}
-	return &proto.IPResponse{Ip: ip}, nil
-}
-
-func (server *GRPCServer) GetURL(ctx context.Context, _ *proto.Empty) (*proto.URLResponse, error) {
-	url, err := server.Impl.GetURL()
-	if err != nil {
-		return nil, err
-	}
-	return &proto.URLResponse{Url: url}, nil
-}
-
 func (server *GRPCServer) GetSSHOptions(ctx context.Context, _ *proto.Empty) (*proto.SSHOptionsResponse, error) {
 	opts, err := server.Impl.GetSSHOptions()
 	if err != nil {
 		return nil, err
 	}
 	return &proto.SSHOptionsResponse{
-		Hostname: opts.Hostname,
-		Port:     int32(opts.Port),
-		Username: opts.Username,
+		Hostname:       opts.Hostname,
+		Port:           int32(opts.Port),
+		Username:       opts.Username,
+		PrivateKeyFile: opts.PrivateKeyFile,
 	}, nil
 }
 

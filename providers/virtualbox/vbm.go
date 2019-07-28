@@ -50,12 +50,12 @@ func checkVBoxManageVersion() error {
 
 	parts := strings.Split(strings.TrimSpace(version), ".")
 	if len(parts) < 2 {
-		return fmt.Errorf("Invalid version: %q", version)
+		return fmt.Errorf("invalid version: %q", version)
 	}
 
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return fmt.Errorf("Invalid version: %q", version)
+		return fmt.Errorf("invalid version: %q", version)
 	}
 
 	if major < 5 {

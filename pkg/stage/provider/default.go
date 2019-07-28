@@ -42,14 +42,6 @@ func (prov *DefaultProvider) Available() (bool, error) {
 	return true, nil // TODO: actually check for this
 }
 
-func (prov *DefaultProvider) GetURL() (string, error) {
-	return "", nil
-}
-
-func (prov *DefaultProvider) GetIP() (string, error) {
-	return "", nil
-}
-
 func (prov *DefaultProvider) GetSSHOptions() (*SSHOptions, error) {
 	return nil, nil
 }
