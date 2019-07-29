@@ -11,6 +11,7 @@ backdrops:
     volumes:
       - "{{ projectRoot }}:/build"
       - "{{ projectRoot }}/.cache:/go/pkg/mod"
+      - "{{ user.HomeDir }}/.dodo:/root/.dodo"
     working_dir: /build
     script: make $@
     command: all

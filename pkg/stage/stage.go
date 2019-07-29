@@ -2,11 +2,15 @@ package stage
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 
 	"github.com/docker/docker/client"
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/types"
+	"github.com/oclaussen/go-gimme/configfiles"
 	"github.com/pkg/errors"
 )
 
@@ -54,10 +58,15 @@ func Load(name string, config *types.Stage) (Stage, func(), error) {
 		return stage, func() {}, nil
 	}
 
+	path, err := findPluginExecutable(config.Type)
+	if err != nil {
+		return nil, func() {}, err
+	}
+
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig:  HandshakeConfig(config.Type),
 		Plugins:          PluginMap,
-		Cmd:              exec.Command(fmt.Sprintf("./%s", config.Type)),
+		Cmd:              exec.Command(path),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
 		Logger:           NewPluginLogger(),
 	})
@@ -77,6 +86,27 @@ func Load(name string, config *types.Stage) (Stage, func(), error) {
 	}
 
 	return stage, client.Kill, nil
+}
+
+func findPluginExecutable(name string) (string, error) {
+	directories, err := configfiles.GimmeConfigDirectories(&configfiles.Options{
+		Name:                      "dodo",
+		IncludeWorkingDirectories: true,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	filename := fmt.Sprintf("%s_%s_%s", name, runtime.GOOS, runtime.GOARCH)
+	for _, dir := range directories {
+		path := filepath.Join(dir, ".dodo", "plugins", filename)
+		if stat, err := os.Stat(path); err == nil && stat.Mode().Perm()&0111 != 0 {
+			return path, nil
+		}
+	}
+
+	return "", errors.New("could not find a suitable plugin for the stage anywhere")
+
 }
 
 func GetDockerClient(stage Stage) (*client.Client, error) {

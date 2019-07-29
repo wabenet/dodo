@@ -2,8 +2,7 @@ all: clean test build
 
 .PHONY: clean
 clean:
-	rm -f dodo_*
-	rm -f virtualbox_*
+	rm -f -r bin/
 	rm -f proto/*.pb.go
 
 .PHONY: fmt
@@ -23,8 +22,23 @@ test:
 	go test -cover ./...
 
 .PHONY: build
-build: clean proto/provider.pb.go
-	gox -arch="amd64" -os="darwin linux" ./...
+build: clean build/cmd build/plugins
+
+.PHONY: build/cmd
+build/cmd: proto/stage.pb.go
+	gox -arch="amd64" -os="darwin linux" -output "./bin/{{.Dir}}_{{.OS}}_{{.Arch}}" ./cmd/...
+
+.PHONY: build/plugins
+build/plugins: proto/stage.pb.go
+	gox -arch="amd64" -os="darwin linux" -output "./bin/plugins/{{.Dir}}_{{.OS}}_{{.Arch}}" ./plugins/...
+
+.PHONY: install
+install: install/plugins
+
+.PHONY: install/plugins
+install/plugins: build/plugins
+	mkdir -p $${HOME}/.dodo/plugins
+	cp bin/plugins/* $${HOME}/.dodo/plugins/
 
 proto/%.pb.go: proto/%.proto
 	protoc --go_out=plugins=grpc:. $<
