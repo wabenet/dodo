@@ -1,6 +1,7 @@
 package stage
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -19,7 +20,7 @@ func NewPluginLogger() hclog.Logger {
 	return &PluginLogger{
 		logger: &logrus.Logger{
 			Out:       os.Stderr,
-			Level:     logrus.DebugLevel,
+			Level:     logrus.InfoLevel,
 			Formatter: new(logrus.TextFormatter),
 		},
 	}
@@ -34,7 +35,11 @@ func (logger *PluginLogger) IsTrace() bool {
 }
 
 func (logger *PluginLogger) Debug(msg string, args ...interface{}) {
-	logger.logger.WithFields(argsToFields(args)).Debug(msg)
+	// All plugin output logs to debug
+	done := logger.upgradePluginOutput(msg, args)
+	if !done {
+		logger.logger.WithFields(argsToFields(args)).Debug(msg)
+	}
 }
 
 func (logger *PluginLogger) IsDebug() bool {
@@ -91,6 +96,38 @@ func (logger *PluginLogger) StandardWriter(_ *hclog.StandardLoggerOptions) io.Wr
 		return l.Out
 	}
 	return os.Stderr
+}
+
+func (logger *PluginLogger) upgradePluginOutput(originalMsg string, args []interface{}) bool {
+	var output map[string]string
+	if err := json.Unmarshal([]byte(originalMsg), &output); err != nil {
+		return false
+	}
+
+	msg, msgOk := output["msg"]
+	level, levelOk := output["level"]
+	if !msgOk || !levelOk {
+		return false
+	}
+
+	fields := argsToFields(args)
+	for k, v := range output {
+		if k != "msg" && k != "level" {
+			fields[k] = v
+		}
+	}
+
+	switch level {
+	case "debug":
+		logger.logger.WithFields(fields).Debug(msg)
+	case "info":
+		logger.logger.WithFields(fields).Info(msg)
+	case "warn":
+		logger.logger.WithFields(fields).Warn(msg)
+	case "error":
+		logger.logger.WithFields(fields).Error(msg)
+	}
+	return true
 }
 
 func argsToFields(args []interface{}) logrus.Fields {
