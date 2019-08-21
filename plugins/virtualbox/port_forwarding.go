@@ -24,7 +24,7 @@ type PortForwarding struct {
 
 func (forward *PortForwarding) ToCSV() string {
 	return fmt.Sprintf(
-		"%s,%s,%d,%d,%d,%d",
+		"%s,%s,%s,%d,%s,%d",
 		forward.Name,
 		forward.Protocol,
 		forward.HostIP,

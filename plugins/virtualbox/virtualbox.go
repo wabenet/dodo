@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/stage/designer"
+	"github.com/oclaussen/dodo/pkg/stage/provision"
 	"github.com/oclaussen/dodo/plugins/virtualbox/boot2docker"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/oclaussen/go-gimme/ssl"
@@ -229,22 +230,12 @@ func (vbox *Stage) Create() error {
 		return errors.Wrap(err, "could not start VM")
 	}
 
-	log.Info("provisioning VM...")
-
-	if err := vbox.setHostname(); err != nil {
-		return err
-	}
-
-	if err := vbox.makeDockerOptionsDir(); err != nil {
-		return err
-	}
-
 	ip, err := vbox.GetIP()
 	if err != nil {
 		return err
 	}
 
-	certs, files, err := ssl.GimmeCertificates(&ssl.Options{
+	certs, _, err := ssl.GimmeCertificates(&ssl.Options{
 		Org:          fmt.Sprintf("dodo.%s", vbox.VMName),
 		Hosts:        []string{ip, "localhost"},
 		WriteToFiles: &ssl.Files{Directory: vbox.StoragePath},
@@ -253,45 +244,18 @@ func (vbox *Stage) Create() error {
 		return err
 	}
 
-	if err := vbox.stopDocker(); err != nil {
-		return err
+	sshOpts, err := vbox.GetSSHOptions()
+	if err != nil {
+		return nil
 	}
 
-	if err := vbox.deleteDockerLink(); err != nil {
-		return err
-	}
-
-	log.Info("copying certs to the VM...")
-
-	if err := vbox.writeRemoteFile(files.CAFile, path.Join(dockerDir, "ca.pem")); err != nil {
-		return err
-	}
-	if err := vbox.writeRemoteFile(files.ServerCertFile, path.Join(dockerDir, "server.pem")); err != nil {
-		return err
-	}
-	if err := vbox.writeRemoteFile(files.ServerKeyFile, path.Join(dockerDir, "server-key.pem")); err != nil {
-		return err
-	}
-
-	if err := vbox.writeDockerOptions(defaultPort); err != nil {
-		return err
-	}
-
-	if err := vbox.startDocker(); err != nil {
-		return err
-	}
-
-	log.Info("waiting for Docker daemon...")
-	if err := await(func() (bool, error) {
-		ok, err := vbox.isDockerRunning(defaultPort)
-		return ok, err
+	if err := provision.Provision(sshOpts, &designer.Config{
+		Hostname:   vbox.VMName,
+		CA:         string(certs.CA),
+		ServerCert: string(certs.ServerCert),
+		ServerKey:  string(certs.ServerKey),
 	}); err != nil {
-		return errors.Wrap(err, "the Docker daemon did not start successfully")
-	}
-
-	log.Info("checking connection...")
-	if ok, err := vbox.isPortOpen(defaultPort); err != nil || !ok {
-		return errors.Wrap(err, "could not reach docker port")
+		return err
 	}
 
 	if ok, err := vbox.isDockerResponding(certs); err != nil || !ok {
