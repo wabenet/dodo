@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -474,4 +475,31 @@ func (vbox *Stage) GetDockerOptions() (*stage.DockerOptions, error) {
 		CertFile: filepath.Join(vbox.StoragePath, "client.pem"),
 		KeyFile:  filepath.Join(vbox.StoragePath, "client-key.pem"),
 	}, nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	defer out.Close()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+
+	fi, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(dst, fi.Mode())
 }

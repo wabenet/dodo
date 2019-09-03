@@ -66,20 +66,6 @@ func (vbox *Stage) isDockerRunning(port int) (bool, error) {
 	return false, nil
 }
 
-func (vbox *Stage) isPortOpen(port int) (bool, error) {
-	ip, err := vbox.GetIP()
-	if err != nil {
-		return false, err
-	}
-
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), 5*time.Second)
-	if err != nil {
-		return false, err
-	}
-	defer conn.Close()
-	return true, nil
-}
-
 func (vbox *Stage) isDockerResponding(certs *ssl.Certificates) (bool, error) {
 	keyPair, err := tls.X509KeyPair(certs.CA, certs.CAKey)
 	if err != nil {
