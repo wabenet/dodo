@@ -10,6 +10,7 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/go-gimme/configfiles"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -60,12 +61,14 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 func containsBackdrop(configFile *configfiles.ConfigFile, backdrop string) bool {
 	var mapType map[interface{}]interface{}
 	if err := yaml.Unmarshal(configFile.Content, &mapType); err != nil {
+		log.WithFields(log.Fields{"file": configFile.Path}).Warn("invalid YAML syntax in file")
 		return false
 	}
 
 	decoder := types.NewDecoder(configFile.Path, backdrop)
 	config, err := decoder.DecodeNames(configFile.Path, "", mapType)
 	if err != nil {
+		log.WithFields(log.Fields{"file": configFile.Path, "reason": err}).Warn("invalid config file")
 		return false
 	}
 

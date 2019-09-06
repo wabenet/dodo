@@ -1,6 +1,7 @@
 package command
 
 import (
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,7 @@ func NewCommand() *cobra.Command {
 		SilenceUsage:          true,
 		Args:                  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
 			return runCommand(&opts, args[0], args[1:])
 		},
 	}
@@ -32,5 +34,13 @@ func NewCommand() *cobra.Command {
 
 	cmd.AddCommand(NewListCommand())
 	cmd.AddCommand(NewRunCommand())
+	cmd.AddCommand(NewValidateCommand())
 	return cmd
+}
+
+func configureLogging() {
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp:       true,
+		DisableLevelTruncation: true,
+	})
 }

@@ -16,6 +16,7 @@ func NewRunCommand() *cobra.Command {
 		SilenceUsage:          true,
 		Args:                  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
 			return runCommand(&opts, args[0], args[1:])
 		},
 	}
