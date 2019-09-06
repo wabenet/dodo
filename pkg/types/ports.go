@@ -35,18 +35,18 @@ func (ports Ports) PortSet() nat.PortSet {
 	return result
 }
 
-func DecodePorts(name string, config interface{}) (Ports, error) {
+func (d *decoder) DecodePorts(name string, config interface{}) (Ports, error) {
 	result := []Port{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String, reflect.Map:
-		decoded, err := DecodePort(name, config)
+		decoded, err := d.DecodePort(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodePort(name, v)
+			decoded, err := d.DecodePort(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -58,11 +58,11 @@ func DecodePorts(name string, config interface{}) (Ports, error) {
 	return result, nil
 }
 
-func DecodePort(name string, config interface{}) (Port, error) {
+func (d *decoder) DecodePort(name string, config interface{}) (Port, error) {
 	result := Port{Protocol: "tcp"}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeString(name, t.String())
+		decoded, err := d.DecodeString(name, t.String())
 		if err != nil {
 			return result, err
 		}
@@ -95,25 +95,25 @@ func DecodePort(name string, config interface{}) (Port, error) {
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "target":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Target = decoded
 			case "published":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Published = decoded
 			case "protocol":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Protocol = decoded
 			case "host_ip":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}

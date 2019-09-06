@@ -89,8 +89,10 @@ func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
 		config.Remove = &remove
 	}
 
+	decoder := types.NewDecoder("cli", "")
+
 	for _, volume := range opts.volumes {
-		decoded, err := types.DecodeVolume("cli", volume)
+		decoded, err := decoder.DecodeVolume("cli", volume)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +100,7 @@ func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
 	}
 
 	for _, env := range opts.environment {
-		decoded, err := types.DecodeKeyValue("cli", env)
+		decoded, err := decoder.DecodeKeyValue("cli", env)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +108,7 @@ func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
 	}
 
 	for _, port := range opts.publish {
-		decoded, err := types.DecodePort("cli", port)
+		decoded, err := decoder.DecodePort("cli", port)
 		if err != nil {
 			return nil, err
 		}

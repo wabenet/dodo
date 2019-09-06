@@ -58,14 +58,14 @@ func (target *Names) Merge(source *Names) {
 	}
 }
 
-func DecodeNames(path string, name string, config interface{}) (Names, error) {
+func (d *decoder) DecodeNames(path string, name string, config interface{}) (Names, error) {
 	result := Names{Backdrops: map[string]string{}, Groups: map[string]Names{}}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "groups":
-				decoded, err := DecodeNamesGroups(path, key, v)
+				decoded, err := d.DecodeNamesGroups(path, key, v)
 				if err != nil {
 					return result, err
 				}
@@ -73,7 +73,7 @@ func DecodeNames(path string, name string, config interface{}) (Names, error) {
 					result.Groups[name] = group
 				}
 			case "backdrops":
-				decoded, err := DecodeNamesBackdrops(path, key, v)
+				decoded, err := d.DecodeNamesBackdrops(path, key, v)
 				if err != nil {
 					return result, err
 				}
@@ -81,7 +81,7 @@ func DecodeNames(path string, name string, config interface{}) (Names, error) {
 					result.Backdrops[name] = path
 				}
 			case "include":
-				decoded, err := DecodeNamesIncludes(path, key, v)
+				decoded, err := d.DecodeNamesIncludes(path, key, v)
 				if err != nil {
 					return result, err
 				}
@@ -100,7 +100,7 @@ func DecodeNames(path string, name string, config interface{}) (Names, error) {
 	return result, nil
 }
 
-func DecodeNamesBackdrops(path string, name string, config interface{}) (map[string]string, error) {
+func (d *decoder) DecodeNamesBackdrops(path string, name string, config interface{}) (map[string]string, error) {
 	result := map[string]string{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
@@ -114,13 +114,13 @@ func DecodeNamesBackdrops(path string, name string, config interface{}) (map[str
 	return result, nil
 }
 
-func DecodeNamesGroups(path string, name string, config interface{}) (map[string]Names, error) {
+func (d *decoder) DecodeNamesGroups(path string, name string, config interface{}) (map[string]Names, error) {
 	result := map[string]Names{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := DecodeNames(path, key, v)
+			decoded, err := d.DecodeNames(path, key, v)
 			if err != nil {
 				return result, err
 			}
@@ -132,18 +132,18 @@ func DecodeNamesGroups(path string, name string, config interface{}) (map[string
 	return result, nil
 }
 
-func DecodeNamesIncludes(path string, name string, config interface{}) ([]Names, error) {
+func (d *decoder) DecodeNamesIncludes(path string, name string, config interface{}) ([]Names, error) {
 	result := []Names{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
-		decoded, err := DecodeNamesInclude(path, name, config)
+		decoded, err := d.DecodeNamesInclude(path, name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeNamesInclude(path, name, v)
+			decoded, err := d.DecodeNamesInclude(path, name, v)
 			if err != nil {
 				return result, err
 			}
@@ -155,24 +155,24 @@ func DecodeNamesIncludes(path string, name string, config interface{}) ([]Names,
 	return result, nil
 }
 
-func DecodeNamesInclude(path string, name string, config interface{}) (Names, error) {
+func (d *decoder) DecodeNamesInclude(path string, name string, config interface{}) (Names, error) {
 	var result Names
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "file":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
-				return includeFileNames(decoded)
+				return d.includeFileNames(decoded)
 			case "text":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
-				return includeTextNames(path, name, []byte(decoded))
+				return d.includeTextNames(path, name, []byte(decoded))
 			default:
 				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
@@ -183,7 +183,7 @@ func DecodeNamesInclude(path string, name string, config interface{}) (Names, er
 	return result, nil
 }
 
-func includeFileNames(filename string) (Names, error) {
+func (d *decoder) includeFileNames(filename string) (Names, error) {
 	if !filepath.IsAbs(filename) {
 		directory, err := os.Getwd()
 		if err != nil {
@@ -198,16 +198,16 @@ func includeFileNames(filename string) (Names, error) {
 	if err != nil {
 		return Names{}, fmt.Errorf("could not read file '%s'", filename)
 	}
-	return includeTextNames(filename, filename, bytes)
+	return d.WithFile(filename).includeTextNames(filename, filename, bytes)
 }
 
-func includeTextNames(path string, name string, bytes []byte) (Names, error) {
+func (d *decoder) includeTextNames(path string, name string, bytes []byte) (Names, error) {
 	var mapType map[interface{}]interface{}
 	err := yaml.Unmarshal(bytes, &mapType)
 	if err != nil {
 		return Names{}, err
 	}
-	config, err := DecodeNames(path, name, mapType)
+	config, err := d.DecodeNames(path, name, mapType)
 	if err != nil {
 		return Names{}, err
 	}

@@ -44,7 +44,8 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 		return nil, err
 	}
 
-	config, err := types.DecodeGroup(configFile.Path, mapType)
+	decoder := types.NewDecoder(configFile.Path, backdrop)
+	config, err := decoder.DecodeGroup(configFile.Path, mapType)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +63,8 @@ func containsBackdrop(configFile *configfiles.ConfigFile, backdrop string) bool 
 		return false
 	}
 
-	config, err := types.DecodeNames(configFile.Path, "", mapType)
+	decoder := types.NewDecoder(configFile.Path, backdrop)
+	config, err := decoder.DecodeNames(configFile.Path, "", mapType)
 	if err != nil {
 		return false
 	}

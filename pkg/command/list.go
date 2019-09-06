@@ -30,7 +30,8 @@ func listConfigurations() error {
 			if err := yaml.Unmarshal(configFile.Content, &mapType); err != nil {
 				return false
 			}
-			if config, err := types.DecodeNames(configFile.Path, "", mapType); err == nil {
+			decoder := types.NewDecoder(configFile.Path, "")
+			if config, err := decoder.DecodeNames(configFile.Path, "", mapType); err == nil {
 				names.Merge(&config)
 			}
 			return false

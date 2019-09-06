@@ -17,13 +17,13 @@ type Group struct {
 	Groups    Groups
 }
 
-func DecodeGroups(name string, config interface{}) (Groups, error) {
+func (d *decoder) DecodeGroups(name string, config interface{}) (Groups, error) {
 	result := map[string]Group{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := DecodeGroup(key, v)
+			decoded, err := d.DecodeGroup(key, v)
 			if err != nil {
 				return result, err
 			}
@@ -35,14 +35,14 @@ func DecodeGroups(name string, config interface{}) (Groups, error) {
 	return result, nil
 }
 
-func DecodeGroup(name string, config interface{}) (Group, error) {
+func (d *decoder) DecodeGroup(name string, config interface{}) (Group, error) {
 	result := Group{Backdrops: Backdrops{}, Groups: Groups{}}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "groups":
-				decoded, err := DecodeGroups(key, v)
+				decoded, err := d.DecodeGroups(key, v)
 				if err != nil {
 					return result, err
 				}
@@ -50,7 +50,7 @@ func DecodeGroup(name string, config interface{}) (Group, error) {
 					result.Groups[name] = group
 				}
 			case "backdrops":
-				decoded, err := DecodeBackdrops(key, v)
+				decoded, err := d.DecodeBackdrops(key, v)
 				if err != nil {
 					return result, err
 				}
@@ -58,7 +58,7 @@ func DecodeGroup(name string, config interface{}) (Group, error) {
 					result.Backdrops[name] = backdrop
 				}
 			case "include":
-				decoded, err := DecodeIncludes(key, v)
+				decoded, err := d.DecodeIncludes(key, v)
 				if err != nil {
 					return result, err
 				}
@@ -77,18 +77,18 @@ func DecodeGroup(name string, config interface{}) (Group, error) {
 	return result, nil
 }
 
-func DecodeIncludes(name string, config interface{}) ([]Group, error) {
+func (d *decoder) DecodeIncludes(name string, config interface{}) ([]Group, error) {
 	result := []Group{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
-		decoded, err := DecodeInclude(name, config)
+		decoded, err := d.DecodeInclude(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeInclude(name, v)
+			decoded, err := d.DecodeInclude(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -100,24 +100,24 @@ func DecodeIncludes(name string, config interface{}) ([]Group, error) {
 	return result, nil
 }
 
-func DecodeInclude(name string, config interface{}) (Group, error) {
+func (d *decoder) DecodeInclude(name string, config interface{}) (Group, error) {
 	var result Group
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "file":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
-				return includeFile(decoded)
+				return d.includeFile(decoded)
 			case "text":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
-				return includeText(name, []byte(decoded))
+				return d.includeText(name, []byte(decoded))
 			default:
 				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
@@ -128,7 +128,7 @@ func DecodeInclude(name string, config interface{}) (Group, error) {
 	return result, nil
 }
 
-func includeFile(filename string) (Group, error) {
+func (d *decoder) includeFile(filename string) (Group, error) {
 	if !filepath.IsAbs(filename) {
 		directory, err := os.Getwd()
 		if err != nil {
@@ -143,16 +143,16 @@ func includeFile(filename string) (Group, error) {
 	if err != nil {
 		return Group{}, fmt.Errorf("could not read file '%s'", filename)
 	}
-	return includeText(filename, bytes)
+	return d.WithFile(filename).includeText(filename, bytes)
 }
 
-func includeText(name string, bytes []byte) (Group, error) {
+func (d *decoder) includeText(name string, bytes []byte) (Group, error) {
 	var mapType map[interface{}]interface{}
 	err := yaml.Unmarshal(bytes, &mapType)
 	if err != nil {
 		return Group{}, err
 	}
-	config, err := DecodeGroup(name, mapType)
+	config, err := d.DecodeGroup(name, mapType)
 	if err != nil {
 		return Group{}, err
 	}
