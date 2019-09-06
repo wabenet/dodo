@@ -74,13 +74,13 @@ func DecodeImage(name string, config interface{}) (Image, error) {
 					return result, err
 				}
 				result.Dockerfile = decoded
-			case "steps":
+			case "steps", "inline":
 				decoded, err := DecodeStringSlice(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Steps = decoded
-			case "args":
+			case "args", "arguments":
 				decoded, err := DecodeKeyValueList(key, v)
 				if err != nil {
 					return result, err

@@ -90,13 +90,13 @@ func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 					return result, err
 				}
 				result.Image = &decoded
-			case "container_name":
+			case "name", "container_name":
 				decoded, err := DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.ContainerName = decoded
-			case "remove":
+			case "rm", "remove":
 				decoded, err := DecodeBool(key, v)
 				if err != nil {
 					return result, err
@@ -108,7 +108,7 @@ func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 					return result, err
 				}
 				result.Interactive = decoded
-			case "environment":
+			case "env", "environment":
 				decoded, err := DecodeKeyValueList(key, v)
 				if err != nil {
 					return result, err
@@ -120,13 +120,13 @@ func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 					return result, err
 				}
 				result.User = decoded
-			case "volumes":
+			case "volume", "volumes":
 				decoded, err := DecodeVolumes(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Volumes = decoded
-			case "volumes_from":
+			case "volume_from", "volumes_from":
 				decoded, err := DecodeStringSlice(key, v)
 				if err != nil {
 					return result, err
@@ -138,7 +138,7 @@ func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 					return result, err
 				}
 				result.Ports = decoded
-			case "working_dir":
+			case "workdir", "working_dir":
 				decoded, err := DecodeString(key, v)
 				if err != nil {
 					return result, err
@@ -156,7 +156,7 @@ func DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
 					return result, err
 				}
 				result.Script = decoded
-			case "command":
+			case "command", "arguments":
 				decoded, err := DecodeStringSlice(key, v)
 				if err != nil {
 					return result, err
