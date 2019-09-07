@@ -119,9 +119,35 @@ func (d *decoder) DecodeNamesBackdrops(path string, name string, config interfac
 	result := map[string]string{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
-		for k := range t.Interface().(map[interface{}]interface{}) {
+		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			result[key] = path
+			decoded, err := d.DecodeNamesBackdrop(key, v)
+			if err != nil {
+				return result, err
+			}
+			for _, alias := range decoded {
+				result[alias] = path
+			}
+		}
+	default:
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
+	}
+	return result, nil
+}
+
+func (d *decoder) DecodeNamesBackdrop(name string, config interface{}) ([]string, error) {
+	result := []string{name}
+	switch t := reflect.ValueOf(config); t.Kind() {
+	case reflect.Map:
+		for k, v := range t.Interface().(map[interface{}]interface{}) {
+			switch key := k.(string); key {
+			case "alias", "aliases":
+				decoded, err := d.DecodeStringSlice(key, v)
+				if err != nil {
+					return result, err
+				}
+				result = append(result, decoded...)
+			}
 		}
 	default:
 		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}

@@ -7,6 +7,7 @@ import (
 type Backdrops map[string]Backdrop
 
 type Backdrop struct {
+	Aliases       []string
 	Image         *Image
 	ContainerName string
 	Remove        *bool
@@ -24,6 +25,7 @@ type Backdrop struct {
 }
 
 func (target *Backdrop) Merge(source *Backdrop) {
+	target.Aliases = append(target.Aliases, source.Aliases...)
 	if source.Image != nil {
 		target.Image.Merge(source.Image)
 	}
@@ -71,6 +73,9 @@ func (d *decoder) DecodeBackdrops(name string, config interface{}) (Backdrops, e
 				return result, err
 			}
 			result[key] = decoded
+			for _, alias := range decoded.Aliases {
+				result[alias] = decoded
+			}
 		}
 	default:
 		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
@@ -84,6 +89,12 @@ func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, err
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
+			case "alias", "aliases":
+				decoded, err := d.DecodeStringSlice(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Aliases = decoded
 			case "build", "image":
 				decoded, err := d.DecodeImage(key, v)
 				if err != nil {
