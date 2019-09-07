@@ -17,6 +17,63 @@ type Group struct {
 	Groups    Groups
 }
 
+func (groups *Group) Names() []string {
+	var result []string
+	if groups.Backdrops != nil {
+		for name, _ := range groups.Backdrops {
+			result = append(result, name)
+		}
+	}
+	if groups.Groups != nil {
+		for _, group := range groups.Groups {
+			result = append(result, group.Names()...)
+		}
+	}
+	return result
+}
+
+func (groups *Group) Strings() []string {
+	var result []string
+	if groups.Backdrops != nil {
+		for name, backdrop := range groups.Backdrops {
+			result = append(result, fmt.Sprintf("%s (%s)", name, backdrop.filename))
+		}
+	}
+	if groups.Groups != nil {
+		for name, group := range groups.Groups {
+			for _, substring := range group.Strings() {
+				result = append(result, fmt.Sprintf("%s/%s", name, substring))
+			}
+		}
+	}
+	return result
+}
+
+func (target *Group) Merge(source *Group) {
+	if source.Backdrops != nil {
+		if target.Backdrops == nil {
+			target.Backdrops = map[string]Backdrop{}
+		}
+		for name, backdrop := range source.Backdrops {
+			if _, ok := target.Backdrops[name]; !ok {
+				target.Backdrops[name] = backdrop
+			}
+		}
+	}
+	if source.Groups != nil {
+		if target.Groups == nil {
+			target.Groups = map[string]Group{}
+		}
+		for name, sgroup := range source.Groups {
+			if tgroup, ok := target.Groups[name]; ok {
+				tgroup.Merge(&sgroup)
+			} else {
+				target.Groups[name] = sgroup
+			}
+		}
+	}
+}
+
 func (d *decoder) DecodeGroups(name string, config interface{}) (Groups, error) {
 	result := map[string]Group{}
 	switch t := reflect.ValueOf(config); t.Kind() {

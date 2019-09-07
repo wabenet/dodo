@@ -68,8 +68,7 @@ func NewListCommand() *cobra.Command {
 		Short: "List available all backdrop configurations",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-			names := config.LoadNames()
-			for _, item := range names.Strings() {
+			for _, item := range config.ListBackdrops() {
 				fmt.Printf("%s\n", item)
 			}
 			return nil
@@ -98,7 +97,7 @@ func configureLogging() {
 }
 
 func runCommand(opts *options, name string, command []string) error {
-	conf, err := config.LoadConfiguration(name, opts.file)
+	conf, err := config.LoadBackdrop(name)
 	if err != nil {
 		return err
 	}

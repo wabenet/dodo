@@ -22,6 +22,8 @@ type Backdrop struct {
 	Interpreter   []string
 	Script        string
 	Command       []string
+
+	filename string
 }
 
 func (target *Backdrop) Merge(source *Backdrop) {
@@ -84,7 +86,7 @@ func (d *decoder) DecodeBackdrops(name string, config interface{}) (Backdrops, e
 }
 
 func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
-	var result Backdrop
+	result := Backdrop{filename: d.filename}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {

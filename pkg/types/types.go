@@ -14,15 +14,14 @@ import (
 
 type decoder struct {
 	filename string
-	backdrop string
 }
 
-func NewDecoder(filename string, backdrop string) *decoder {
-	return &decoder{filename: filename, backdrop: backdrop}
+func NewDecoder(filename string) *decoder {
+	return &decoder{filename: filename}
 }
 
 func (d *decoder) WithFile(filename string) *decoder {
-	return &decoder{filename: filename, backdrop: d.backdrop}
+	return &decoder{filename: filename}
 }
 
 func (d *decoder) DecodeBool(name string, config interface{}) (bool, error) {

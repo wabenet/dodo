@@ -6,7 +6,6 @@ import (
 )
 
 type options struct {
-	file        string
 	interactive bool
 	remove      bool
 	noRemove    bool
@@ -25,9 +24,6 @@ func (opts *options) createFlags(cmd *cobra.Command) {
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
 
-	flags.StringVarP(
-		&opts.file, "file", "f", "",
-		"specify a dodo configuration file")
 	flags.BoolVarP(
 		&opts.interactive, "interactive", "i", false,
 		"run an interactive session")
@@ -89,7 +85,7 @@ func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
 		config.Remove = &remove
 	}
 
-	decoder := types.NewDecoder("cli", "")
+	decoder := types.NewDecoder("cli")
 
 	for _, volume := range opts.volumes {
 		decoded, err := decoder.DecodeVolume("cli", volume)

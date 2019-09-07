@@ -15,6 +15,7 @@ type Image struct {
 	NoCache      bool
 	ForceRebuild bool
 	ForcePull    bool
+	Requires     []string
 }
 
 func (target *Image) Merge(source *Image) {
@@ -42,6 +43,7 @@ func (target *Image) Merge(source *Image) {
 	if source.ForcePull {
 		target.ForcePull = true
 	}
+	target.Requires = append(target.Requires, source.Requires...)
 }
 
 func (d *decoder) DecodeImage(name string, config interface{}) (Image, error) {
@@ -116,6 +118,12 @@ func (d *decoder) DecodeImage(name string, config interface{}) (Image, error) {
 					return result, err
 				}
 				result.ForcePull = decoded
+			case "requires", "dependencies":
+				decoded, err := d.DecodeStringSlice(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Requires = decoded
 			default:
 				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}
