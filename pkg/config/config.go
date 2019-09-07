@@ -23,11 +23,22 @@ func LoadBackdrop(backdrop string) (*types.Backdrop, error) {
 	return nil, fmt.Errorf("backdrop '%s' not found, did you mean '%s'?", backdrop, matches[0].Str)
 }
 
+func LoadImage(image string) (*types.Image, error) {
+	config := loadConfig()
+	for _, backdrop := range config.Backdrops {
+		if backdrop.Image != nil && backdrop.Image.Name == image {
+			return backdrop.Image, nil
+		}
+	}
+	return nil, fmt.Errorf("could not find any backdrop configuration that would produce image '%s'", image)
+}
+
 func ListBackdrops() []string {
 	return loadConfig().Strings()
 }
 
 func ValidateConfigs(files []string) error {
+	// TODO: too much duplication between load and validate
 	errors := 0
 	configfiles.GimmeConfigFiles(&configfiles.Options{
 		FileGlobs:        files,

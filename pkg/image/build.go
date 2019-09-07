@@ -16,12 +16,32 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/util/appcontext"
 	"github.com/moby/buildkit/util/progress/progressui"
+	"github.com/oclaussen/dodo/pkg/config"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
 // Build produces a runnable image and returns an image id.
 func (image *Image) Build() (string, error) {
+	// TODO: named images: only build if image does not exist or --build is specified
+	for _, name := range image.config.Requires {
+		// TODO: refactor here, the dependency on config is uncomfortable
+		conf, err := config.LoadImage(name)
+		if err != nil {
+			return "", err
+		}
+		if image.config.ForceRebuild {
+			conf.ForceRebuild = true // TODO: is this the only special case?
+		}
+		dependency, err := NewImage(image.client, image.authConfigs, conf)
+		if err != nil {
+			return "", err
+		}
+		if _, err := dependency.Build(); err != nil {
+			return "", err
+		}
+	}
+
 	contextData, err := prepareContext(image.config, image.session)
 	if err != nil {
 		return "", err
