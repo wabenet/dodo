@@ -1,6 +1,12 @@
 package command
 
 import (
+	"fmt"
+
+	"github.com/docker/docker/client"
+	"github.com/oclaussen/dodo/pkg/config"
+	"github.com/oclaussen/dodo/pkg/container"
+	"github.com/oclaussen/dodo/pkg/image"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -32,15 +38,96 @@ func NewCommand() *cobra.Command {
 	}
 	opts.createFlags(cmd)
 
-	cmd.AddCommand(NewListCommand())
 	cmd.AddCommand(NewRunCommand())
+	cmd.AddCommand(NewListCommand())
 	cmd.AddCommand(NewValidateCommand())
 	return cmd
 }
 
+func NewRunCommand() *cobra.Command {
+	var opts options
+	cmd := &cobra.Command{
+		Use:                   "run [flags] [name] [cmd...]",
+		Short:                 "Same as running 'dodo [name]', can be used when a backdrop name collides with a top-level command",
+		DisableFlagsInUseLine: true,
+		SilenceUsage:          true,
+		Args:                  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
+			return runCommand(&opts, args[0], args[1:])
+		},
+	}
+
+	opts.createFlags(cmd)
+	return cmd
+}
+
+func NewListCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List available all backdrop configurations",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
+			names := config.LoadNames()
+			for _, item := range names.Strings() {
+				fmt.Printf("%s\n", item)
+			}
+			return nil
+		},
+	}
+}
+
+func NewValidateCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:                   "validate",
+		Short:                 "Validate configuration files for syntax errors",
+		DisableFlagsInUseLine: true,
+		SilenceUsage:          true,
+		Args:                  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
+			return config.ValidateConfigs(args)
+		},
+	}
+}
 func configureLogging() {
 	log.SetFormatter(&log.TextFormatter{
 		DisableTimestamp:       true,
 		DisableLevelTruncation: true,
 	})
+}
+
+func runCommand(opts *options, name string, command []string) error {
+	conf, err := config.LoadConfiguration(name, opts.file)
+	if err != nil {
+		return err
+	}
+
+	optsConfig, err := opts.createConfig(command)
+	if err != nil {
+		return err
+	}
+
+	conf.Merge(optsConfig)
+
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+	if err != nil {
+		return err
+	}
+
+	image, err := image.NewImage(dockerClient, config.LoadAuthConfig(), conf.Image)
+	if err != nil {
+		return err
+	}
+	imageID, err := image.Build()
+	if err != nil {
+		return err
+	}
+
+	container, err := container.NewContainer(dockerClient, conf)
+	if err != nil {
+		return err
+	}
+
+	return container.Run(imageID)
 }
