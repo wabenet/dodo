@@ -15,6 +15,21 @@ type Names struct {
 	Groups    map[string]Names
 }
 
+func (names *Names) Names() []string {
+	var result []string
+	if names.Backdrops != nil {
+		for name, _ := range names.Backdrops {
+			result = append(result, name)
+		}
+	}
+	if names.Groups != nil {
+		for _, group := range names.Groups {
+			result = append(result, group.Names()...)
+		}
+	}
+	return result
+}
+
 func (names *Names) Strings() []string {
 	var result []string
 	if names.Backdrops != nil {

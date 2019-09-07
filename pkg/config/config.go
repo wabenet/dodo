@@ -5,6 +5,7 @@ import (
 
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/go-gimme/configfiles"
+	"github.com/sahilm/fuzzy"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -29,7 +30,11 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 
 	configFile, err := configfiles.GimmeConfigFiles(opts)
 	if err != nil {
-		return nil, err
+		matches := fuzzy.Find(backdrop, LoadNames().Names())
+		if len(matches) == 0 {
+			return nil, fmt.Errorf("could not find any configuration for backdrop '%s'", backdrop)
+		}
+		return nil, fmt.Errorf("backdrop '%s' not found, did you mean '%s'?", backdrop, matches[0].Str)
 	}
 
 	var mapType map[interface{}]interface{}
@@ -47,7 +52,7 @@ func LoadConfiguration(backdrop string, filename string) (*types.Backdrop, error
 		return &result, nil
 	}
 
-	return nil, fmt.Errorf("could not find backdrop %s in file %s", backdrop, configFile.Path)
+	return nil, fmt.Errorf("could not find backdrop '%s' in file %s", backdrop, configFile.Path)
 }
 
 func LoadNames() *types.Names {
