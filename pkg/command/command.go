@@ -118,7 +118,7 @@ func runCommand(opts *options, name string, command []string) error {
 	if err != nil {
 		return err
 	}
-	imageID, err := image.Build()
+	imageID, err := image.Get()
 	if err != nil {
 		return err
 	}
