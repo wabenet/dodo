@@ -39,6 +39,7 @@ func NewCommand() *cobra.Command {
 	opts.createFlags(cmd)
 
 	cmd.AddCommand(NewRunCommand())
+	cmd.AddCommand(NewBuildCommand())
 	cmd.AddCommand(NewListCommand())
 	cmd.AddCommand(NewValidateCommand())
 	return cmd
@@ -62,10 +63,43 @@ func NewRunCommand() *cobra.Command {
 	return cmd
 }
 
+func NewBuildCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:                   "build",
+		Short:                 "Build all required images for backdrop without running it",
+		DisableFlagsInUseLine: true,
+		SilenceUsage:          true,
+		Args:                  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
+
+			conf, err := config.LoadBackdrop(args[0])
+			if err != nil {
+				return err
+			}
+			conf.Image.ForceRebuild = true
+
+			dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+			if err != nil {
+				return err
+			}
+
+			image, err := image.NewImage(dockerClient, config.LoadAuthConfig(), conf.Image)
+			if err != nil {
+				return err
+			}
+			_, err = image.Get()
+			return err
+		},
+	}
+}
+
 func NewListCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "list",
-		Short: "List available all backdrop configurations",
+		Use:                   "list",
+		Short:                 "List available all backdrop configurations",
+		DisableFlagsInUseLine: true,
+		SilenceUsage:          true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
 			for _, item := range config.ListBackdrops() {

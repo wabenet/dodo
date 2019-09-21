@@ -57,6 +57,7 @@ Usage:
   dodo [command]
 
 Available Commands:
+  build       Build all required images for backdrop without running it
   help        Help about any command
   list        List available all backdrop configurations
   run         Same as running 'dodo [name]', can be used when a backdrop name collides with a top-level command
