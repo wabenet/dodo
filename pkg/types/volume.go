@@ -32,18 +32,18 @@ func (v *Volume) String() string {
 	}
 }
 
-func DecodeVolumes(name string, config interface{}) (Volumes, error) {
+func (d *decoder) DecodeVolumes(name string, config interface{}) (Volumes, error) {
 	result := []Volume{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String, reflect.Map:
-		decoded, err := DecodeVolume(name, config)
+		decoded, err := d.DecodeVolume(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeVolume(name, v)
+			decoded, err := d.DecodeVolume(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -55,10 +55,10 @@ func DecodeVolumes(name string, config interface{}) (Volumes, error) {
 	return result, nil
 }
 
-func DecodeVolume(name string, config interface{}) (Volume, error) {
+func (d *decoder) DecodeVolume(name string, config interface{}) (Volume, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeString(name, t.String())
+		decoded, err := d.DecodeString(name, t.String())
 		if err != nil {
 			return Volume{}, err
 		}
@@ -88,19 +88,19 @@ func DecodeVolume(name string, config interface{}) (Volume, error) {
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "source":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Source = decoded
 			case "target":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Target = decoded
 			case "read_only":
-				decoded, err := DecodeBool(key, v)
+				decoded, err := d.DecodeBool(key, v)
 				if err != nil {
 					return result, err
 				}

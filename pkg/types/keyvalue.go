@@ -28,18 +28,18 @@ func (kv *KeyValue) String() string {
 	return fmt.Sprintf("%s=%s", kv.Key, *kv.Value)
 }
 
-func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
+func (d *decoder) DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 	result := []KeyValue{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeKeyValue(name, config)
+		decoded, err := d.DecodeKeyValue(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeKeyValueList(name, v)
+			decoded, err := d.DecodeKeyValueList(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -48,7 +48,7 @@ func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := DecodeString(key, v)
+			decoded, err := d.DecodeString(key, v)
 			if err != nil {
 				return result, err
 			}
@@ -63,10 +63,10 @@ func DecodeKeyValueList(name string, config interface{}) (KeyValueList, error) {
 	return result, nil
 }
 
-func DecodeKeyValue(name string, config interface{}) (KeyValue, error) {
+func (d *decoder) DecodeKeyValue(name string, config interface{}) (KeyValue, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeString(name, t.String())
+		decoded, err := d.DecodeString(name, t.String())
 		if err != nil {
 			return KeyValue{}, err
 		}

@@ -34,6 +34,12 @@ func (client *fakeImageClient) DialHijack(
 	return nil, nil
 }
 
+func (client *fakeImageClient) ImageList(
+	_ context.Context, _ types.ImageListOptions,
+) ([]types.ImageSummary, error) {
+	return []types.ImageSummary{}, nil
+}
+
 func (client *fakeImageClient) BuildCancel(_ context.Context, _ string) error {
 	return nil
 }

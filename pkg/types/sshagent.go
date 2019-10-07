@@ -26,11 +26,11 @@ func (agents SSHAgents) SSHAgentProvider() (session.Attachable, error) {
 	return sshprovider.NewSSHAgentProvider(configs)
 }
 
-func DecodeSSHAgents(name string, config interface{}) (SSHAgents, error) {
+func (d *decoder) DecodeSSHAgents(name string, config interface{}) (SSHAgents, error) {
 	result := []SSHAgent{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Bool:
-		decoded, err := DecodeBool(name, config)
+		decoded, err := d.DecodeBool(name, config)
 		if err != nil {
 			return result, err
 		}
@@ -38,14 +38,14 @@ func DecodeSSHAgents(name string, config interface{}) (SSHAgents, error) {
 			result = append(result, SSHAgent{})
 		}
 	case reflect.String, reflect.Map:
-		decoded, err := DecodeSSHAgent(name, config)
+		decoded, err := d.DecodeSSHAgent(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeSSHAgent(name, v)
+			decoded, err := d.DecodeSSHAgent(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -57,10 +57,10 @@ func DecodeSSHAgents(name string, config interface{}) (SSHAgents, error) {
 	return result, nil
 }
 
-func DecodeSSHAgent(name string, config interface{}) (SSHAgent, error) {
+func (d *decoder) DecodeSSHAgent(name string, config interface{}) (SSHAgent, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeKeyValue(name, config)
+		decoded, err := d.DecodeKeyValue(name, config)
 		if err != nil {
 			return SSHAgent{}, err
 		}
@@ -74,13 +74,13 @@ func DecodeSSHAgent(name string, config interface{}) (SSHAgent, error) {
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "id":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.ID = decoded
 			case "file":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}

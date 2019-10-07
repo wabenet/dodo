@@ -30,7 +30,8 @@ func TestNestedGroups(t *testing.T) {
 	var mapType map[interface{}]interface{}
 	err := yaml.Unmarshal([]byte(groupedYaml), &mapType)
 	assert.Nil(t, err)
-	config, err := DecodeGroup("example", mapType)
+	decoder := NewDecoder("example")
+	config, err := decoder.DecodeGroup("example", mapType)
 	assert.Nil(t, err)
 	assert.Contains(t, config.Groups, "first")
 	assert.Contains(t, config.Groups["first"].Backdrops, "example1")

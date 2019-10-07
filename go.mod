@@ -23,22 +23,21 @@ require (
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/intel-go/cpuid v0.0.0-20181003105527-1a4a6f06a1c6
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/moby/buildkit v0.4.0
-	github.com/oclaussen/go-gimme v0.0.0-20190514132726-5e313a0bf2a2 // indirect
 	github.com/oclaussen/go-gimme/configfiles v0.0.0-20190514132726-5e313a0bf2a2
 	github.com/oclaussen/go-gimme/ssh v0.0.0-20190813171925-961c3fdf00d7
 	github.com/oclaussen/go-gimme/ssl v0.0.0-20190710075405-5a9ffef06a11
 	github.com/pkg/errors v0.8.1
+	github.com/sahilm/fuzzy v0.1.0
 	github.com/samalba/dockerclient v0.0.0-20160531175551-a30362618471 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd // indirect
 	github.com/shurcool/vfsgen v0.0.0-20181202132449-6a9ea43bcacd // indirect
 	github.com/sirupsen/logrus v1.4.2
-	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/spf13/cobra v0.0.5
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	github.com/tonistiigi/fsutil v0.0.0-20190316220552-2659cbdc5728

@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/console"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/term"
@@ -16,12 +17,48 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/util/appcontext"
 	"github.com/moby/buildkit/util/progress/progressui"
+	"github.com/oclaussen/dodo/pkg/config"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
-// Build produces a runnable image and returns an image id.
+func (image *Image) Get() (string, error) {
+	if image.config.ForceRebuild || len(image.config.Name) == 0 {
+		return image.Build()
+	}
+
+	imgs, err := image.client.ImageList(
+		context.Background(),
+		types.ImageListOptions{
+			Filters: filters.NewArgs(filters.Arg("reference", image.config.Name)),
+		},
+	)
+	if err != nil || len(imgs) == 0 {
+		return image.Build()
+	}
+
+	return imgs[0].ID, nil
+}
+
 func (image *Image) Build() (string, error) {
+	for _, name := range image.config.Requires {
+		// TODO: refactor here, the dependency on config is uncomfortable
+		conf, err := config.LoadImage(name)
+		if err != nil {
+			return "", err
+		}
+		if image.config.ForceRebuild {
+			conf.ForceRebuild = true
+		}
+		dependency, err := NewImage(image.client, image.authConfigs, conf)
+		if err != nil {
+			return "", err
+		}
+		if _, err := dependency.Get(); err != nil {
+			return "", err
+		}
+	}
+
 	contextData, err := prepareContext(image.config, image.session)
 	if err != nil {
 		return "", err

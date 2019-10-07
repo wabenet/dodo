@@ -33,18 +33,18 @@ func (secrets Secrets) SecretsProvider() (session.Attachable, error) {
 	return secretsprovider.NewSecretProvider(store), nil
 }
 
-func DecodeSecrets(name string, config interface{}) (Secrets, error) {
+func (d *decoder) DecodeSecrets(name string, config interface{}) (Secrets, error) {
 	result := []Secret{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String, reflect.Map:
-		decoded, err := DecodeSecret(name, config)
+		decoded, err := d.DecodeSecret(name, config)
 		if err != nil {
 			return result, err
 		}
 		result = append(result, decoded)
 	case reflect.Slice:
 		for _, v := range t.Interface().([]interface{}) {
-			decoded, err := DecodeSecret(name, v)
+			decoded, err := d.DecodeSecret(name, v)
 			if err != nil {
 				return result, err
 			}
@@ -56,11 +56,10 @@ func DecodeSecrets(name string, config interface{}) (Secrets, error) {
 	return result, nil
 }
 
-// DecodeSecret creates a secret configurations from a config map.
-func DecodeSecret(name string, config interface{}) (Secret, error) {
+func (d *decoder) DecodeSecret(name string, config interface{}) (Secret, error) {
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.String:
-		decoded, err := DecodeString(name, t.String())
+		decoded, err := d.DecodeString(name, t.String())
 		if err != nil {
 			return Secret{}, err
 		}
@@ -73,7 +72,7 @@ func DecodeSecret(name string, config interface{}) (Secret, error) {
 
 		secretMap := make(map[interface{}]interface{}, len(fields))
 		for _, field := range fields {
-			kv, err := DecodeKeyValue(name, field)
+			kv, err := d.DecodeKeyValue(name, field)
 			if err != nil {
 				return Secret{}, err
 			}
@@ -82,19 +81,19 @@ func DecodeSecret(name string, config interface{}) (Secret, error) {
 			}
 			secretMap[kv.Key] = *kv.Value
 		}
-		return DecodeSecret(name, secretMap)
+		return d.DecodeSecret(name, secretMap)
 	case reflect.Map:
 		var result Secret
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "id":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.ID = decoded
 			case "source", "src":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
