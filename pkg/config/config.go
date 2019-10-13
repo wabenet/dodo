@@ -33,6 +33,14 @@ func LoadImage(image string) (*types.Image, error) {
 	return nil, fmt.Errorf("could not find any backdrop configuration that would produce image '%s'", image)
 }
 
+func LoadStage(name string) (*types.Stage, error) {
+	config := loadConfig()
+	if result, ok := config.Stages[name]; ok {
+		return &result, nil
+	}
+	return nil, fmt.Errorf("could not find any configuration for stage '%s'", name)
+}
+
 func ListBackdrops() []string {
 	return loadConfig().Strings()
 }

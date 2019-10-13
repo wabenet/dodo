@@ -61,6 +61,17 @@ func (target *Group) Merge(source *Group) {
 			}
 		}
 	}
+
+	if source.Stages != nil {
+		if target.Stages == nil {
+			target.Stages = map[string]Stage{}
+		}
+		for name, stage := range source.Stages {
+			if _, ok := target.Stages[name]; !ok {
+				target.Stages[name] = stage
+			}
+		}
+	}
 	if source.Groups != nil {
 		if target.Groups == nil {
 			target.Groups = map[string]Group{}
@@ -116,7 +127,7 @@ func (d *decoder) DecodeGroup(name string, config interface{}) (Group, error) {
 					result.Backdrops[name] = backdrop
 				}
 			case "stages":
-				decoded, err := DecodeStages(key, v)
+				decoded, err := d.DecodeStages(key, v)
 				if err != nil {
 					return result, err
 				}

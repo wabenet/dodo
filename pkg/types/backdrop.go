@@ -102,7 +102,7 @@ func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, err
 				}
 				result.Aliases = decoded
 			case "stage":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}

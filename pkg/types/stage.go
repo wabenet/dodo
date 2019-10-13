@@ -13,13 +13,13 @@ type Stage struct {
 
 type Options map[string]string
 
-func DecodeStages(name string, config interface{}) (Stages, error) {
+func (d *decoder) DecodeStages(name string, config interface{}) (Stages, error) {
 	result := map[string]Stage{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := DecodeStage(key, v)
+			decoded, err := d.DecodeStage(key, v)
 			if err != nil {
 				return result, err
 			}
@@ -31,20 +31,20 @@ func DecodeStages(name string, config interface{}) (Stages, error) {
 	return result, nil
 }
 
-func DecodeStage(name string, config interface{}) (Stage, error) {
+func (d *decoder) DecodeStage(name string, config interface{}) (Stage, error) {
 	var result Stage
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			switch key := k.(string); key {
 			case "type":
-				decoded, err := DecodeString(key, v)
+				decoded, err := d.DecodeString(key, v)
 				if err != nil {
 					return result, err
 				}
 				result.Type = decoded
 			case "options":
-				decoded, err := DecodeOptions(key, v)
+				decoded, err := d.DecodeOptions(key, v)
 				if err != nil {
 					return result, err
 				}
@@ -59,13 +59,13 @@ func DecodeStage(name string, config interface{}) (Stage, error) {
 	return result, nil
 }
 
-func DecodeOptions(name string, config interface{}) (Options, error) {
+func (d *decoder) DecodeOptions(name string, config interface{}) (Options, error) {
 	result := map[string]string{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := DecodeString(key, v)
+			decoded, err := d.DecodeString(key, v)
 			if err != nil {
 				return result, err
 			}
