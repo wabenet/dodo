@@ -1,7 +1,6 @@
 package designer
 
 import (
-	"encoding/base64"
 	"encoding/json"
 )
 
@@ -15,13 +14,8 @@ type Config struct {
 }
 
 func DecodeConfig(input []byte) (*Config, error) {
-	jsonBytes := make([]byte, base64.StdEncoding.DecodedLen(len(input)))
-	if _, err := base64.StdEncoding.Decode(jsonBytes, input); err != nil {
-		return nil, err
-	}
-
 	var config Config
-	if err := json.Unmarshal(jsonBytes, &config); err != nil {
+	if err := json.Unmarshal(input, &config); err != nil {
 		return nil, err
 	}
 
@@ -29,11 +23,5 @@ func DecodeConfig(input []byte) (*Config, error) {
 }
 
 func EncodeConfig(config *Config) ([]byte, error) {
-	jsonBytes, err := json.Marshal(config)
-	if err != nil {
-		return []byte{}, err
-	}
-	b64Bytes := make([]byte, base64.StdEncoding.EncodedLen(len(jsonBytes)))
-	base64.StdEncoding.Encode(b64Bytes, jsonBytes)
-	return b64Bytes, nil
+	return json.Marshal(config)
 }

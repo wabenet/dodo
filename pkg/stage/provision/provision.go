@@ -5,8 +5,6 @@
 package provision
 
 import (
-	"fmt"
-
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/stage/designer"
 	"github.com/oclaussen/go-gimme/ssh"
@@ -53,10 +51,17 @@ func Provision(sshOpts *stage.SSHOptions, config *designer.Config) error {
 		log.Error(err)
 		return err
 	}
+	if err := executor.WriteFile(&ssh.FileOptions{
+		Path:    "/tmp/stagedesigner-config",
+		Content: string(encoded),
+		Mode:    0644,
+	}); err != nil {
+		return err
+	}
 
 	log.WithFields(log.Fields{"config": encoded}).Debug("executing stage designer")
 	// TODO: figure out whether we have/need sudo
-	if out, err := executor.Execute(fmt.Sprintf("sudo /tmp/stagedesigner %s", encoded)); err != nil {
+	if out, err := executor.Execute("sudo /tmp/stagedesigner /tmp/stagedesigner-config"); err != nil {
 		return errors.Wrap(err, string(out))
 	}
 

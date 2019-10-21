@@ -3,6 +3,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -10,7 +11,12 @@ import (
 )
 
 func main() {
-	config, err := designer.DecodeConfig([]byte(os.Args[1]))
+	configFile, err := ioutil.ReadFile(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+	config, err := designer.DecodeConfig(configFile)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
