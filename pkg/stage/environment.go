@@ -3,13 +3,15 @@ package stage
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/oclaussen/dodo/pkg/types"
 )
 
 type EnvStage struct {
 	Options *DockerOptions
 }
 
-func (stage *EnvStage) Initialize(_ string, _ map[string]string) (bool, error) {
+func (stage *EnvStage) Initialize(_ string, _ *types.Stage) (bool, error) {
 	opts := &DockerOptions{
 		Version: DefaultAPIVersion,
 		Host:    os.Getenv("DOCKER_HOST"),

@@ -1,7 +1,10 @@
 package stage
 
 import (
+	"encoding/json"
+
 	"github.com/hashicorp/go-plugin"
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/dodo/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -39,8 +42,12 @@ type GRPCClient struct {
 	client proto.StageClient
 }
 
-func (client *GRPCClient) Initialize(name string, config map[string]string) (bool, error) {
-	response, err := client.client.Initialize(context.Background(), &proto.InitRequest{Name: name, Config: config})
+func (client *GRPCClient) Initialize(name string, config *types.Stage) (bool, error) {
+	jsonBytes, err := json.Marshal(config)
+	if err != nil {
+		return false, err
+	}
+	response, err := client.client.Initialize(context.Background(), &proto.InitRequest{Name: name, Config: string(jsonBytes)})
 	if err != nil {
 		return false, err
 	}
@@ -115,7 +122,11 @@ type GRPCServer struct {
 }
 
 func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitRequest) (*proto.InitResponse, error) {
-	success, err := server.Impl.Initialize(request.Name, request.Config)
+	var config types.Stage
+	if err := json.Unmarshal([]byte(request.Config), &config); err != nil {
+		return nil, err
+	}
+	success, err := server.Impl.Initialize(request.Name, &config)
 	if err != nil {
 		return nil, err
 	}

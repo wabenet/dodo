@@ -14,6 +14,7 @@ import (
 	"github.com/docker/machine/libmachine/state"
 	"github.com/docker/machine/libmachine/swarm"
 	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -25,8 +26,8 @@ type Stage struct {
 	api     libmachine.API
 }
 
-func (s *Stage) Initialize(name string, config map[string]string) (bool, error) {
-	if driver, ok := config["driver"]; ok {
+func (s *Stage) Initialize(name string, config *types.Stage) (bool, error) {
+	if driver, ok := config.Options["driver"]; ok {
 		s.driver = driver
 	} else {
 		s.driver = "virtualbox"

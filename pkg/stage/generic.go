@@ -1,16 +1,20 @@
 package stage
 
+import (
+	"github.com/oclaussen/dodo/pkg/types"
+)
+
 type GenericStage struct {
 	Options *DockerOptions
 }
 
-func (stage *GenericStage) Initialize(_ string, opts map[string]string) (bool, error) {
+func (stage *GenericStage) Initialize(_ string, config *types.Stage) (bool, error) {
 	stage.Options = &DockerOptions{
-		Version:  opts["api_version"],
-		Host:     opts["host"],
-		CAFile:   opts["ca_file"],
-		CertFile: opts["cert_file"],
-		KeyFile:  opts["key_file"],
+		Version:  config.Options["api_version"],
+		Host:     config.Options["host"],
+		CAFile:   config.Options["ca_file"],
+		CertFile: config.Options["cert_file"],
+		KeyFile:  config.Options["key_file"],
 	}
 	return true, nil
 }

@@ -4,8 +4,8 @@ package proto;
 message Empty {}
 
 message InitRequest {
-  string              name   = 1;
-  map<string, string> config = 2;
+  string name   = 1;
+  string config = 3;
 }
 
 message InitResponse {

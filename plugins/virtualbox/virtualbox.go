@@ -14,6 +14,7 @@ import (
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/stage/designer"
 	"github.com/oclaussen/dodo/pkg/stage/provision"
+	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/dodo/plugins/virtualbox/boot2docker"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/oclaussen/go-gimme/ssl"
@@ -46,15 +47,15 @@ func main() {
 	})
 }
 
-func (vbox *Stage) Initialize(name string, config map[string]string) (bool, error) {
-	if vmName, ok := config["name"]; ok {
+func (vbox *Stage) Initialize(name string, config *types.Stage) (bool, error) {
+	if vmName, ok := config.Options["name"]; ok {
 		vbox.VMName = vmName
 	} else {
 		vbox.VMName = name
 	}
 
 	baseDir := filepath.FromSlash("/var/lib/dodo") // TODO: choose a better default
-	if path, ok := config["path"]; ok {
+	if path, ok := config.Options["path"]; ok {
 		baseDir = path
 	} else if user, err := user.Current(); err == nil && user.HomeDir != "" {
 		baseDir = filepath.Join(user.HomeDir, ".dodo")

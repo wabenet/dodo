@@ -25,7 +25,7 @@ var BuiltInStages = map[string]Stage{
 }
 
 type Stage interface {
-	Initialize(string, map[string]string) (bool, error)
+	Initialize(string, *types.Stage) (bool, error)
 	Create() error
 	Start() error
 	Stop() error
@@ -81,7 +81,7 @@ func Load(name string, config *types.Stage) (Stage, func(), error) {
 	}
 
 	stage := raw.(Stage)
-	if success, err := stage.Initialize(name, config.Options); err != nil || !success {
+	if success, err := stage.Initialize(name, config); err != nil || !success {
 		return nil, client.Kill, errors.Wrap(err, "initialization failed")
 	}
 
