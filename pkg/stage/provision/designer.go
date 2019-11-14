@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -21,8 +22,15 @@ func main() {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	if err := designer.Provision(config); err != nil {
+	result, err := designer.Provision(config)
+	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
+	output, err := designer.EncodeResult(result)
+	if err != nil {
+		log.Fatal(err)
+		os.Exit(1)
+	}
+	fmt.Print(string(output))
 }

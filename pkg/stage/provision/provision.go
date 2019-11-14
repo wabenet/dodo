@@ -5,6 +5,8 @@
 package provision
 
 import (
+	"bytes"
+
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/stage/designer"
 	"github.com/oclaussen/go-gimme/ssh"
@@ -12,16 +14,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Provision(sshOpts *stage.SSHOptions, config *designer.Config) error {
+func Provision(sshOpts *stage.SSHOptions, config *designer.Config) (*designer.ProvisionResult, error) {
 	file, err := Assets.Open("/stagedesigner")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	executor, err := ssh.GimmeExecutor(&ssh.Options{
@@ -32,7 +34,7 @@ func Provision(sshOpts *stage.SSHOptions, config *designer.Config) error {
 		NonInteractive:    true,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer executor.Close()
 
@@ -43,27 +45,35 @@ func Provision(sshOpts *stage.SSHOptions, config *designer.Config) error {
 		Size:   stat.Size(),
 		Mode:   0755,
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
 	encoded, err := designer.EncodeConfig(config)
 	if err != nil {
-		log.Error(err)
-		return err
+		return nil, err
 	}
 	if err := executor.WriteFile(&ssh.FileOptions{
-		Path:    "/tmp/stagedesigner-config",
-		Content: string(encoded),
-		Mode:    0644,
+		Path: "/tmp/stagedesigner-config",
+		// TODO: this is a bug in gimme. Fix it!
+		//Content: encoded,
+		Reader: bytes.NewReader(encoded),
+		Size:   int64(len(encoded)),
+		Mode:   0644,
 	}); err != nil {
-		return err
+		return nil, err
 	}
 
-	log.WithFields(log.Fields{"config": encoded}).Debug("executing stage designer")
 	// TODO: figure out whether we have/need sudo
-	if out, err := executor.Execute("sudo /tmp/stagedesigner /tmp/stagedesigner-config"); err != nil {
-		return errors.Wrap(err, string(out))
+	log.Debug("executing stage designer")
+	out, err := executor.Execute("sudo /tmp/stagedesigner /tmp/stagedesigner-config")
+	if err != nil {
+		return nil, errors.Wrap(err, out)
 	}
 
-	return nil
+	result, err := designer.DecodeResult([]byte(out))
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

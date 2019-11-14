@@ -6,11 +6,15 @@ import (
 
 type Config struct {
 	Hostname    string
-	CA          string
-	ServerCert  string
-	ServerKey   string
 	Environment []string
 	DockerArgs  []string
+}
+
+type ProvisionResult struct {
+	IPAddress  string
+	CA         string
+	ClientCert string
+	ClientKey  string
 }
 
 func DecodeConfig(input []byte) (*Config, error) {
@@ -24,4 +28,16 @@ func DecodeConfig(input []byte) (*Config, error) {
 
 func EncodeConfig(config *Config) ([]byte, error) {
 	return json.Marshal(config)
+}
+
+func DecodeResult(input []byte) (*ProvisionResult, error) {
+	var result ProvisionResult
+	if err := json.Unmarshal(input, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func EncodeResult(result *ProvisionResult) ([]byte, error) {
+	return json.Marshal(result)
 }
