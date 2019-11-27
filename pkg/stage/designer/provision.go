@@ -11,7 +11,11 @@ import (
 )
 
 func Provision(config *Config) (*ProvisionResult, error) {
-	// TODO replace insecure SSH key
+	log.Info("replace insecure SSH key")
+	if err := ConfigureSSHKeys(config.AuthorizedSSHKeys); err != nil {
+		return nil, err
+	}
+
 	log.Info("configure host network...")
 	ip, err := ConfigureNetwork(Network{Device: "eth1"})
 	if err != nil {

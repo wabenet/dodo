@@ -5,9 +5,10 @@ import (
 )
 
 type Config struct {
-	Hostname    string
-	Environment []string
-	DockerArgs  []string
+	Hostname          string
+	Environment       []string
+	DockerArgs        []string
+	AuthorizedSSHKeys []string
 }
 
 type ProvisionResult struct {
