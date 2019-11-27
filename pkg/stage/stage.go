@@ -54,7 +54,13 @@ type DockerOptions struct {
 // TODO: sort out when and how to cleanup the plugin process properly
 
 func Load(name string, config *types.Stage) (Stage, func(), error) {
+	if config == nil {
+		config = &types.Stage{Type: DefaultStageName}
+	}
 	if stage, ok := BuiltInStages[config.Type]; ok {
+		if success, err := stage.Initialize(name, config); err != nil || !success {
+			return nil, func() {}, errors.Wrap(err, "initialization failed")
+		}
 		return stage, func() {}, nil
 	}
 
@@ -124,6 +130,8 @@ func GetDockerClient(stage Stage) (*client.Client, error) {
 	mutators := []client.Opt{}
 	if len(opts.Version) > 0 {
 		mutators = append(mutators, client.WithVersion(opts.Version))
+	} else {
+		mutators = append(mutators, client.WithVersion(DefaultAPIVersion))
 	}
 	if len(opts.Host) > 0 {
 		mutators = append(mutators, client.WithHost(opts.Host))

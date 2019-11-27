@@ -3,10 +3,11 @@ package command
 import (
 	"fmt"
 
-	"github.com/docker/docker/client"
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
+	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -80,7 +81,21 @@ func NewBuildCommand() *cobra.Command {
 			}
 			conf.Image.ForceRebuild = true
 
-			dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+			var stageConf *types.Stage
+			if len(conf.Stage) > 0 {
+				stageConf, err = config.LoadStage(conf.Stage)
+				if err != nil {
+					return err
+				}
+			}
+
+			s, cleanup, err := stage.Load(conf.Stage, stageConf)
+			defer cleanup()
+			if err != nil {
+				return err
+			}
+
+			dockerClient, err := stage.GetDockerClient(s)
 			if err != nil {
 				return err
 			}
@@ -144,7 +159,21 @@ func runCommand(opts *options, name string, command []string) error {
 
 	conf.Merge(optsConfig)
 
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("1.39"))
+	var stageConf *types.Stage
+	if len(conf.Stage) > 0 {
+		stageConf, err = config.LoadStage(conf.Stage)
+		if err != nil {
+			return err
+		}
+	}
+
+	s, cleanup, err := stage.Load(conf.Stage, stageConf)
+	defer cleanup()
+	if err != nil {
+		return err
+	}
+
+	dockerClient, err := stage.GetDockerClient(s)
 	if err != nil {
 		return err
 	}

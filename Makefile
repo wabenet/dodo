@@ -18,7 +18,8 @@ lint:
 	golangci-lint run --enable-all
 
 .PHONY: test
-test:
+test: proto/stage.pb.go
+	go generate ./...
 	go test -cover ./...
 
 .PHONY: build
@@ -33,14 +34,6 @@ build/cmd: proto/stage.pb.go
 build/plugins: proto/stage.pb.go
 	go generate ./...
 	gox -arch="amd64" -os="darwin linux" -output "./bin/plugins/{{.Dir}}_{{.OS}}_{{.Arch}}" ./plugins/...
-
-.PHONY: install
-install: install/plugins
-
-.PHONY: install/plugins
-install/plugins: build/plugins
-	mkdir -p $${HOME}/.dodo/plugins
-	cp bin/plugins/* $${HOME}/.dodo/plugins/
 
 proto/%.pb.go: proto/%.proto
 	protoc --go_out=plugins=grpc:. $<

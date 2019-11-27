@@ -13,8 +13,7 @@ type EnvStage struct {
 
 func (stage *EnvStage) Initialize(_ string, _ *types.Stage) (bool, error) {
 	opts := &DockerOptions{
-		Version: DefaultAPIVersion,
-		Host:    os.Getenv("DOCKER_HOST"),
+		Host: os.Getenv("DOCKER_HOST"),
 	}
 	if version := os.Getenv("DOCKER_API_VERSION"); len(version) > 0 {
 		opts.Version = version
