@@ -3,83 +3,34 @@ package main
 import (
 	"math/rand"
 	"net"
-	"regexp"
 	"strings"
 	"time"
 
+	"github.com/oclaussen/dodo/pkg/integrations/virtualbox"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	buggyNetmask = "0f000000"
+	dhcpPrefix = "HostInterfaceNetworking-"
 )
 
-type hostOnlyNetwork struct {
-	Name        string
-	DHCP        bool
-	IPv4        net.IPNet
-	NetworkName string // referenced in DHCP.NetworkName
-}
-
-func ListHostOnlyAdapters() (map[string]*hostOnlyNetwork, error) {
-	stdout, err := vbm("list", "hostonlyifs")
-	if err != nil {
-		return nil, err
-	}
-
-	result := map[string]*hostOnlyNetwork{}
-	current := &hostOnlyNetwork{}
-	re := regexp.MustCompile(`(.+):\s+(.*)`)
-	for _, line := range strings.Split(stdout, "\n") {
-		if line == "" {
-			continue
-		}
-
-		groups := re.FindStringSubmatch(line)
-		if groups == nil {
-			continue
-		}
-
-		switch groups[1] {
-		case "Name":
-			current.Name = groups[2]
-		case "DHCP":
-			current.DHCP = (groups[2] != "Disabled")
-		case "IPAddress":
-			current.IPv4.IP = net.ParseIP(groups[2])
-		case "NetworkMask":
-			current.IPv4.Mask = parseIPv4Mask(groups[2])
-		case "VBoxNetworkName":
-			current.NetworkName = groups[2]
-			if _, present := result[current.NetworkName]; present {
-				return result, errors.New("multiple host-only adapters with the same name exist")
-			}
-			result[current.NetworkName] = current
-			current = &hostOnlyNetwork{}
-		}
-	}
-
-	return result, nil
-}
-
-func SetupHostOnlyNetwork(machineName string, cidr string) error {
+func (vbox *Stage) SetupHostOnlyNetwork(cidr string) error {
 	ip, network, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return err
 	}
 
-	nets, err := ListHostOnlyAdapters()
+	err = CheckNetworkCollisions(network)
 	if err != nil {
 		return err
 	}
 
-	err = CheckNetworkCollisions(network, nets)
+	hostOnlyNetwork, err := virtualbox.NewHostOnlyNetwork(cidr)
 	if err != nil {
 		return err
 	}
-
-	hostOnlyAdapter, err := GetHostOnlyNetwork(ip, network.Mask, nets)
-	if err != nil {
+	if err := hostOnlyNetwork.Create(); err != nil {
 		return err
 	}
 
@@ -94,85 +45,41 @@ func SetupHostOnlyNetwork(machineName string, cidr string) error {
 
 	lowerIP, upperIP := getDHCPAddressRange(dhcpAddr, network)
 
-	dhcp := DHCPServer{}
-	dhcp.IPv4.IP = dhcpAddr
-	dhcp.IPv4.Mask = network.Mask
-	dhcp.LowerIP = lowerIP
-	dhcp.UpperIP = upperIP
-	dhcp.Enabled = true
-	if err := AddDHCPServer(hostOnlyAdapter.Name, dhcp); err != nil {
+	server := virtualbox.DHCPServer{
+		NetworkName: dhcpPrefix + hostOnlyNetwork.Name,
+		IPv4:        net.IPNet{IP: dhcpAddr, Mask: network.Mask},
+		LowerIP:     lowerIP,
+		UpperIP:     upperIP,
+		Enabled:     true,
+	}
+	if err := server.Create(); err != nil {
 		return err
 	}
 
-	if _, err := vbm(
-		"modifyvm", machineName,
-		"--nic2", "hostonly",
-		"--nictype2", "82540EM",
-		"--nicpromisc2", "deny",
-		"--hostonlyadapter2", hostOnlyAdapter.Name,
-		"--cableconnected2", "on",
-	); err != nil {
+	if err := hostOnlyNetwork.ConnectVM(vbox.VM); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func GetHostOnlyNetwork(hostIP net.IP, netmask net.IPMask, nets map[string]*hostOnlyNetwork) (*hostOnlyNetwork, error) {
-	for _, n := range nets {
-		if hostIP.Equal(n.IPv4.IP) && (netmask.String() == n.IPv4.Mask.String() || n.IPv4.Mask.String() == buggyNetmask) {
-			return n, nil
-		}
-	}
-
-	vbm("hostonlyif", "create")
-
-	for i := 0; i < 10; i++ {
-		time.Sleep(1 * time.Second)
-
-		newNets, err := ListHostOnlyAdapters()
-		if err != nil {
-			return nil, err
-		}
-
-		for name, latestNet := range newNets {
-			if _, present := nets[name]; !present {
-
-				latestNet.IPv4.IP = hostIP
-				latestNet.IPv4.Mask = netmask
-
-				if _, err := vbm(
-					"hostonlyif", "ipconfig", latestNet.Name,
-					"--ip", latestNet.IPv4.IP.String(),
-					"--netmask", net.IP(latestNet.IPv4.Mask).String(),
-				); err != nil {
-					return nil, err
-				}
-
-				if latestNet.DHCP {
-					vbm("hostonlyif", "ipconfig", latestNet.Name, "--dhcp")
-				}
-
-				return latestNet, nil
-			}
-		}
-	}
-
-	return nil, errors.New("failed to find a new host-only adapter")
-}
-
-func CheckNetworkCollisions(hostOnlyNet *net.IPNet, currentNetworks map[string]*hostOnlyNetwork) error {
-	ifaces, err := net.Interfaces()
+func CheckNetworkCollisions(target *net.IPNet) error {
+	hostonlyifs, err := virtualbox.ListHostOnlyNetworks()
 	if err != nil {
 		return err
 	}
 
-	excludedNetworks := map[string]*hostOnlyNetwork{}
-	for _, network := range currentNetworks {
+	var dummy interface{}
+	excludedNetworks := map[string]interface{}{}
+	for _, network := range hostonlyifs {
 		ipnet := net.IPNet{IP: network.IPv4.IP, Mask: network.IPv4.Mask}
-		excludedNetworks[ipnet.String()] = network
+		excludedNetworks[ipnet.String()] = dummy
 	}
 
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
 	for _, iface := range ifaces {
 		addrs, err := iface.Addrs()
 		if err != nil {
@@ -197,22 +104,14 @@ func CheckNetworkCollisions(hostOnlyNet *net.IPNet, currentNetworks map[string]*
 		for _, addr := range addrs {
 			switch ipnet := addr.(type) {
 			case *net.IPNet:
-				if hostOnlyNet.IP.Equal(ipnet.IP.Mask(ipnet.Mask)) {
-					return errors.New("host-only cidr conflicts with the network address of a host interface")
+				if target.IP.Equal(ipnet.IP.Mask(ipnet.Mask)) {
+					return errors.New("target cidr conflicts with the network address of a host interface")
 				}
 			}
 		}
 	}
 
 	return nil
-}
-
-func parseIPv4Mask(s string) net.IPMask {
-	mask := net.ParseIP(s)
-	if mask == nil {
-		return nil
-	}
-	return net.IPv4Mask(mask[12], mask[13], mask[14], mask[15])
 }
 
 func getDHCPAddressRange(dhcpAddr net.IP, network *net.IPNet) (lowerIP net.IP, upperIP net.IP) {
@@ -258,4 +157,40 @@ func getRandomIPinSubnet(baseIP net.IP) (net.IP, error) {
 	}
 
 	return dhcpAddr, nil
+}
+
+func CleanupDHCPServers() error {
+	servers, err := virtualbox.ListDHCPServers()
+	if err != nil {
+		return err
+	}
+	if len(servers) == 0 {
+		return nil
+	}
+
+	hostonlyifs, err := virtualbox.ListHostOnlyNetworks()
+	if err != nil {
+		return err
+	}
+
+	var dummy interface{}
+	currentNetworks := map[string]interface{}{}
+	for _, network := range hostonlyifs {
+		currentNetworks[network.NetworkName] = dummy
+	}
+
+	for _, server := range servers {
+		if strings.HasPrefix(server.NetworkName, dhcpPrefix) {
+			if _, present := currentNetworks[server.NetworkName]; !present {
+				if err := server.Remove(); err != nil {
+					log.WithFields(log.Fields{
+						"server": server.NetworkName,
+						"error":  err,
+					}).Warn("could not remove dhcp server")
+				}
+			}
+		}
+	}
+
+	return nil
 }

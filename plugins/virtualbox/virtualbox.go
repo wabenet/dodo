@@ -1,58 +1,53 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
-	"io"
+	"io/ioutil"
+	"net"
+	"net/url"
 	"os"
 	"os/user"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strings"
+	"time"
 
-	"github.com/hashicorp/go-plugin"
+	"github.com/oclaussen/dodo/pkg/integrations/ova"
+	"github.com/oclaussen/dodo/pkg/integrations/virtualbox"
 	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/stage/box"
 	"github.com/oclaussen/dodo/pkg/stage/designer"
 	"github.com/oclaussen/dodo/pkg/stage/provision"
 	"github.com/oclaussen/dodo/pkg/types"
-	"github.com/oclaussen/dodo/plugins/virtualbox/boot2docker"
 	"github.com/oclaussen/go-gimme/ssh"
-	"github.com/oclaussen/go-gimme/ssl"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 const defaultPort = 2376 // TODO: get this from docker directly
 
-type Options struct {
-	CPU      int
-	Memory   int
-	DiskSize int
-}
-
 type Stage struct {
-	VMName      string
+	VM          *virtualbox.VM
+	Box         *types.Box
+	State       *State
 	StoragePath string
-	CachePath   string
 }
 
-func main() {
-	log.SetFormatter(new(log.JSONFormatter))
-	plugin.Serve(&plugin.ServeConfig{
-		GRPCServer:      plugin.DefaultGRPCServer,
-		HandshakeConfig: stage.HandshakeConfig("virtualbox"),
-		Plugins: map[string]plugin.Plugin{
-			"stage": &stage.Plugin{Impl: &Stage{}},
-		},
-	})
+type Options struct {
+	CPU    int
+	Memory int
 }
 
 func (vbox *Stage) Initialize(name string, config *types.Stage) (bool, error) {
 	if vmName, ok := config.Options["name"]; ok {
-		vbox.VMName = vmName
+		vbox.VM = &virtualbox.VM{Name: vmName}
 	} else {
-		vbox.VMName = name
+		vbox.VM = &virtualbox.VM{Name: name}
 	}
+
+	vbox.Box = &config.Box
 
 	baseDir := filepath.FromSlash("/var/lib/dodo") // TODO: choose a better default
 	if path, ok := config.Options["path"]; ok {
@@ -62,13 +57,8 @@ func (vbox *Stage) Initialize(name string, config *types.Stage) (bool, error) {
 	}
 
 	vbox.StoragePath = filepath.Join(baseDir, "stages", name)
-	vbox.CachePath = filepath.Join(baseDir, "cache")
 
-	if err := checkVBoxManageVersion(); err != nil {
-		return false, err
-	}
-
-	if _, err := ListHostOnlyAdapters(); err != nil {
+	if err := vbox.loadState(); err != nil {
 		return false, err
 	}
 
@@ -76,21 +66,9 @@ func (vbox *Stage) Initialize(name string, config *types.Stage) (bool, error) {
 }
 
 func (vbox *Stage) Create() error {
-	opts := Options{CPU: 1, Memory: 1024, DiskSize: 20000}
-
-	if err := boot2docker.UpdateISOCache(vbox.CachePath); err != nil {
-		return err
-	}
+	opts := Options{CPU: 1, Memory: 1024}
 
 	if err := os.MkdirAll(vbox.StoragePath, 0700); err != nil {
-		return err
-	}
-
-	log.Info("copying boot2docker.iso...")
-	if err := copyFile(
-		filepath.Join(vbox.CachePath, "boot2docker.iso"),
-		filepath.Join(vbox.StoragePath, "boot2docker.iso"),
-	); err != nil {
 		return err
 	}
 
@@ -99,43 +77,61 @@ func (vbox *Stage) Create() error {
 		return errors.Wrap(err, "could not generate SSH key")
 	}
 
-	log.Info("creating disk image...")
-	tarBuf, err := boot2docker.MakeDiskImage(filepath.Join(vbox.StoragePath, "id_rsa.pub"))
+	b, err := box.Load(vbox.Box, "virtualbox")
 	if err != nil {
-		return errors.Wrap(err, "could not create disk tarball")
+		return errors.Wrap(err, "could not load box")
+	}
+	if err := b.Download(); err != nil {
+		return errors.Wrap(err, "could not download box")
 	}
 
-	if err := CreateDiskImage(filepath.Join(vbox.StoragePath, "disk.vmdk"), opts.DiskSize, tarBuf); err != nil {
-		return errors.Wrap(err, "cloud not create disk image")
+	sshOpts, err := b.GetSSHOptions()
+	if err != nil {
+		return err
 	}
 
-	if _, err := vbm(
-		"createvm",
-		"--basefolder", vbox.StoragePath,
-		"--name", vbox.VMName,
-		"--register",
-	); err != nil {
-		return errors.Wrap(err, "could not create VM")
+	vbox.State = &State{
+		Username:       sshOpts.Username,
+		PrivateKeyFile: sshOpts.PrivateKeyFile,
+	}
+	if err := vbox.saveState(); err != nil {
+		return err
 	}
 
-	cpus := opts.CPU
-	if cpus < 1 {
-		cpus = int(runtime.NumCPU())
+	boxFile := filepath.Join(b.Path(), "box.ovf")
+	ovf, err := ova.ReadOVF(boxFile)
+	if err != nil {
+		return err
 	}
-	if cpus > 32 {
-		cpus = 32
+	importArgs := []string{boxFile, "--vsys", "0", "--vmname", vbox.VM.Name, "--basefolder", vbox.StoragePath}
+
+	for _, item := range ovf.VirtualSystem.VirtualHardware.Items {
+		switch item.ResourceType {
+		case ova.TypeCPU:
+			var cpus string
+			if opts.CPU < 1 {
+				cpus = fmt.Sprintf("%d", runtime.NumCPU())
+			} else if opts.CPU > 32 {
+				cpus = "32"
+			} else {
+				cpus = fmt.Sprintf("%d", opts.CPU)
+			}
+			importArgs = append(importArgs, "--vsys", "0", "--cpus", cpus)
+		case ova.TypeMemory:
+			importArgs = append(importArgs, "--vsys", "0", "--memory", fmt.Sprintf("%d", opts.Memory))
+		}
 	}
 
-	if _, err := vbm(
-		"modifyvm", vbox.VMName,
+	if err := vbox.VM.Import(importArgs...); err != nil {
+		return errors.Wrap(err, "could not import VM")
+	}
+
+	if err := vbox.VM.Modify(
 		"--firmware", "bios",
 		"--bioslogofadein", "off",
 		"--bioslogofadeout", "off",
 		"--bioslogodisplaytime", "0",
 		"--biosbootmenu", "disabled",
-		"--ostype", "Linux26_64",
-		"--cpus", fmt.Sprintf("%d", cpus),
-		"--memory", fmt.Sprintf("%d", opts.Memory),
 		"--acpi", "on",
 		"--ioapic", "on",
 		"--rtcuseutc", "on",
@@ -149,13 +145,11 @@ func (vbox *Stage) Create() error {
 		"--largepages", "on",
 		"--vtxvpid", "on",
 		"--accelerate3d", "off",
-		"--boot1", "dvd",
 	); err != nil {
 		return errors.Wrap(err, "could not configure general VM settings")
 	}
 
-	if _, err := vbm(
-		"modifyvm", vbox.VMName,
+	if err := vbox.VM.Modify(
 		"--nic1", "nat",
 		"--nictype1", "82540EM",
 		"--cableconnected1", "on",
@@ -163,109 +157,11 @@ func (vbox *Stage) Create() error {
 		return errors.Wrap(err, "could not create nat controller")
 	}
 
-	if _, err := vbm(
-		"storagectl", vbox.VMName,
-		"--name", "SATA",
-		"--add", "sata",
-		"--hostiocache", "on",
-	); err != nil {
-		return errors.Wrap(err, "could not create SATA controller")
-	}
-
-	if _, err := vbm(
-		"storageattach", vbox.VMName,
-		"--storagectl", "SATA",
-		"--port", "0",
-		"--device", "0",
-		"--type", "dvddrive",
-		"--medium", filepath.Join(vbox.StoragePath, "boot2docker.iso"),
-	); err != nil {
-		return errors.Wrap(err, "could not attach boot2docker iso")
-	}
-
-	if _, err := vbm(
-		"storageattach", vbox.VMName,
-		"--storagectl", "SATA",
-		"--port", "1",
-		"--device", "0",
-		"--type", "hdd",
-		"--medium", filepath.Join(vbox.StoragePath, "disk.vmdk"),
-	); err != nil {
-		return errors.Wrap(err, "could not attach main disk")
-	}
-
-	if _, err := vbm(
-		"guestproperty", "set", vbox.VMName,
-		"/VirtualBox/GuestAdd/SharedFolders/MountPrefix", "/",
-	); err != nil {
-		return errors.Wrap(err, "could not set mount prefxi")
-	}
-	if _, err := vbm(
-		"guestproperty", "set", vbox.VMName,
-		"/VirtualBox/GuestAdd/SharedFolders/MountDir", "/",
-	); err != nil {
-		return errors.Wrap(err, "could not set mount dir")
-	}
-
-	shareName, shareDir := getShareDriveAndName()
-	if _, err := os.Stat(shareDir); err != nil && !os.IsNotExist(err) {
-		return err
-	} else if !os.IsNotExist(err) {
-		if _, err := vbm(
-			"sharedfolder", "add", vbox.VMName,
-			"--name", shareName,
-			"--hostpath", shareDir,
-			"--automount",
-		); err != nil {
-			return errors.Wrap(err, "could not mount shared folder")
-		}
-
-		if _, err := vbm(
-			"setextradata", vbox.VMName,
-			"VBoxInternal2/SharedFoldersEnableSymlinksCreate/"+shareName, "1",
-		); err != nil {
-			return errors.Wrap(err, "could not set shared folder extra data")
-		}
-	}
-
-	if err := vbox.Start(); err != nil {
-		return errors.Wrap(err, "could not start VM")
-	}
-
-	ip, err := vbox.GetIP()
-	if err != nil {
+	if err := vbox.VM.ConfigureSharedFolders(getSharedFolders()); err != nil {
 		return err
 	}
 
-	certs, _, err := ssl.GimmeCertificates(&ssl.Options{
-		Org:          fmt.Sprintf("dodo.%s", vbox.VMName),
-		Hosts:        []string{ip, "localhost"},
-		WriteToFiles: &ssl.Files{Directory: vbox.StoragePath},
-	})
-	if err != nil {
-		return err
-	}
-
-	sshOpts, err := vbox.GetSSHOptions()
-	if err != nil {
-		return nil
-	}
-
-	if err := provision.Provision(sshOpts, &designer.Config{
-		Hostname:   vbox.VMName,
-		CA:         string(certs.CA),
-		ServerCert: string(certs.ServerCert),
-		ServerKey:  string(certs.ServerKey),
-	}); err != nil {
-		return err
-	}
-
-	if ok, err := vbox.isDockerResponding(certs); err != nil || !ok {
-		return errors.Wrap(err, "docker is not responding")
-	}
-
-	log.Info("VM is fully provisioned")
-	return nil
+	return vbox.Start()
 }
 
 func (vbox *Stage) Start() error {
@@ -279,42 +175,100 @@ func (vbox *Stage) Start() error {
 	}
 	log.Info("starting VM...")
 
-	sshForwarding := &PortForwarding{
-		Name:      "ssh",
-		Interface: 1,
-		Protocol:  "tcp",
-		GuestPort: 22,
-	}
-
 	log.Info("configure network...")
-	if err := SetupHostOnlyNetwork(vbox.VMName, "192.168.99.1/24"); err != nil {
+	if err := vbox.SetupHostOnlyNetwork("192.168.99.1/24"); err != nil {
 		return errors.Wrap(err, "could not set up host-only network")
 	}
 
-	if err := ConfigurePortForwarding(vbox.VMName, sshForwarding); err != nil {
+	sshForwarding := vbox.VM.NewPortForwarding("ssh")
+	sshForwarding.GuestPort = 22
+	if err := sshForwarding.Create(); err != nil {
 		return errors.Wrap(err, "could not configure port forwarding")
 	}
 
-	if _, err := vbm("startvm", vbox.VMName, "--type", "headless"); err != nil {
+	if err := vbox.VM.Start(); err != nil {
 		return errors.Wrap(err, "could not start VM")
 	}
 
-	log.Info("waiting for an IP...")
-	if err = await(func() (bool, error) {
-		ip, err := vbox.GetIP()
-		return err == nil && ip != "", nil
-	}); err != nil {
+	log.Info("waiting for SSH...")
+	if err = await(vbox.isSSHAvailable); err != nil {
 		return err
 	}
 
-	log.Info("waiting for Docker daemon...")
-	if err := await(func() (bool, error) {
-		ok, err := vbox.isDockerRunning(defaultPort)
-		return ok, err
-	}); err != nil {
-		return errors.Wrap(err, "the Docker daemon did not start successfully")
+	sshOpts, err := vbox.GetSSHOptions()
+	if err != nil {
+		return err
 	}
 
+	// TODO: replace ssh key
+	publicKey, err := ioutil.ReadFile(filepath.Join(vbox.StoragePath, "id_rsa.pub"))
+	if err != nil {
+		return err
+	}
+
+	provisionConfig := &designer.Config{
+		Hostname:          vbox.VM.Name,
+		DefaultUser:       sshOpts.Username,
+		AuthorizedSSHKeys: []string{string(publicKey)},
+	}
+
+	result, err := provision.Provision(sshOpts, provisionConfig)
+	if err != nil {
+		return err
+	}
+
+	vbox.State.IPAddress = result.IPAddress
+	vbox.State.PrivateKeyFile = filepath.Join(vbox.StoragePath, "id_rsa")
+	if err := vbox.saveState(); err != nil {
+		return err
+	}
+
+	if err := ioutil.WriteFile(filepath.Join(vbox.StoragePath, "ca.pem"), []byte(result.CA), 0600); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(vbox.StoragePath, "client.pem"), []byte(result.ClientCert), 0600); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filepath.Join(vbox.StoragePath, "client-key.pem"), []byte(result.ClientKey), 0600); err != nil {
+		return err
+	}
+
+	pemData, _ := pem.Decode([]byte(result.CA))
+	caCert, err := x509.ParseCertificate(pemData.Bytes)
+	if err != nil {
+		return err
+	}
+	certPool := x509.NewCertPool()
+	certPool.AddCert(caCert)
+
+	keyPair, err := tls.X509KeyPair([]byte(result.ClientCert), []byte(result.ClientKey))
+	if err != nil {
+		return err
+	}
+
+	dockerURL, err := vbox.GetURL()
+	if err != nil {
+		return err
+	}
+	parsed, err := url.Parse(dockerURL)
+	if err != nil {
+		return errors.Wrap(err, "could not parse Docker URL")
+	}
+
+	if _, err = tls.DialWithDialer(
+		&net.Dialer{Timeout: 20 * time.Second},
+		"tcp",
+		parsed.Host,
+		&tls.Config{
+			RootCAs:            certPool,
+			InsecureSkipVerify: false,
+			Certificates:       []tls.Certificate{keyPair},
+		},
+	); err != nil {
+		return err
+	}
+
+	log.Info("VM is fully provisioned and running")
 	return nil
 }
 
@@ -330,7 +284,7 @@ func (vbox *Stage) Stop() error {
 		return nil
 	}
 
-	if _, err := vbm("controlvm", vbox.VMName, "acpipowerbutton"); err != nil {
+	if err := vbox.VM.Stop(false); err != nil {
 		return err
 	}
 
@@ -345,10 +299,13 @@ func (vbox *Stage) Stop() error {
 }
 
 func (vbox *Stage) Remove(force bool) error {
-	// TODO: log errors if force=true
 	exist, err := vbox.Exist()
-	if err != nil && !force {
-		return err
+	if err != nil {
+		if force {
+			log.Error(err)
+		} else {
+			return err
+		}
 	}
 
 	if !exist && !force {
@@ -359,22 +316,38 @@ func (vbox *Stage) Remove(force bool) error {
 	log.Info("removing VM...")
 
 	running, err := vbox.Available()
-	if err != nil && !force {
-		return err
-	}
-
-	if running {
-		if _, err := vbm("controlvm", vbox.VMName, "poweroff"); err != nil && !force {
+	if err != nil {
+		if force {
+			log.Error(err)
+		} else {
 			return err
 		}
 	}
 
-	if _, err = vbm("unregistervm", "--delete", vbox.VMName); err != nil && !force {
-		return err
+	if running {
+		if err := vbox.VM.Stop(true); err != nil {
+			if force {
+				log.Error(err)
+			} else {
+				return err
+			}
+		}
 	}
 
-	if err := os.RemoveAll(vbox.StoragePath); err != nil && !force {
-		return errors.Wrap(err, "could not remove storage dir")
+	if err = vbox.VM.Delete(); err != nil {
+		if force {
+			log.Error(err)
+		} else {
+			return err
+		}
+	}
+
+	if err := os.RemoveAll(vbox.StoragePath); err != nil {
+		if force {
+			log.Error(err)
+		} else {
+			return err
+		}
 	}
 
 	log.Info("removed VM")
@@ -390,79 +363,46 @@ func (vbox *Stage) Exist() (bool, error) {
 		}
 	}
 
-	_, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
+	_, err := vbox.VM.Info()
 	return err == nil, nil
 }
 
 func (vbox *Stage) Available() (bool, error) {
-	return vbox.isVMRunning()
+	info, err := vbox.VM.Info()
+	if err != nil {
+		return false, err
+	}
+	state, ok := info["VMState"]
+	return ok && state == "running", nil
 }
 
 func (vbox *Stage) GetURL() (string, error) {
-	ip, err := vbox.GetIP()
-	if err != nil {
-		return "", err
-	}
-	if ip == "" {
-		return "", errors.New("could not get IP")
-	}
-	return fmt.Sprintf("tcp://%s:%d", ip, defaultPort), nil
+	return fmt.Sprintf("tcp://%s:%d", vbox.State.IPAddress, defaultPort), nil
 }
 
-func (vbox *Stage) GetIP() (string, error) {
-	running, err := vbox.Available()
+func (vbox *Stage) GetSSHOptions() (*stage.SSHOptions, error) {
+	portForwardings, err := vbox.VM.ListPortForwardings()
 	if err != nil {
-		return "", err
-	}
-	if !running {
-		return "", errors.New("VM is not running")
+		return nil, err
 	}
 
-	stdout, err := vbm("showvminfo", vbox.VMName, "--machinereadable")
-	if err != nil {
-		return "", err
-	}
-
-	re := regexp.MustCompile(`(?m)^hostonlyadapter([\d]+)`)
-	groups := re.FindStringSubmatch(stdout)
-	if len(groups) < 2 {
-		return "", errors.New("VM does not have a host-only adapter")
-	}
-
-	re = regexp.MustCompile(fmt.Sprintf("(?m)^macaddress%s=\"(.*)\"", groups[1]))
-	groups = re.FindStringSubmatch(stdout)
-	if len(groups) < 2 {
-		return "", errors.New("could not find MAC address for host-only adapter")
-	}
-
-	macAddress := strings.ToLower(groups[1])
-
-	output, err := vbox.ssh("ip addr show")
-	if err != nil {
-		return "", err
-	}
-
-	inTargetMacBlock := false
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.TrimSpace(line)
-
-		if strings.HasPrefix(line, "link") {
-			values := strings.Split(line, " ")
-			if len(values) >= 2 {
-				if strings.Replace(values[1], ":", "", -1) == macAddress {
-					inTargetMacBlock = true
-				}
-			}
-
-		} else if inTargetMacBlock && strings.HasPrefix(line, "inet") && !strings.HasPrefix(line, "inet6") {
-			values := strings.Split(line, " ")
-			if len(values) >= 2 {
-				return values[1][:strings.Index(values[1], "/")], nil
-			}
+	port := 0
+	for _, forward := range portForwardings {
+		if forward.Name == "ssh" {
+			port = forward.HostPort
+			break
 		}
 	}
+	if port == 0 {
+		return nil, errors.New("no port forwarding matching ssh port found")
+	}
 
-	return "", errors.New("could not find IP")
+	return &stage.SSHOptions{
+		Hostname:       "127.0.0.1",
+		Port:           port,
+		Username:       vbox.State.Username,
+		PrivateKeyFile: vbox.State.PrivateKeyFile,
+	}, nil
 }
 
 func (vbox *Stage) GetDockerOptions() (*stage.DockerOptions, error) {
@@ -476,31 +416,4 @@ func (vbox *Stage) GetDockerOptions() (*stage.DockerOptions, error) {
 		CertFile: filepath.Join(vbox.StoragePath, "client.pem"),
 		KeyFile:  filepath.Join(vbox.StoragePath, "client-key.pem"),
 	}, nil
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-
-	defer out.Close()
-
-	if _, err = io.Copy(out, in); err != nil {
-		return err
-	}
-
-	fi, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
-	return os.Chmod(dst, fi.Mode())
 }

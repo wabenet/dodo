@@ -2,6 +2,6 @@
 
 package main
 
-func getShareDriveAndName() (string, string) {
-	return "hosthome", "/home"
+func getSharedFolders() map[string]string {
+	return map[string]string{"hosthome": "/home"}
 }
