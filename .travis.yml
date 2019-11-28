@@ -1,16 +1,23 @@
-language: go
+language: generic
+sudo: required
 
-go:
-  - 1.12.x
+services:
+  - docker
 
 before_install:
-  - sudo apt-get install -y protobuf-compiler
-  - go get -u github.com/mitchellh/gox
-  - go get -u github.com/golang/protobuf/protoc-gen-go
-  - go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+  - echo "Install latest docker, because the current version doesn't support buildkit yet"
+  - curl -fsSL -o get-docker.sh https://get.docker.com 
+  - sudo sh get-docker.sh
+  - docker info
+
+  - echo "Remove registry mirrors because buildkit fails otherwise (see moby/buildkit/issues/606)"
+  - echo "{}" | sudo tee /etc/docker/daemon.json
+  - sudo systemctl restart docker
+
+  - curl -L -o dodo https://github.com/oclaussen/dodo/releases/download/1.4.1/dodo_linux_amd64 && chmod +x dodo
 
 script:
-  - env GO111MODULE=on make all
+  - ./dodo make
 
 branches:
   only: 
