@@ -8,6 +8,7 @@ type Stages map[string]Stage
 
 type Stage struct {
 	Type    string
+	Box     Box
 	Options Options
 }
 
@@ -49,6 +50,12 @@ func (d *decoder) DecodeStage(name string, config interface{}) (Stage, error) {
 					return result, err
 				}
 				result.Options = decoded
+			case "box":
+				decoded, err := d.DecodeBox(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Box = decoded
 			default:
 				return result, &ConfigError{Name: name, UnsupportedKey: &key}
 			}

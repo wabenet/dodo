@@ -4,17 +4,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-const (
-	defaultUser        = "vagrant"
-	authorizedKeysFile = "/home/vagrant/.ssh/authorized_keys"
-)
-
-func ConfigureSSHKeys(keys []string) error {
-	u, err := user.Lookup(defaultUser)
+func ConfigureSSHKeys(config *Config) error {
+	u, err := user.Lookup(config.DefaultUser)
 	if err != nil {
 		return err
 	}
@@ -27,12 +23,12 @@ func ConfigureSSHKeys(keys []string) error {
 		return err
 	}
 
-	content := strings.Join(keys, "\n")
-	if err := ioutil.WriteFile(authorizedKeysFile, []byte(content), 0600); err != nil {
+	file := filepath.Join(u.HomeDir, ".ssh", "authorized_keys")
+	content := strings.Join(config.AuthorizedSSHKeys, "\n")
+	if err := ioutil.WriteFile(file, []byte(content), 0600); err != nil {
 		return err
 	}
-
-	if err := os.Chown(authorizedKeysFile, uid, gid); err != nil {
+	if err := os.Chown(file, uid, gid); err != nil {
 		return err
 	}
 	return nil

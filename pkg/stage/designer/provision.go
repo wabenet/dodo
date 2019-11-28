@@ -12,7 +12,7 @@ import (
 
 func Provision(config *Config) (*ProvisionResult, error) {
 	log.Info("replace insecure SSH key")
-	if err := ConfigureSSHKeys(config.AuthorizedSSHKeys); err != nil {
+	if err := ConfigureSSHKeys(config); err != nil {
 		return nil, err
 	}
 

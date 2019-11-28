@@ -8,6 +8,7 @@ type Config struct {
 	Hostname          string
 	Environment       []string
 	DockerArgs        []string
+	DefaultUser       string
 	AuthorizedSSHKeys []string
 }
 
