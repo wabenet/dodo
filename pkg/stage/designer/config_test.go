@@ -8,9 +8,7 @@ import (
 
 var testConfig = &Config{
 	Hostname:    "example",
-	CA:          "someca",
-	ServerCert:  "someCert",
-	ServerKey:   "someKey",
+	DefaultUser: "test",
 	Environment: []string{"FOO=bar"},
 }
 

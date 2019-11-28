@@ -112,7 +112,6 @@ func findPluginExecutable(name string) (string, error) {
 	}
 
 	return "", errors.New("could not find a suitable plugin for the stage anywhere")
-
 }
 
 func GetDockerClient(stage Stage) (*client.Client, error) {

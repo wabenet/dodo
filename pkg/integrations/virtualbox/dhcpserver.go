@@ -19,18 +19,23 @@ func (server DHCPServer) Equal(other DHCPServer) bool {
 	if !server.IPv4.IP.Equal(other.IPv4.IP) {
 		return false
 	}
+
 	if server.IPv4.Mask.String() != other.IPv4.Mask.String() {
 		return false
 	}
+
 	if !server.LowerIP.Equal(other.LowerIP) {
 		return false
 	}
+
 	if !server.UpperIP.Equal(other.UpperIP) {
 		return false
 	}
+
 	if server.Enabled != other.Enabled {
 		return false
 	}
+
 	return true
 }
 
@@ -114,10 +119,12 @@ func GetDHCPServer(networkName string) (*DHCPServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for _, server := range servers {
 		if server.NetworkName == networkName {
 			return server, nil
 		}
 	}
+
 	return nil, fmt.Errorf("dhcp server for network %s does not exist", networkName)
 }

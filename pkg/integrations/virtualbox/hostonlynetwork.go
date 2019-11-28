@@ -23,8 +23,10 @@ func NewHostOnlyNetwork(cidr string) (*HostOnlyNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	result := &HostOnlyNetwork{IPv4: *network}
 	result.IPv4.IP = ip
+
 	return result, nil
 }
 
@@ -32,14 +34,17 @@ func (network HostOnlyNetwork) Equal(other HostOnlyNetwork) bool {
 	if !network.IPv4.IP.Equal(other.IPv4.IP) {
 		return false
 	}
+
 	if network.IPv4.Mask.String() != other.IPv4.Mask.String() {
 		if network.IPv4.Mask.String() != "0f000000" {
 			return false
 		}
 	}
+
 	if network.DHCP != other.DHCP {
 		return false
 	}
+
 	return true
 }
 

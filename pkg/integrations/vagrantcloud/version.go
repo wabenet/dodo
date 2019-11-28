@@ -37,7 +37,7 @@ type VersionOptions struct {
 }
 
 func (v *VersionOptions) toPath() string {
-	return fmt.Sprintf("%s/version/%s", v.Box.toPath, v.Number)
+	return fmt.Sprintf("%s/version/%s", v.Box.toPath(), v.Number)
 }
 
 func (v *VersionOptions) toParams() url.Values {

@@ -133,5 +133,4 @@ func findProjectRoot() (string, string, error) {
 		}
 	}
 	return cwd, ".", nil
-
 }

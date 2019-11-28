@@ -200,7 +200,6 @@ func (vbox *Stage) Start() error {
 		return err
 	}
 
-	// TODO: replace ssh key
 	publicKey, err := ioutil.ReadFile(filepath.Join(vbox.StoragePath, "id_rsa.pub"))
 	if err != nil {
 		return err

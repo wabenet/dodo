@@ -21,7 +21,7 @@ type Group struct {
 func (groups *Group) Names() []string {
 	var result []string
 	if groups.Backdrops != nil {
-		for name, _ := range groups.Backdrops {
+		for name := range groups.Backdrops {
 			result = append(result, name)
 		}
 	}
