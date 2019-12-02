@@ -37,7 +37,12 @@ func (groups *Group) Strings() []string {
 	var result []string
 	if groups.Backdrops != nil {
 		for name, backdrop := range groups.Backdrops {
-			result = append(result, fmt.Sprintf("%s (%s)", name, backdrop.filename))
+			result = append(result, fmt.Sprintf("backdrop/%s (%s)", name, backdrop.filename))
+		}
+	}
+	if groups.Stages != nil {
+		for name, stage := range groups.Stages {
+			result = append(result, fmt.Sprintf("stage/%s (%s)", name, stage.filename))
 		}
 	}
 	if groups.Groups != nil {
@@ -72,6 +77,7 @@ func (target *Group) Merge(source *Group) {
 			}
 		}
 	}
+
 	if source.Groups != nil {
 		if target.Groups == nil {
 			target.Groups = map[string]Group{}
@@ -140,9 +146,7 @@ func (d *decoder) DecodeGroup(name string, config interface{}) (Group, error) {
 					return result, err
 				}
 				for _, include := range decoded {
-					for name, backdrop := range include.Backdrops {
-						result.Backdrops[name] = backdrop
-					}
+					result.Merge(&include)
 				}
 			default:
 				return result, &ConfigError{Name: name, UnsupportedKey: &key}

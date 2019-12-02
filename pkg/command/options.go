@@ -12,6 +12,7 @@ type options struct {
 	build       bool
 	noCache     bool
 	pull        bool
+	stage       string
 	user        string
 	workdir     string
 	volumes     []string
@@ -43,23 +44,26 @@ func (opts *options) createFlags(cmd *cobra.Command) {
 		&opts.pull, "pull", "", false,
 		"always attempt to pull a newer version of the image")
 	flags.StringVarP(
+		&opts.stage, "stage", "s", "",
+		"stage to user for docker daemon")
+	flags.StringVarP(
 		&opts.user, "user", "u", "",
-		"Username or UID (format: <name|uid>[:<group|gid>])")
+		"username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVarP(
 		&opts.workdir, "workdir", "w", "",
 		"working directory inside the container")
 	flags.StringArrayVarP(
 		&opts.volumes, "volume", "v", []string{},
-		"Bind mount a volume")
+		"bind mount a volume")
 	flags.StringArrayVarP(
 		&opts.volumesFrom, "volumes-from", "", []string{},
-		"Mount volumes from the specified container(s)")
+		"mount volumes from the specified container(s)")
 	flags.StringArrayVarP(
 		&opts.environment, "env", "e", []string{},
-		"Set environment variables")
+		"set environment variables")
 	flags.StringArrayVarP(
 		&opts.publish, "publish", "p", []string{},
-		"Publish a container's port(s) to the host")
+		"publish a container's port(s) to the host")
 }
 
 func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
@@ -70,6 +74,7 @@ func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
 			ForcePull:    opts.pull,
 		},
 		Interactive: opts.interactive,
+		Stage:       opts.stage,
 		User:        opts.user,
 		WorkingDir:  opts.workdir,
 		VolumesFrom: opts.volumesFrom,

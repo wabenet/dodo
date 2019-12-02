@@ -28,6 +28,7 @@ func NewUpCommand() *cobra.Command {
 		Short: "Create or start a stage",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
 			conf, err := config.LoadStage(args[0])
 			if err != nil {
 				return err
@@ -63,6 +64,7 @@ func NewDownCommand() *cobra.Command {
 		Short: "Remove or pause a stage",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
 			// TODO: do we actually need the config?
 			conf, err := config.LoadStage(args[0])
 			if err != nil {
@@ -92,6 +94,7 @@ func NewSSHCommand() *cobra.Command {
 		Short: "login to the stage",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			configureLogging()
 			// TODO: do we actually need the config?
 			conf, err := config.LoadStage(args[0])
 			if err != nil {

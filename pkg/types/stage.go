@@ -10,6 +10,8 @@ type Stage struct {
 	Type    string
 	Box     Box
 	Options Options
+
+	filename string
 }
 
 type Options map[string]string
@@ -33,7 +35,7 @@ func (d *decoder) DecodeStages(name string, config interface{}) (Stages, error) 
 }
 
 func (d *decoder) DecodeStage(name string, config interface{}) (Stage, error) {
-	var result Stage
+	result := Stage{filename: d.filename}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
