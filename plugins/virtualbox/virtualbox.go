@@ -9,11 +9,11 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/integrations/ova"
 	"github.com/oclaussen/dodo/pkg/integrations/virtualbox"
 	"github.com/oclaussen/dodo/pkg/stage"
@@ -40,23 +40,15 @@ type Options struct {
 	Memory int
 }
 
-func (vbox *Stage) Initialize(name string, config *types.Stage) (bool, error) {
-	if vmName, ok := config.Options["name"]; ok {
+func (vbox *Stage) Initialize(name string, conf *types.Stage) (bool, error) {
+	if vmName, ok := conf.Options["name"]; ok {
 		vbox.VM = &virtualbox.VM{Name: vmName}
 	} else {
 		vbox.VM = &virtualbox.VM{Name: name}
 	}
 
-	vbox.Box = &config.Box
-
-	baseDir := filepath.FromSlash("/var/lib/dodo") // TODO: choose a better default
-	if path, ok := config.Options["path"]; ok {
-		baseDir = path
-	} else if user, err := user.Current(); err == nil && user.HomeDir != "" {
-		baseDir = filepath.Join(user.HomeDir, ".dodo")
-	}
-
-	vbox.StoragePath = filepath.Join(baseDir, "stages", name)
+	vbox.Box = &conf.Box
+	vbox.StoragePath = filepath.Join(config.GetStagesDir(), name)
 
 	if err := vbox.loadState(); err != nil {
 		return false, err

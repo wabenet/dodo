@@ -2,9 +2,9 @@ package box
 
 import (
 	"fmt"
-	"os/user"
 	"path/filepath"
 
+	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/integrations/vagrantcloud"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
@@ -19,24 +19,18 @@ type Box struct {
 	provider    *vagrantcloud.Provider
 }
 
-func Load(config *types.Box, provider string) (*Box, error) {
-	box := &Box{config: config}
-	api := vagrantcloud.New(config.AccessToken)
-	metadata, err := api.GetBox(&vagrantcloud.BoxOptions{Username: config.User, Name: config.Name})
+func Load(conf *types.Box, provider string) (*Box, error) {
+	box := &Box{config: conf}
+	api := vagrantcloud.New(conf.AccessToken)
+	metadata, err := api.GetBox(&vagrantcloud.BoxOptions{Username: conf.User, Name: conf.Name})
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get box metadata")
 	}
 	box.metadata = metadata
+	box.storagePath = config.GetBoxesDir()
+	box.tmpPath = config.GetTmpDir()
 
-	// TODO: figure out paths and consolidate with stages
-	baseDir := filepath.FromSlash("/var/lib/dodo")
-	if user, err := user.Current(); err == nil && user.HomeDir != "" {
-		baseDir = filepath.Join(user.HomeDir, ".dodo")
-	}
-	box.storagePath = filepath.Join(baseDir, "boxes")
-	box.tmpPath = filepath.Join(baseDir, "tmp")
-
-	v, err := findVersion(config.Version, metadata)
+	v, err := findVersion(conf.Version, metadata)
 	if err != nil {
 		return box, errors.Wrap(err, "could not find a valid box version")
 	}

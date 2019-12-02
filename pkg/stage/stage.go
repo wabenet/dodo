@@ -53,24 +53,24 @@ type DockerOptions struct {
 
 // TODO: sort out when and how to cleanup the plugin process properly
 
-func Load(name string, config *types.Stage) (Stage, func(), error) {
-	if config == nil {
-		config = &types.Stage{Type: DefaultStageName}
+func Load(name string, conf *types.Stage) (Stage, func(), error) {
+	if conf == nil {
+		conf = &types.Stage{Type: DefaultStageName}
 	}
-	if stage, ok := BuiltInStages[config.Type]; ok {
-		if success, err := stage.Initialize(name, config); err != nil || !success {
+	if stage, ok := BuiltInStages[conf.Type]; ok {
+		if success, err := stage.Initialize(name, conf); err != nil || !success {
 			return nil, func() {}, errors.Wrap(err, "initialization failed")
 		}
 		return stage, func() {}, nil
 	}
 
-	path, err := findPluginExecutable(config.Type)
+	path, err := findPluginExecutable(conf.Type)
 	if err != nil {
 		return nil, func() {}, err
 	}
 
 	client := plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig:  HandshakeConfig(config.Type),
+		HandshakeConfig:  HandshakeConfig(conf.Type),
 		Plugins:          PluginMap,
 		Cmd:              exec.Command(path),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
@@ -87,7 +87,7 @@ func Load(name string, config *types.Stage) (Stage, func(), error) {
 	}
 
 	stage := raw.(Stage)
-	if success, err := stage.Initialize(name, config); err != nil || !success {
+	if success, err := stage.Initialize(name, conf); err != nil || !success {
 		return nil, client.Kill, errors.Wrap(err, "initialization failed")
 	}
 

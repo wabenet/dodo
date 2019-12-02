@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 
 	buildkit "github.com/moby/buildkit/session"
+	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -40,20 +40,8 @@ func prepareSession(baseDir string) (session, error) {
 }
 
 func readOrCreateSessionID() (string, error) {
-	user, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-
-	sessionDir := filepath.Join(user.HomeDir, ".dodo")
-	sessionFile := filepath.Join(sessionDir, "sessionID")
-
-	err = os.MkdirAll(sessionDir, 0700)
-	if err != nil {
-		return "", err
-	}
-
-	if _, err = os.Lstat(sessionFile); err == nil {
+	sessionFile := filepath.Join(config.GetAppDir(), "sessionID")
+	if _, err := os.Lstat(sessionFile); err == nil {
 		sessionID, err := ioutil.ReadFile(sessionFile)
 		if err != nil {
 			return "", err
@@ -62,13 +50,12 @@ func readOrCreateSessionID() (string, error) {
 	}
 
 	sessionID := make([]byte, 32)
-	_, err = rand.Read(sessionID)
-	if err != nil {
+	if _, err := rand.Read(sessionID); err != nil {
 		return "", err
 	}
+
 	sessionID = []byte(hex.EncodeToString(sessionID))
-	err = ioutil.WriteFile(sessionFile, sessionID, 0600)
-	if err != nil {
+	if err := ioutil.WriteFile(sessionFile, sessionID, 0600); err != nil {
 		return "", err
 	}
 
