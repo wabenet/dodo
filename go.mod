@@ -33,6 +33,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/larryli/vagrantcloud.v1 v0.0.0-20141215044402-3b43c034faa2
 	github.com/mholt/archiver v3.1.1+incompatible
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/moby/buildkit v0.4.0
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/oclaussen/go-gimme v0.0.0-20191115132646-ded203314a7b // indirect

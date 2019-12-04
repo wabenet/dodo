@@ -3,6 +3,7 @@ package designer
 import (
 	"fmt"
 	"net"
+	"os/exec"
 	"time"
 
 	"github.com/oclaussen/go-gimme/ssl"
@@ -25,6 +26,13 @@ func Provision(config *Config) (*ProvisionResult, error) {
 	log.Info("set hostname...")
 	if err := ConfigureHostname(config.Hostname); err != nil {
 		return nil, err
+	}
+
+	log.Info("running provision script...")
+	for _, script := range config.Script {
+		if err := exec.Command("/bin/sh", "-c", script).Run(); err != nil {
+			return nil, err
+		}
 	}
 
 	log.Info("installing docker...")

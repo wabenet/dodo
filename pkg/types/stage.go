@@ -14,7 +14,8 @@ type Stage struct {
 	filename string
 }
 
-type Options map[string]string
+// TODO: this gives marshalling errors over grpc when used with nested maps
+type Options map[string]interface{}
 
 func (d *decoder) DecodeStages(name string, config interface{}) (Stages, error) {
 	result := map[string]Stage{}
@@ -69,16 +70,12 @@ func (d *decoder) DecodeStage(name string, config interface{}) (Stage, error) {
 }
 
 func (d *decoder) DecodeOptions(name string, config interface{}) (Options, error) {
-	result := map[string]string{}
+	result := map[string]interface{}{}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {
 			key := k.(string)
-			decoded, err := d.DecodeString(key, v)
-			if err != nil {
-				return result, err
-			}
-			result[key] = decoded
+			result[key] = v
 		}
 	default:
 		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/machine/libmachine/host"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/docker/machine/libmachine/swarm"
+	"github.com/mitchellh/mapstructure"
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/pkg/errors"
@@ -21,16 +22,23 @@ import (
 
 type Stage struct {
 	name    string
+	Options *Options
 	basedir string
-	driver  string
 	api     libmachine.API
 }
 
+type Options struct {
+	Driver string
+}
+
 func (s *Stage) Initialize(name string, config *types.Stage) (bool, error) {
-	if driver, ok := config.Options["driver"]; ok {
-		s.driver = driver
-	} else {
-		s.driver = "virtualbox"
+	s.Options = &Options{}
+	if err := mapstructure.Decode(config.Options, s.Options); err != nil {
+		return false, err
+	}
+
+	if len(s.Options.Driver) == 0 {
+		s.Options.Driver = "virtualbox"
 	}
 
 	user, err := user.Current()
@@ -50,7 +58,7 @@ func (s *Stage) Create() error {
 		StorePath:   s.basedir,
 	})
 
-	target, err := s.api.NewHost(s.driver, driverConfig)
+	target, err := s.api.NewHost(s.Options.Driver, driverConfig)
 	if err != nil {
 		return errors.Wrap(err, "could not create stage")
 	}

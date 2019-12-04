@@ -10,6 +10,7 @@ type Config struct {
 	DockerArgs        []string
 	DefaultUser       string
 	AuthorizedSSHKeys []string
+	Script            []string
 }
 
 type ProvisionResult struct {

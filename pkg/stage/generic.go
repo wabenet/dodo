@@ -1,6 +1,7 @@
 package stage
 
 import (
+	"github.com/mitchellh/mapstructure"
 	"github.com/oclaussen/dodo/pkg/types"
 )
 
@@ -9,12 +10,9 @@ type GenericStage struct {
 }
 
 func (stage *GenericStage) Initialize(_ string, config *types.Stage) (bool, error) {
-	stage.Options = &DockerOptions{
-		Version:  config.Options["api_version"],
-		Host:     config.Options["host"],
-		CAFile:   config.Options["ca_file"],
-		CertFile: config.Options["cert_file"],
-		KeyFile:  config.Options["key_file"],
+	stage.Options = &DockerOptions{}
+	if err := mapstructure.Decode(config.Options, stage.Options); err != nil {
+		return false, err
 	}
 	return true, nil
 }

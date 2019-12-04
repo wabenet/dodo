@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/dodo/proto"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -45,7 +46,7 @@ type GRPCClient struct {
 func (client *GRPCClient) Initialize(name string, config *types.Stage) (bool, error) {
 	jsonBytes, err := json.Marshal(config)
 	if err != nil {
-		return false, err
+		return false, errors.Wrap(err, "could not marshal json")
 	}
 	response, err := client.client.Initialize(context.Background(), &proto.InitRequest{Name: name, Config: string(jsonBytes)})
 	if err != nil {
@@ -124,7 +125,7 @@ type GRPCServer struct {
 func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitRequest) (*proto.InitResponse, error) {
 	var config types.Stage
 	if err := json.Unmarshal([]byte(request.Config), &config); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "could not unmarshal json")
 	}
 	success, err := server.Impl.Initialize(request.Name, &config)
 	if err != nil {

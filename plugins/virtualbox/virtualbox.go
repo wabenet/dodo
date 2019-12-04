@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/integrations/ova"
 	"github.com/oclaussen/dodo/pkg/integrations/virtualbox"
@@ -30,19 +30,28 @@ const defaultPort = 2376 // TODO: get this from docker directly
 
 type Stage struct {
 	VM          *virtualbox.VM
+	Options     *Options
 	Box         *types.Box
 	State       *State
 	StoragePath string
 }
 
 type Options struct {
-	CPU    int
-	Memory int
+	Name      string
+	CPU       int
+	Memory    int
+	Modify    []string
+	Provision []string
 }
 
 func (vbox *Stage) Initialize(name string, conf *types.Stage) (bool, error) {
-	if vmName, ok := conf.Options["name"]; ok {
-		vbox.VM = &virtualbox.VM{Name: vmName}
+	vbox.Options = &Options{}
+	if err := mapstructure.Decode(conf.Options, vbox.Options); err != nil {
+		return false, err
+	}
+
+	if len(vbox.Options.Name) > 0 {
+		vbox.VM = &virtualbox.VM{Name: vbox.Options.Name}
 	} else {
 		vbox.VM = &virtualbox.VM{Name: name}
 	}
@@ -58,8 +67,6 @@ func (vbox *Stage) Initialize(name string, conf *types.Stage) (bool, error) {
 }
 
 func (vbox *Stage) Create() error {
-	opts := Options{CPU: 1, Memory: 1024}
-
 	if err := os.MkdirAll(vbox.StoragePath, 0700); err != nil {
 		return err
 	}
@@ -95,22 +102,18 @@ func (vbox *Stage) Create() error {
 	if err != nil {
 		return err
 	}
-	importArgs := []string{boxFile, "--vsys", "0", "--vmname", vbox.VM.Name, "--basefolder", vbox.StoragePath}
 
+	importArgs := []string{boxFile, "--vsys", "0", "--vmname", vbox.VM.Name, "--basefolder", vbox.StoragePath}
 	for _, item := range ovf.VirtualSystem.VirtualHardware.Items {
 		switch item.ResourceType {
 		case ova.TypeCPU:
-			var cpus string
-			if opts.CPU < 1 {
-				cpus = fmt.Sprintf("%d", runtime.NumCPU())
-			} else if opts.CPU > 32 {
-				cpus = "32"
-			} else {
-				cpus = fmt.Sprintf("%d", opts.CPU)
+			if vbox.Options.CPU > 0 {
+				importArgs = append(importArgs, "--vsys", "0", "--cpus", fmt.Sprintf("%d", vbox.Options.CPU))
 			}
-			importArgs = append(importArgs, "--vsys", "0", "--cpus", cpus)
 		case ova.TypeMemory:
-			importArgs = append(importArgs, "--vsys", "0", "--memory", fmt.Sprintf("%d", opts.Memory))
+			if vbox.Options.Memory > 0 {
+				importArgs = append(importArgs, "--vsys", "0", "--memory", fmt.Sprintf("%d", vbox.Options.Memory))
+			}
 		}
 	}
 
@@ -151,6 +154,12 @@ func (vbox *Stage) Create() error {
 
 	if err := vbox.VM.ConfigureSharedFolders(getSharedFolders()); err != nil {
 		return err
+	}
+
+	if len(vbox.Options.Modify) > 0 {
+		if err := vbox.VM.Modify(vbox.Options.Modify...); err != nil {
+			return err
+		}
 	}
 
 	return vbox.Start()
@@ -201,6 +210,7 @@ func (vbox *Stage) Start() error {
 		Hostname:          vbox.VM.Name,
 		DefaultUser:       sshOpts.Username,
 		AuthorizedSSHKeys: []string{string(publicKey)},
+		Script:            vbox.Options.Provision,
 	}
 
 	result, err := provision.Provision(sshOpts, provisionConfig)
