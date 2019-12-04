@@ -152,10 +152,6 @@ func (vbox *Stage) Create() error {
 		return errors.Wrap(err, "could not create nat controller")
 	}
 
-	if err := vbox.VM.ConfigureSharedFolders(getSharedFolders()); err != nil {
-		return err
-	}
-
 	if len(vbox.Options.Modify) > 0 {
 		if err := vbox.VM.Modify(vbox.Options.Modify...); err != nil {
 			return err
