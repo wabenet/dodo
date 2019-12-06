@@ -1,4 +1,4 @@
-package main
+package dockermachine
 
 import (
 	"encoding/json"
@@ -205,7 +205,6 @@ func (s *Stage) GetDockerOptions() (*stage.DockerOptions, error) {
 	}
 
 	return &stage.DockerOptions{
-		Version:  stage.DefaultAPIVersion,
 		Host:     dockerHost,
 		CAFile:   filepath.Join(s.basedir, "machines", s.name, "ca.pem"),
 		CertFile: filepath.Join(s.basedir, "machines", s.name, "cert.pem"),

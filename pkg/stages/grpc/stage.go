@@ -1,9 +1,10 @@
-package stage
+package grpc
 
 import (
 	"encoding/json"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/dodo/proto"
 	"github.com/pkg/errors"
@@ -27,7 +28,7 @@ func HandshakeConfig(stageType string) plugin.HandshakeConfig {
 
 type Plugin struct {
 	plugin.NetRPCUnsupportedPlugin
-	Impl Stage
+	Impl stage.Stage
 }
 
 func (p *Plugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server) error {
@@ -91,12 +92,12 @@ func (client *GRPCClient) Available() (bool, error) {
 	return response.Available, nil
 }
 
-func (client *GRPCClient) GetSSHOptions() (*SSHOptions, error) {
+func (client *GRPCClient) GetSSHOptions() (*stage.SSHOptions, error) {
 	response, err := client.client.GetSSHOptions(context.Background(), &proto.Empty{})
 	if err != nil {
 		return nil, err
 	}
-	return &SSHOptions{
+	return &stage.SSHOptions{
 		Hostname:       response.Hostname,
 		Port:           int(response.Port),
 		Username:       response.Username,
@@ -104,12 +105,12 @@ func (client *GRPCClient) GetSSHOptions() (*SSHOptions, error) {
 	}, nil
 }
 
-func (client *GRPCClient) GetDockerOptions() (*DockerOptions, error) {
+func (client *GRPCClient) GetDockerOptions() (*stage.DockerOptions, error) {
 	response, err := client.client.GetDockerOptions(context.Background(), &proto.Empty{})
 	if err != nil {
 		return nil, err
 	}
-	return &DockerOptions{
+	return &stage.DockerOptions{
 		Version:  response.Version,
 		Host:     response.Host,
 		CAFile:   response.CaFile,
@@ -119,7 +120,7 @@ func (client *GRPCClient) GetDockerOptions() (*DockerOptions, error) {
 }
 
 type GRPCServer struct {
-	Impl Stage
+	Impl stage.Stage
 }
 
 func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitRequest) (*proto.InitResponse, error) {

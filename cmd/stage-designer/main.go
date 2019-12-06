@@ -1,5 +1,3 @@
-// +build designer
-
 package main
 
 import (
@@ -8,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/oclaussen/dodo/pkg/stage/designer"
+	"github.com/oclaussen/dodo/pkg/stagedesigner"
 )
 
 func main() {
@@ -17,17 +15,17 @@ func main() {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	config, err := designer.DecodeConfig(configFile)
+	config, err := stagedesigner.DecodeConfig(configFile)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	result, err := designer.Provision(config)
+	result, err := stagedesigner.Provision(config)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
 	}
-	output, err := designer.EncodeResult(result)
+	output, err := stagedesigner.EncodeResult(result)
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)

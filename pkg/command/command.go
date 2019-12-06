@@ -7,6 +7,7 @@ import (
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
 	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/stages/defaults"
 	"github.com/oclaussen/dodo/pkg/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -89,7 +90,7 @@ func NewBuildCommand() *cobra.Command {
 				}
 			}
 
-			s, cleanup, err := stage.Load(conf.Stage, stageConf)
+			s, cleanup, err := defaults.Load(conf.Stage, stageConf)
 			defer cleanup()
 			if err != nil {
 				return err
@@ -167,7 +168,7 @@ func runCommand(opts *options, name string, command []string) error {
 		}
 	}
 
-	s, cleanup, err := stage.Load(conf.Stage, stageConf)
+	s, cleanup, err := defaults.Load(conf.Stage, stageConf)
 	defer cleanup()
 	if err != nil {
 		return err

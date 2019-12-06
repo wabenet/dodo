@@ -23,17 +23,9 @@ test: proto/stage.pb.go
 	go test -cover ./...
 
 .PHONY: build
-build: clean build/cmd build/plugins
-
-.PHONY: build/cmd
-build/cmd: proto/stage.pb.go
+build: proto/stage.pb.go
 	go generate ./...
 	gox -arch="amd64" -os="darwin linux" -output "./bin/{{.Dir}}_{{.OS}}_{{.Arch}}" ./cmd/...
-
-.PHONY: build/plugins
-build/plugins: proto/stage.pb.go
-	go generate ./...
-	gox -arch="amd64" -os="darwin linux" -output "./bin/plugins/{{.Dir}}_{{.OS}}_{{.Arch}}" ./plugins/...
 
 proto/%.pb.go: proto/%.proto
 	protoc --go_out=plugins=grpc:. $<

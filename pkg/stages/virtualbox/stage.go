@@ -1,4 +1,4 @@
-package main
+package virtualbox
 
 import (
 	"crypto/tls"
@@ -13,13 +13,12 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/oclaussen/dodo/pkg/box"
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/integrations/ova"
 	"github.com/oclaussen/dodo/pkg/integrations/virtualbox"
 	"github.com/oclaussen/dodo/pkg/stage"
-	"github.com/oclaussen/dodo/pkg/stage/box"
-	"github.com/oclaussen/dodo/pkg/stage/designer"
-	"github.com/oclaussen/dodo/pkg/stage/provision"
+	"github.com/oclaussen/dodo/pkg/stagedesigner"
 	"github.com/oclaussen/dodo/pkg/types"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
@@ -202,14 +201,14 @@ func (vbox *Stage) Start() error {
 		return err
 	}
 
-	provisionConfig := &designer.Config{
+	provisionConfig := &stagedesigner.Config{
 		Hostname:          vbox.VM.Name,
 		DefaultUser:       sshOpts.Username,
 		AuthorizedSSHKeys: []string{string(publicKey)},
 		Script:            vbox.Options.Provision,
 	}
 
-	result, err := provision.Provision(sshOpts, provisionConfig)
+	result, err := stage.Provision(sshOpts, provisionConfig)
 	if err != nil {
 		return err
 	}

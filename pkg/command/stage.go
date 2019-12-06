@@ -2,7 +2,7 @@ package command
 
 import (
 	"github.com/oclaussen/dodo/pkg/config"
-	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/stages/defaults"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -33,7 +33,7 @@ func NewUpCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, cleanup, err := stage.Load(args[0], conf)
+			s, cleanup, err := defaults.Load(args[0], conf)
 			defer cleanup()
 			if err != nil {
 				return err
@@ -70,7 +70,7 @@ func NewDownCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, cleanup, err := stage.Load(args[0], conf)
+			s, cleanup, err := defaults.Load(args[0], conf)
 			defer cleanup()
 			if err != nil {
 				return err
@@ -100,7 +100,7 @@ func NewSSHCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, cleanup, err := stage.Load(args[0], conf)
+			s, cleanup, err := defaults.Load(args[0], conf)
 			defer cleanup()
 			if err != nil {
 				return err

@@ -13,7 +13,7 @@ var fs http.FileSystem = http.Dir("./assets/")
 
 func main() {
 	err := vfsgen.Generate(fs, vfsgen.Options{
-		PackageName:  "provision",
+		PackageName:  "stage",
 		VariableName: "Assets",
 		BuildTags:    "!designer",
 	})
