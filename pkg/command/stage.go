@@ -2,7 +2,7 @@ package command
 
 import (
 	"github.com/oclaussen/dodo/pkg/config"
-	"github.com/oclaussen/dodo/pkg/stages/defaults"
+	"github.com/oclaussen/dodo/pkg/stages/defaultchain"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -33,10 +33,11 @@ func NewUpCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, cleanup, err := defaults.Load(args[0], conf)
-			defer cleanup()
-			if err != nil {
-				return err
+
+			s := &defaultchain.Stage{}
+			defer s.Cleanup()
+			if err := s.Initialize(args[0], conf); err != nil {
+				return errors.Wrap(err, "initialization failed")
 			}
 
 			exist, err := s.Exist()
@@ -70,10 +71,11 @@ func NewDownCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, cleanup, err := defaults.Load(args[0], conf)
-			defer cleanup()
-			if err != nil {
-				return err
+
+			s := &defaultchain.Stage{}
+			defer s.Cleanup()
+			if err := s.Initialize(args[0], conf); err != nil {
+				return errors.Wrap(err, "initialization failed")
 			}
 
 			if opts.remove {
@@ -100,10 +102,11 @@ func NewSSHCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			s, cleanup, err := defaults.Load(args[0], conf)
-			defer cleanup()
-			if err != nil {
-				return err
+
+			s := &defaultchain.Stage{}
+			defer s.Cleanup()
+			if err := s.Initialize(args[0], conf); err != nil {
+				return errors.Wrap(err, "initialization failed")
 			}
 
 			available, err := s.Available()

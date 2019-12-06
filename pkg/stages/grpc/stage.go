@@ -1,195 +1,108 @@
 package grpc
 
 import (
-	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/types"
-	"github.com/oclaussen/dodo/proto"
+	"github.com/oclaussen/go-gimme/configfiles"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
-const ProtocolVersion = 1
-
-var PluginMap = map[string]plugin.Plugin{
-	"stage": &Plugin{},
+type Stage struct {
+	wrapped stage.Stage
+	client  *plugin.Client
 }
 
-func HandshakeConfig(stageType string) plugin.HandshakeConfig {
-	return plugin.HandshakeConfig{
-		ProtocolVersion:  ProtocolVersion,
-		MagicCookieKey:   "DODO_STAGE",
-		MagicCookieValue: stageType,
-	}
-}
-
-type Plugin struct {
-	plugin.NetRPCUnsupportedPlugin
-	Impl stage.Stage
-}
-
-func (p *Plugin) GRPCServer(_ *plugin.GRPCBroker, server *grpc.Server) error {
-	proto.RegisterStageServer(server, &GRPCServer{Impl: p.Impl})
-	return nil
-}
-
-func (p *Plugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, client *grpc.ClientConn) (interface{}, error) {
-	return &GRPCClient{client: proto.NewStageClient(client)}, nil
-}
-
-type GRPCClient struct {
-	client proto.StageClient
-}
-
-func (client *GRPCClient) Initialize(name string, config *types.Stage) (bool, error) {
-	jsonBytes, err := json.Marshal(config)
+func (s *Stage) Initialize(name string, conf *types.Stage) error {
+	path, err := findPluginExecutable(conf.Type)
 	if err != nil {
-		return false, errors.Wrap(err, "could not marshal json")
+		return err
 	}
-	response, err := client.client.Initialize(context.Background(), &proto.InitRequest{Name: name, Config: string(jsonBytes)})
+
+	s.client = plugin.NewClient(&plugin.ClientConfig{
+		HandshakeConfig:  HandshakeConfig(conf.Type),
+		Plugins:          PluginMap,
+		Cmd:              exec.Command(path),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC, plugin.ProtocolGRPC},
+		Logger:           stage.NewPluginLogger(),
+	})
+
+	c, err := s.client.Client()
 	if err != nil {
-		return false, err
+		return err
 	}
-	return response.Success, nil
-}
-
-func (client *GRPCClient) Create() error {
-	_, err := client.client.Create(context.Background(), &proto.Empty{})
-	return err
-}
-
-func (client *GRPCClient) Remove(force bool) error {
-	_, err := client.client.Remove(context.Background(), &proto.RemoveRequest{Force: force})
-	return err
-}
-
-func (client *GRPCClient) Start() error {
-	_, err := client.client.Start(context.Background(), &proto.Empty{})
-	return err
-}
-
-func (client *GRPCClient) Stop() error {
-	_, err := client.client.Stop(context.Background(), &proto.Empty{})
-	return err
-}
-
-func (client *GRPCClient) Exist() (bool, error) {
-	response, err := client.client.Exist(context.Background(), &proto.Empty{})
+	raw, err := c.Dispense("stage")
 	if err != nil {
-		return false, err
+		return err
 	}
-	return response.Exist, nil
+
+	s.wrapped = raw.(stage.Stage)
+	return s.wrapped.Initialize(name, conf)
 }
 
-func (client *GRPCClient) Available() (bool, error) {
-	response, err := client.client.Available(context.Background(), &proto.Empty{})
+func findPluginExecutable(name string) (string, error) {
+	directories, err := configfiles.GimmeConfigDirectories(&configfiles.Options{
+		Name:                      "dodo",
+		IncludeWorkingDirectories: true,
+	})
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	return response.Available, nil
-}
 
-func (client *GRPCClient) GetSSHOptions() (*stage.SSHOptions, error) {
-	response, err := client.client.GetSSHOptions(context.Background(), &proto.Empty{})
-	if err != nil {
-		return nil, err
+	filename := fmt.Sprintf("plugin-%s_%s_%s", name, runtime.GOOS, runtime.GOARCH)
+	for _, dir := range directories {
+		path := filepath.Join(dir, ".dodo", "plugins", filename)
+		if stat, err := os.Stat(path); err == nil && stat.Mode().Perm()&0111 != 0 {
+			return path, nil
+		}
 	}
-	return &stage.SSHOptions{
-		Hostname:       response.Hostname,
-		Port:           int(response.Port),
-		Username:       response.Username,
-		PrivateKeyFile: response.PrivateKeyFile,
-	}, nil
+
+	return "", errors.New("could not find a suitable plugin for the stage anywhere")
 }
 
-func (client *GRPCClient) GetDockerOptions() (*stage.DockerOptions, error) {
-	response, err := client.client.GetDockerOptions(context.Background(), &proto.Empty{})
-	if err != nil {
-		return nil, err
+func (s *Stage) Cleanup() {
+	if s.wrapped != nil {
+		s.wrapped.Cleanup()
 	}
-	return &stage.DockerOptions{
-		Version:  response.Version,
-		Host:     response.Host,
-		CAFile:   response.CaFile,
-		CertFile: response.CertFile,
-		KeyFile:  response.KeyFile,
-	}, nil
-}
-
-type GRPCServer struct {
-	Impl stage.Stage
-}
-
-func (server *GRPCServer) Initialize(ctx context.Context, request *proto.InitRequest) (*proto.InitResponse, error) {
-	var config types.Stage
-	if err := json.Unmarshal([]byte(request.Config), &config); err != nil {
-		return nil, errors.Wrap(err, "could not unmarshal json")
+	if s.client != nil {
+		s.client.Kill()
 	}
-	success, err := server.Impl.Initialize(request.Name, &config)
-	if err != nil {
-		return nil, err
-	}
-	return &proto.InitResponse{Success: success}, nil
 }
 
-func (server *GRPCServer) Create(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
-	return &proto.Empty{}, server.Impl.Create()
+func (s *Stage) Create() error {
+	return s.wrapped.Create()
 }
 
-func (server *GRPCServer) Remove(ctx context.Context, request *proto.RemoveRequest) (*proto.Empty, error) {
-	return &proto.Empty{}, server.Impl.Remove(request.Force)
+func (s *Stage) Start() error {
+	return s.wrapped.Start()
 }
 
-func (server *GRPCServer) Start(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
-	return &proto.Empty{}, server.Impl.Start()
+func (s *Stage) Stop() error {
+	return s.wrapped.Stop()
 }
 
-func (server *GRPCServer) Stop(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
-	return &proto.Empty{}, server.Impl.Stop()
+func (s *Stage) Remove(force bool) error {
+	return s.wrapped.Remove(force)
 }
 
-func (server *GRPCServer) Exist(ctx context.Context, _ *proto.Empty) (*proto.ExistResponse, error) {
-	exist, err := server.Impl.Exist()
-	if err != nil {
-		return nil, err
-	}
-	return &proto.ExistResponse{Exist: exist}, nil
+func (s *Stage) Exist() (bool, error) {
+	return s.wrapped.Exist()
 }
 
-func (server *GRPCServer) Available(ctx context.Context, _ *proto.Empty) (*proto.AvailableResponse, error) {
-	available, err := server.Impl.Available()
-	if err != nil {
-		return nil, err
-	}
-	return &proto.AvailableResponse{Available: available}, nil
+func (s *Stage) Available() (bool, error) {
+	return s.wrapped.Available()
 }
 
-func (server *GRPCServer) GetSSHOptions(ctx context.Context, _ *proto.Empty) (*proto.SSHOptionsResponse, error) {
-	opts, err := server.Impl.GetSSHOptions()
-	if err != nil {
-		return nil, err
-	}
-	return &proto.SSHOptionsResponse{
-		Hostname:       opts.Hostname,
-		Port:           int32(opts.Port),
-		Username:       opts.Username,
-		PrivateKeyFile: opts.PrivateKeyFile,
-	}, nil
+func (s *Stage) GetSSHOptions() (*stage.SSHOptions, error) {
+	return s.wrapped.GetSSHOptions()
 }
 
-func (server *GRPCServer) GetDockerOptions(ctx context.Context, _ *proto.Empty) (*proto.DockerOptionsResponse, error) {
-	opts, err := server.Impl.GetDockerOptions()
-	if err != nil {
-		return nil, err
-	}
-	return &proto.DockerOptionsResponse{
-		Version:  opts.Version,
-		Host:     opts.Host,
-		CaFile:   opts.CAFile,
-		CertFile: opts.CertFile,
-		KeyFile:  opts.KeyFile,
-	}, nil
+func (s *Stage) GetDockerOptions() (*stage.DockerOptions, error) {
+	return s.wrapped.GetDockerOptions()
 }

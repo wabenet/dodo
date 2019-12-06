@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const defaultPort = 2376 // TODO: get this from docker directly
+const defaultPort = 2376
 
 type Stage struct {
 	VM          *virtualbox.VM
@@ -43,10 +43,10 @@ type Options struct {
 	Provision []string
 }
 
-func (vbox *Stage) Initialize(name string, conf *types.Stage) (bool, error) {
+func (vbox *Stage) Initialize(name string, conf *types.Stage) error {
 	vbox.Options = &Options{}
 	if err := mapstructure.Decode(conf.Options, vbox.Options); err != nil {
-		return false, err
+		return err
 	}
 
 	if len(vbox.Options.Name) > 0 {
@@ -59,11 +59,13 @@ func (vbox *Stage) Initialize(name string, conf *types.Stage) (bool, error) {
 	vbox.StoragePath = filepath.Join(config.GetStagesDir(), name)
 
 	if err := vbox.loadState(); err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
+
+func (s *Stage) Cleanup() {}
 
 func (vbox *Stage) Create() error {
 	if err := os.MkdirAll(vbox.StoragePath, 0700); err != nil {

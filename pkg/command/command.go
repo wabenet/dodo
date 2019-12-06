@@ -7,8 +7,9 @@ import (
 	"github.com/oclaussen/dodo/pkg/container"
 	"github.com/oclaussen/dodo/pkg/image"
 	"github.com/oclaussen/dodo/pkg/stage"
-	"github.com/oclaussen/dodo/pkg/stages/defaults"
+	"github.com/oclaussen/dodo/pkg/stages/defaultchain"
 	"github.com/oclaussen/dodo/pkg/types"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -90,10 +91,10 @@ func NewBuildCommand() *cobra.Command {
 				}
 			}
 
-			s, cleanup, err := defaults.Load(conf.Stage, stageConf)
-			defer cleanup()
-			if err != nil {
-				return err
+			s := &defaultchain.Stage{}
+			defer s.Cleanup()
+			if err := s.Initialize(conf.Stage, stageConf); err != nil {
+				return errors.Wrap(err, "initialization failed")
 			}
 
 			dockerClient, err := stage.GetDockerClient(s)
@@ -168,10 +169,10 @@ func runCommand(opts *options, name string, command []string) error {
 		}
 	}
 
-	s, cleanup, err := defaults.Load(conf.Stage, stageConf)
-	defer cleanup()
-	if err != nil {
-		return err
+	s := &defaultchain.Stage{}
+	defer s.Cleanup()
+	if err := s.Initialize(conf.Stage, stageConf); err != nil {
+		return errors.Wrap(err, "initialization failed")
 	}
 
 	dockerClient, err := stage.GetDockerClient(s)

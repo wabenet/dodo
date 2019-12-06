@@ -8,10 +8,6 @@ message InitRequest {
   string config = 3;
 }
 
-message InitResponse {
-  bool success = 1;
-}
-
 message RemoveRequest {
   bool force = 1;
 }
@@ -40,7 +36,7 @@ message DockerOptionsResponse {
 }
 
 service Stage {
-  rpc Initialize(InitRequest) returns (InitResponse);
+  rpc Initialize(InitRequest) returns (Empty);
   rpc Create(Empty) returns (Empty);
   rpc Remove(RemoveRequest) returns (Empty);
   rpc Start(Empty) returns (Empty);

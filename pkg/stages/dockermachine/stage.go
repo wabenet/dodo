@@ -31,10 +31,10 @@ type Options struct {
 	Driver string
 }
 
-func (s *Stage) Initialize(name string, config *types.Stage) (bool, error) {
+func (s *Stage) Initialize(name string, config *types.Stage) error {
 	s.Options = &Options{}
 	if err := mapstructure.Decode(config.Options, s.Options); err != nil {
-		return false, err
+		return err
 	}
 
 	if len(s.Options.Driver) == 0 {
@@ -43,14 +43,16 @@ func (s *Stage) Initialize(name string, config *types.Stage) (bool, error) {
 
 	user, err := user.Current()
 	if err != nil || user.HomeDir == "" {
-		return false, errors.New("could not determine home directory")
+		return errors.New("could not determine home directory")
 	}
 
 	s.name = name
 	s.basedir = filepath.Join(user.HomeDir, ".docker", "machine")
 	s.api = libmachine.NewClient(s.basedir, filepath.Join(s.basedir, "certs"))
-	return true, nil
+	return nil
 }
+
+func (s *Stage) Cleanup() {}
 
 func (s *Stage) Create() error {
 	driverConfig, _ := json.Marshal(&drivers.BaseDriver{

@@ -10,13 +10,15 @@ type Stage struct {
 	Options *stage.DockerOptions
 }
 
-func (s *Stage) Initialize(_ string, config *types.Stage) (bool, error) {
+func (s *Stage) Initialize(_ string, config *types.Stage) error {
 	s.Options = &stage.DockerOptions{}
 	if err := mapstructure.Decode(config.Options, s.Options); err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
+
+func (s *Stage) Cleanup() {}
 
 func (s *Stage) Create() error {
 	return nil

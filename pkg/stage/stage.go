@@ -11,7 +11,8 @@ const (
 )
 
 type Stage interface {
-	Initialize(string, *types.Stage) (bool, error)
+	Initialize(string, *types.Stage) error
+	Cleanup()
 	Create() error
 	Start() error
 	Stop() error

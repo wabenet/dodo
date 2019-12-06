@@ -12,7 +12,7 @@ type Stage struct {
 	Options *stage.DockerOptions
 }
 
-func (s *Stage) Initialize(_ string, _ *types.Stage) (bool, error) {
+func (s *Stage) Initialize(_ string, _ *types.Stage) error {
 	opts := &stage.DockerOptions{
 		Host: os.Getenv("DOCKER_HOST"),
 	}
@@ -25,8 +25,10 @@ func (s *Stage) Initialize(_ string, _ *types.Stage) (bool, error) {
 		opts.KeyFile = filepath.Join(certPath, "key.pem")
 	}
 	s.Options = opts
-	return true, nil
+	return nil
 }
+
+func (s *Stage) Cleanup() {}
 
 func (s *Stage) Create() error {
 	return nil
