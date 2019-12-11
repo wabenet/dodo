@@ -61,10 +61,12 @@ Available Commands:
   help        Help about any command
   list        List available all backdrop configurations
   run         Same as running 'dodo [name]', can be used when a backdrop name collides with a top-level command
+  stage       Manage stages
   validate    Validate configuration files for syntax errors
 
 Flags:
       --build                      always build an image, even if already exists
+      --forward-stage              forward stage information into container, so dodo can be used inside the container
   -e, --env stringArray            Set environment variables
   -h, --help                       help for dodo
   -i, --interactive                run an interactive session
@@ -73,6 +75,7 @@ Flags:
   -p, --publish stringArray        Publish a container's port(s) to the host
       --pull                       always attempt to pull a newer version of the image
       --rm                         automatically remove the container when it exits
+  -s, --stage string               stage to user for docker daemon
   -u, --user string                Username or UID (format: <name|uid>[:<group|gid>])
   -v, --volume stringArray         Bind mount a volume
       --volumes-from stringArray   Mount volumes from the specified container(s)
@@ -92,7 +95,7 @@ The configuration file name is some variation of `dodo.yml`. Either with a `.yml
 or `.yaml` or even `.json` extension, and an optional leading dot.
 
 The configuration format is very similar to docker-compose. The top level item
-is always `backdrops`, which is a mapping from backdrop names to configurations,
+is usually `backdrops`, which is a mapping from backdrop names to configurations,
 similar to compose services. The biggest difference is how the entrypoint (and
 command) works. Instead of `entrypoint`, there is usually a `script` block,
 that will be copied over to the container. The docker entrypoint will then
@@ -154,50 +157,100 @@ Another example is the `dodo.yaml` in this very repository, which allows you
 to build the tool without any requirements other than dodo itself and of
 course docker.
 
-### config reference
+### stages (experimental)
 
-* `include`: is a list of objects that allow the following options:
-  * `file`: Absolute path to a valid dodo configuration file. The file will be
-    parsed and merged into the current file.
-  * `text`: A YAML document that is a valid dodo configuration file. The document
-    will be parsed and merged into the current file. Useful with templating to
-    generate configuration with other tools.
+An experimental support for managing `stages` is implemented. Stages are places
+where backdrops can run, in other words environments with a docker daemon. By
+default, only the `environment` stage is available, which means that dodo will
+pick up the docker host configuration from environment variables, exactly like
+the normal docker client would. In additions, a plugin system exists that allows
+for more stage options. To install a stage plugin, fetch one of the binaries from
+the [releases](/releases) page and drop it into your `~/.dodo/plugins` directory.
+Currently these plugins are available:
 
-* `backdrops`: a map of backdrop names to configurations:
-  * `aliases`: a list of aliases that can be used instead of the backdrop name to run it
-  * `image`, `build`: defines configuration for building the docker image. Can be either
-    a string containing an existing docker image, or an object with:
-    * `name`: a name for the resulting image, will be used for dependency resolution
-    * `context`: path to the build context
-    * `dockerfile`: path to the dockerfile (relative to the build context)
-    * `steps`, `inline`: list of additional steps to perform on the docker image. Can be
-      used as an inline dockerfile.
-    * `args`, `arguments`: build arguments for the image
-    * `secrets`: secrets used for building
-    * `ssh`: ssh agent connfiguration used for building
-    * `no_cache`: set to true to disable the docker cache during build
-    * `force_rebuild`: always rebuild the image, even if an image with the
-      specified name already exists
-    * `force_pull`: always pull the base image, even if it already exists
-    * `requires`, `dependencies`: list of image names that are required to build
-      this image. Backdrop configurations are searched for image declarations with
-      this name and build before this image.
-  * `container_name`: set the container name
-  * `remove`, `rm`: always remove the container after running (defaults to `true`)
-  * `environment`, `env`: set environment variables
-  * `volumes`: list of additional volumes to mount. Only bind-mount volumes are
-    currently supported.
-  * `volumes_from`: mount volumes from an existing container
-  * `ports`: expose ports from the container
-  * `user`: set the uid inside the container
-  * `workdir`, `working_dir`: set the working directory inside the container
-  * `script`: the script that should be executed
-  * `interpreter`: set the interpreter that should execute the script (defaults to
-    `/bin/sh`)
-  * `command`: arguments that will be passed to the script by default. Will be
-    overwritten by any command line arguments.
-  * `interactive`: try to start an interactive session by setting the docker
-    entrypoint to the interpreter only, skipping the script and command
+* `docker-machine`: Simply delegates all actions to a docker-machine instance
+  with the same name as the stage. Requires docker-machine and the respective
+  drivers to be installed on the system.
+
+* `virtualbox`: Manages a VirtualBox VM based on a Vagrant box as a stage. This
+  is basically a weird cross between a custom docker-machine and vagrant
+  implementation, to allow for a bit more customization for your local setup.
+
+The whole stage API is very likely to change quite a bit in the future. For now,
+it is just a simple proof of concept. In future releases, it is planned to run
+dodo backdrops on remote systems by using stages based on EC2 or Kubernetes pods.
+
+## config reference
+
+### backdrops
+
+Backdrops are the main components of dodo. Each backdrop is a template for a
+docker container that acts as runtime environment for a script. The top-level
+configuration object is `backdrops`, which is a map of backdrop names to objects
+with the following options:
+
+* `aliases`: a list of aliases that can be used instead of the backdrop name to run it
+* `image`, `build`: defines configuration for building the docker image. Can be either
+  a string containing an existing docker image, or an object with:
+  * `name`: a name for the resulting image, will be used for dependency resolution
+  * `context`: path to the build context
+  * `dockerfile`: path to the dockerfile (relative to the build context)
+  * `steps`, `inline`: list of additional steps to perform on the docker image. Can be
+    used as an inline dockerfile.
+  * `args`, `arguments`: build arguments for the image
+  * `secrets`: secrets used for building
+  * `ssh`: ssh agent connfiguration used for building
+  * `no_cache`: set to true to disable the docker cache during build
+  * `force_rebuild`: always rebuild the image, even if an image with the
+    specified name already exists
+  * `force_pull`: always pull the base image, even if it already exists
+  * `requires`, `dependencies`: list of image names that are required to build
+    this image. Backdrop configurations are searched for image declarations with
+    this name and build before this image.
+* `container_name`: set the container name
+* `remove`, `rm`: always remove the container after running (defaults to `true`)
+* `environment`, `env`: set environment variables
+* `volumes`: list of additional volumes to mount. Only bind-mount volumes are
+  currently supported.
+* `volumes_from`: mount volumes from an existing container
+* `ports`: expose ports from the container
+* `user`: set the uid inside the container
+* `workdir`, `working_dir`: set the working directory inside the container
+* `script`: the script that should be executed
+* `interpreter`: set the interpreter that should execute the script (defaults to
+  `/bin/sh`)
+* `command`: arguments that will be passed to the script by default. Will be
+  overwritten by any command line arguments.
+* `interactive`: try to start an interactive session by setting the docker
+  entrypoint to the interpreter only, skipping the script and command
+
+### stages
+
+Stages are places to put backdrops, in other words an environment running a docker
+daemon. Stages are still experimental, so the configuration is not defined too
+well yet. The top-level configuration object is `stages`, which is a map of
+stage names to objects with the following options:
+
+* `type`: the type of stage, usually the name of a plugin to invoke to manage it
+* `box`: configuration that defines a Vagrant that should be used for the stage,
+  provided the stage plugin supports Vagrant. The following options are allowed:
+  * `user`: the Vagrant cloud user that provides the box
+  * `name`: name of the Vagrant box
+  * `version`: version of the Vagrant box
+  * `access_token`: Vagrant cloud access token to access private boxes
+* `options`: additional options, that are passed directly to the plugin
+
+### includes
+
+Includes allow merging additional files or output of commands into the current
+configuration. This is often useful with templating to generate configuration
+from other tools. The top-level configuration object is `include`, which is a
+list of objects with the following options:
+
+* `file`: Absolute path to a valid dodo configuration file. The file will be
+  parsed and merged into the current file.
+* `text`: A YAML document that is a valid dodo configuration file. The document
+  will be parsed and merged into the current file.
 
 ### templating
 
