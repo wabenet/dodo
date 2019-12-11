@@ -175,6 +175,7 @@ func runCommand(opts *options, name string, command []string) error {
 		return errors.Wrap(err, "initialization failed")
 	}
 
+	// TODO: currently we create the client twice, here and in container
 	dockerClient, err := stage.GetDockerClient(s)
 	if err != nil {
 		return err
@@ -189,7 +190,7 @@ func runCommand(opts *options, name string, command []string) error {
 		return err
 	}
 
-	container, err := container.NewContainer(dockerClient, conf)
+	container, err := container.NewContainer(conf, s)
 	if err != nil {
 		return err
 	}

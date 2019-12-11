@@ -96,6 +96,14 @@ func RestartDocker() error {
 	return nil
 }
 
+func AddDockerUser(user string) error {
+	if usermod, err := exec.LookPath("usermod"); err == nil {
+		return exec.Command(usermod, "-a", "-G", "docker", user).Run()
+	}
+	log.Warn("could not modify user")
+	return nil
+}
+
 func ConfigureDocker(config *DockerConfig) error {
 	caPath := filepath.Join(dockerConfigDir, "ca.pem")
 	certPath := filepath.Join(dockerConfigDir, "server.pem")
@@ -154,5 +162,6 @@ func ConfigureDocker(config *DockerConfig) error {
 			return err
 		}
 	}
+
 	return nil
 }

@@ -1,6 +1,8 @@
 package container
 
 import (
+	"path"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 )
@@ -15,7 +17,7 @@ func (c *Container) create(image string, tty bool) (string, error) {
 	if c.config.Interactive {
 		command = nil
 	} else if len(c.config.Script) > 0 {
-		entrypoint = append(entrypoint, c.scriptPath)
+		entrypoint = append(entrypoint, path.Join(c.tmpPath, "entrypoint"))
 	}
 
 	response, err := c.client.ContainerCreate(

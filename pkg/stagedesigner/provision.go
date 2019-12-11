@@ -59,6 +59,10 @@ func Provision(config *Config) (*ProvisionResult, error) {
 		return nil, err
 	}
 
+	if err := AddDockerUser(config.DefaultUser); err != nil {
+		return nil, err
+	}
+
 	log.Info("starting docker...")
 	if err := RestartDocker(); err != nil {
 		return nil, err

@@ -9,6 +9,7 @@ type Backdrops map[string]Backdrop
 type Backdrop struct {
 	Aliases       []string
 	Stage         string
+	ForwardStage  bool
 	Image         *Image
 	ContainerName string
 	Remove        *bool
@@ -31,6 +32,9 @@ func (target *Backdrop) Merge(source *Backdrop) {
 	target.Aliases = append(target.Aliases, source.Aliases...)
 	if len(source.Stage) > 0 {
 		target.Stage = source.Stage
+	}
+	if source.ForwardStage {
+		target.ForwardStage = true
 	}
 	if source.Image != nil {
 		target.Image.Merge(source.Image)
@@ -107,6 +111,12 @@ func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, err
 					return result, err
 				}
 				result.Stage = decoded
+			case "forward_stage":
+				decoded, err := d.DecodeBool(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.ForwardStage = decoded
 			case "build", "image":
 				decoded, err := d.DecodeImage(key, v)
 				if err != nil {

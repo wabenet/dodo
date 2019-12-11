@@ -25,7 +25,7 @@ func (s *Stage) Initialize(name string, conf *types.Stage) error {
 			continue
 		}
 
-		switch conf.Type {
+		switch currentConfig.Type {
 		case "environment":
 			s.current = &environment.Stage{}
 		case "generic":

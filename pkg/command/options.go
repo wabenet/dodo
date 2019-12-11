@@ -6,19 +6,20 @@ import (
 )
 
 type options struct {
-	interactive bool
-	remove      bool
-	noRemove    bool
-	build       bool
-	noCache     bool
-	pull        bool
-	stage       string
-	user        string
-	workdir     string
-	volumes     []string
-	volumesFrom []string
-	environment []string
-	publish     []string
+	interactive  bool
+	remove       bool
+	noRemove     bool
+	build        bool
+	noCache      bool
+	pull         bool
+	stage        string
+	forwardStage bool
+	user         string
+	workdir      string
+	volumes      []string
+	volumesFrom  []string
+	environment  []string
+	publish      []string
 }
 
 func (opts *options) createFlags(cmd *cobra.Command) {
@@ -46,6 +47,9 @@ func (opts *options) createFlags(cmd *cobra.Command) {
 	flags.StringVarP(
 		&opts.stage, "stage", "s", "",
 		"stage to user for docker daemon")
+	flags.BoolVarP(
+		&opts.forwardStage, "forward-stage", "", false,
+		"forward stage information into container, so dodo can be used inside the container")
 	flags.StringVarP(
 		&opts.user, "user", "u", "",
 		"username or UID (format: <name|uid>[:<group|gid>])")
@@ -73,12 +77,13 @@ func (opts *options) createConfig(command []string) (*types.Backdrop, error) {
 			NoCache:      opts.noCache,
 			ForcePull:    opts.pull,
 		},
-		Interactive: opts.interactive,
-		Stage:       opts.stage,
-		User:        opts.user,
-		WorkingDir:  opts.workdir,
-		VolumesFrom: opts.volumesFrom,
-		Command:     command,
+		Interactive:  opts.interactive,
+		Stage:        opts.stage,
+		ForwardStage: opts.forwardStage,
+		User:         opts.user,
+		WorkingDir:   opts.workdir,
+		VolumesFrom:  opts.volumesFrom,
+		Command:      command,
 	}
 
 	if opts.noRemove {
