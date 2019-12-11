@@ -26,8 +26,12 @@ branches:
 deploy:
   provider: releases
   file:
-    - dodo_linux_amd64
-    - dodo_darwin_amd64
+    - bin/dodo_linux_amd64
+    - bin/dodo_darwin_amd64
+    - bin/plugin-docker-machine_linux_amd64
+    - bin/plugin-docker-machine_darwin_amd64
+    - bin/plugin-virtualbox_linux_amd64
+    - bin/plugin-virtualbox_darwin_amd64
   skip_cleanup: true
   on:
     tags: true
