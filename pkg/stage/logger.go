@@ -20,7 +20,7 @@ func NewPluginLogger() hclog.Logger {
 	return &PluginLogger{
 		logger: &logrus.Logger{
 			Out:       os.Stderr,
-			Level:     logrus.InfoLevel,
+			Level:     logrus.GetLevel(),
 			Formatter: new(logrus.TextFormatter),
 		},
 	}

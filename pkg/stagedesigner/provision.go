@@ -30,7 +30,7 @@ func Provision(config *Config) (*ProvisionResult, error) {
 
 	log.Info("running provision script...")
 	for _, script := range config.Script {
-		if err := exec.Command("/bin/sh", "-c", script).Run(); err != nil {
+		if _, err := exec.Command("/bin/sh", "-c", script).CombinedOutput(); err != nil {
 			return nil, err
 		}
 	}

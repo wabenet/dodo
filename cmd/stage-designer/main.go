@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/oclaussen/dodo/pkg/stagedesigner"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
+	log.SetFormatter(new(log.JSONFormatter))
+
 	configFile, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
