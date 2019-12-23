@@ -29,6 +29,7 @@ const defaultPort = 2376
 
 type Stage struct {
 	VM          *virtualbox.VM
+	Config      *types.Stage
 	Options     *Options
 	Box         *types.Box
 	State       *State
@@ -44,6 +45,8 @@ type Options struct {
 }
 
 func (vbox *Stage) Initialize(name string, conf *types.Stage) error {
+	vbox.Config = conf
+
 	vbox.Options = &Options{}
 	if err := mapstructure.Decode(conf.Options, vbox.Options); err != nil {
 		return err
@@ -55,7 +58,6 @@ func (vbox *Stage) Initialize(name string, conf *types.Stage) error {
 		vbox.VM = &virtualbox.VM{Name: name}
 	}
 
-	vbox.Box = &conf.Box
 	vbox.StoragePath = filepath.Join(config.GetStagesDir(), name)
 
 	if err := vbox.loadState(); err != nil {
@@ -77,7 +79,7 @@ func (vbox *Stage) Create() error {
 		return errors.Wrap(err, "could not generate SSH key")
 	}
 
-	b, err := box.Load(vbox.Box, "virtualbox")
+	b, err := box.Load(&vbox.Config.Box, "virtualbox")
 	if err != nil {
 		return errors.Wrap(err, "could not load box")
 	}
@@ -155,6 +157,26 @@ func (vbox *Stage) Create() error {
 
 	if len(vbox.Options.Modify) > 0 {
 		if err := vbox.VM.Modify(vbox.Options.Modify...); err != nil {
+			return err
+		}
+	}
+
+	sataController, err := vbox.VM.GetStorageController(virtualbox.SATA)
+	if err != nil {
+		return err
+	}
+
+	numDisks := len(sataController.Disks)
+	for index, volume := range vbox.Config.Volumes {
+		// TODO: persist disks
+		disk := virtualbox.Disk{
+			Path: filepath.Join(vbox.StoragePath, fmt.Sprintf("disk-%d.vmdk", index)),
+			Size: volume.Size,
+		}
+		if err := disk.Create(); err != nil {
+			return err
+		}
+		if err := sataController.AttachDisk(numDisks+index, &disk); err != nil {
 			return err
 		}
 	}
