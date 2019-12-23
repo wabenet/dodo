@@ -1,8 +1,7 @@
 package command
 
 import (
-	"github.com/oclaussen/dodo/pkg/config"
-	"github.com/oclaussen/dodo/pkg/stages/defaultchain"
+	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/go-gimme/ssh"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -29,26 +28,17 @@ func NewUpCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-			conf, err := config.LoadStage(args[0])
-			if err != nil {
-				return err
-			}
+			return withStage(args[0], func(s stage.Stage) error {
+				exist, err := s.Exist()
+				if err != nil {
+					return err
+				}
 
-			s := &defaultchain.Stage{}
-			defer s.Cleanup()
-			if err := s.Initialize(args[0], conf); err != nil {
-				return errors.Wrap(err, "initialization failed")
-			}
-
-			exist, err := s.Exist()
-			if err != nil {
-				return err
-			}
-
-			if !exist {
-				return s.Create()
-			}
-			return s.Start()
+				if !exist {
+					return s.Create()
+				}
+				return s.Start()
+			})
 		},
 	}
 }
@@ -66,22 +56,12 @@ func NewDownCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-			// TODO: do we actually need the config?
-			conf, err := config.LoadStage(args[0])
-			if err != nil {
-				return err
-			}
-
-			s := &defaultchain.Stage{}
-			defer s.Cleanup()
-			if err := s.Initialize(args[0], conf); err != nil {
-				return errors.Wrap(err, "initialization failed")
-			}
-
-			if opts.remove {
-				return s.Remove(opts.force)
-			}
-			return s.Stop()
+			return withStage(args[0], func(s stage.Stage) error {
+				if opts.remove {
+					return s.Remove(opts.force)
+				}
+				return s.Stop()
+			})
 		},
 	}
 	flags := cmd.Flags()
@@ -97,38 +77,28 @@ func NewSSHCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-			// TODO: do we actually need the config?
-			conf, err := config.LoadStage(args[0])
-			if err != nil {
-				return err
-			}
+			return withStage(args[0], func(s stage.Stage) error {
+				available, err := s.Available()
+				if err != nil {
+					return err
+				}
 
-			s := &defaultchain.Stage{}
-			defer s.Cleanup()
-			if err := s.Initialize(args[0], conf); err != nil {
-				return errors.Wrap(err, "initialization failed")
-			}
+				if !available {
+					return errors.New("stage is not up")
+				}
 
-			available, err := s.Available()
-			if err != nil {
-				return err
-			}
+				opts, err := s.GetSSHOptions()
+				if err != nil {
+					return err
+				}
 
-			if !available {
-				return errors.New("stage is not up")
-			}
-
-			opts, err := s.GetSSHOptions()
-			if err != nil {
-				return err
-			}
-
-			return ssh.GimmeShell(&ssh.Options{
-				Host:              opts.Hostname,
-				Port:              opts.Port,
-				User:              opts.Username,
-				IdentityFileGlobs: []string{opts.PrivateKeyFile},
-				NonInteractive:    true,
+				return ssh.GimmeShell(&ssh.Options{
+					Host:              opts.Hostname,
+					Port:              opts.Port,
+					User:              opts.Username,
+					IdentityFileGlobs: []string{opts.PrivateKeyFile},
+					NonInteractive:    true,
+				})
 			})
 		},
 	}

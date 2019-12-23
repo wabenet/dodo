@@ -7,6 +7,7 @@ import (
 type Backdrops map[string]Backdrop
 
 type Backdrop struct {
+	Name          string
 	Aliases       []string
 	Stage         string
 	ForwardStage  bool
@@ -29,6 +30,9 @@ type Backdrop struct {
 }
 
 func (target *Backdrop) Merge(source *Backdrop) {
+	if len(source.Name) > 0 {
+		target.Name = source.Name
+	}
 	target.Aliases = append(target.Aliases, source.Aliases...)
 	if len(source.Stage) > 0 {
 		target.Stage = source.Stage
@@ -94,7 +98,7 @@ func (d *decoder) DecodeBackdrops(name string, config interface{}) (Backdrops, e
 }
 
 func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, error) {
-	result := Backdrop{filename: d.filename}
+	result := Backdrop{Name: name, filename: d.filename}
 	switch t := reflect.ValueOf(config); t.Kind() {
 	case reflect.Map:
 		for k, v := range t.Interface().(map[interface{}]interface{}) {

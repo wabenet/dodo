@@ -5,7 +5,6 @@ import (
 
 	"github.com/oclaussen/dodo/pkg/config"
 	"github.com/oclaussen/dodo/pkg/container"
-	"github.com/oclaussen/dodo/pkg/image"
 	"github.com/oclaussen/dodo/pkg/stage"
 	"github.com/oclaussen/dodo/pkg/stages/defaultchain"
 	"github.com/oclaussen/dodo/pkg/types"
@@ -13,6 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+// TODO: clean up command structure and options
 
 const description = `Run commands in a Docker context.
 
@@ -36,7 +37,27 @@ func NewCommand() *cobra.Command {
 		Args:                  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-			return runCommand(&opts, args[0], args[1:])
+
+			conf, err := config.LoadBackdrop(args[0])
+			if err != nil {
+				return err
+			}
+
+			optsConfig, err := opts.createConfig(args[1:])
+			if err != nil {
+				return err
+			}
+
+			conf.Merge(optsConfig)
+
+			return withStage(conf.Stage, func(s stage.Stage) error {
+				c, err := container.NewContainer(conf, s, config.LoadAuthConfig(), false)
+				if err != nil {
+					return err
+				}
+
+				return c.Run()
+			})
 		},
 	}
 	opts.createFlags(cmd)
@@ -45,6 +66,7 @@ func NewCommand() *cobra.Command {
 	cmd.AddCommand(NewBuildCommand())
 	cmd.AddCommand(NewListCommand())
 	cmd.AddCommand(NewValidateCommand())
+	cmd.AddCommand(NewDaemonCommand())
 	cmd.AddCommand(NewStageCommand())
 	return cmd
 }
@@ -59,7 +81,27 @@ func NewRunCommand() *cobra.Command {
 		Args:                  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-			return runCommand(&opts, args[0], args[1:])
+
+			conf, err := config.LoadBackdrop(args[0])
+			if err != nil {
+				return err
+			}
+
+			optsConfig, err := opts.createConfig(args[1:])
+			if err != nil {
+				return err
+			}
+
+			conf.Merge(optsConfig)
+
+			return withStage(conf.Stage, func(s stage.Stage) error {
+				c, err := container.NewContainer(conf, s, config.LoadAuthConfig(), false)
+				if err != nil {
+					return err
+				}
+
+				return c.Run()
+			})
 		},
 	}
 
@@ -76,38 +118,19 @@ func NewBuildCommand() *cobra.Command {
 		Args:                  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configureLogging()
-
 			conf, err := config.LoadBackdrop(args[0])
 			if err != nil {
 				return err
 			}
-			conf.Image.ForceRebuild = true
 
-			var stageConf *types.Stage
-			if len(conf.Stage) > 0 {
-				stageConf, err = config.LoadStage(conf.Stage)
+			return withStage(conf.Stage, func(s stage.Stage) error {
+				c, err := container.NewContainer(conf, s, config.LoadAuthConfig(), false)
 				if err != nil {
 					return err
 				}
-			}
 
-			s := &defaultchain.Stage{}
-			defer s.Cleanup()
-			if err := s.Initialize(conf.Stage, stageConf); err != nil {
-				return errors.Wrap(err, "initialization failed")
-			}
-
-			dockerClient, err := stage.GetDockerClient(s)
-			if err != nil {
-				return err
-			}
-
-			image, err := image.NewImage(dockerClient, config.LoadAuthConfig(), conf.Image)
-			if err != nil {
-				return err
-			}
-			_, err = image.Get()
-			return err
+				return c.Build()
+			})
 		},
 	}
 }
@@ -141,6 +164,7 @@ func NewValidateCommand() *cobra.Command {
 		},
 	}
 }
+
 func configureLogging() {
 	log.SetFormatter(&log.TextFormatter{
 		DisableTimestamp:       true,
@@ -148,22 +172,12 @@ func configureLogging() {
 	})
 }
 
-func runCommand(opts *options, name string, command []string) error {
-	conf, err := config.LoadBackdrop(name)
-	if err != nil {
-		return err
-	}
+func withStage(name string, thing func(stage.Stage) error) error {
+	var conf *types.Stage
+	var err error
 
-	optsConfig, err := opts.createConfig(command)
-	if err != nil {
-		return err
-	}
-
-	conf.Merge(optsConfig)
-
-	var stageConf *types.Stage
-	if len(conf.Stage) > 0 {
-		stageConf, err = config.LoadStage(conf.Stage)
+	if len(name) > 0 {
+		conf, err = config.LoadStage(name)
 		if err != nil {
 			return err
 		}
@@ -171,29 +185,9 @@ func runCommand(opts *options, name string, command []string) error {
 
 	s := &defaultchain.Stage{}
 	defer s.Cleanup()
-	if err := s.Initialize(conf.Stage, stageConf); err != nil {
+	if err := s.Initialize(name, conf); err != nil {
 		return errors.Wrap(err, "initialization failed")
 	}
 
-	// TODO: currently we create the client twice, here and in container
-	dockerClient, err := stage.GetDockerClient(s)
-	if err != nil {
-		return err
-	}
-
-	image, err := image.NewImage(dockerClient, config.LoadAuthConfig(), conf.Image)
-	if err != nil {
-		return err
-	}
-	imageID, err := image.Get()
-	if err != nil {
-		return err
-	}
-
-	container, err := container.NewContainer(conf, s)
-	if err != nil {
-		return err
-	}
-
-	return container.Run(imageID)
+	return thing(s)
 }

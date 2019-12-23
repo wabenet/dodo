@@ -5,9 +5,71 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/oclaussen/dodo/pkg/stage"
+	"github.com/oclaussen/dodo/pkg/types"
 )
 
-func (c *Container) create(image string, tty bool) (string, error) {
+func (c *Container) create(image string) (string, error) {
+	opts, err := c.stage.GetDockerOptions()
+	if err != nil {
+		return "", err
+	}
+
+	entrypoint, command := c.dockerEntrypoint()
+	response, err := c.client.ContainerCreate(
+		c.context,
+		&container.Config{
+			User:         c.config.User,
+			AttachStdin:  !c.daemon,
+			AttachStdout: !c.daemon,
+			AttachStderr: !c.daemon,
+			Tty:          hasTTY() && !c.daemon,
+			OpenStdin:    !c.daemon,
+			StdinOnce:    !c.daemon,
+			Env:          c.dockerEnvironment(opts),
+			Cmd:          command,
+			Image:        image,
+			WorkingDir:   c.config.WorkingDir,
+			Entrypoint:   entrypoint,
+			ExposedPorts: c.config.Ports.PortSet(),
+		},
+		&container.HostConfig{
+			AutoRemove: func() bool {
+				if c.daemon {
+					return false
+				}
+				if c.config.Remove == nil {
+					return true
+				}
+				return *c.config.Remove
+			}(),
+			Binds:         c.config.Volumes.Strings(),
+			VolumesFrom:   c.config.VolumesFrom,
+			PortBindings:  c.config.Ports.PortMap(),
+			RestartPolicy: c.dockerRestartPolicy(),
+		},
+		&network.NetworkingConfig{},
+		c.name,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if len(c.config.Script) > 0 {
+		if err = c.uploadEntrypoint(response.ID); err != nil {
+			return "", err
+		}
+	}
+
+	if c.config.ForwardStage {
+		if err = c.uploadStageConfig(response.ID, opts); err != nil {
+			return "", err
+		}
+	}
+	return response.ID, nil
+}
+
+func (c *Container) dockerEntrypoint() ([]string, []string) {
 	entrypoint := []string{"/bin/sh"}
 	command := c.config.Command
 
@@ -20,39 +82,25 @@ func (c *Container) create(image string, tty bool) (string, error) {
 		entrypoint = append(entrypoint, path.Join(c.tmpPath, "entrypoint"))
 	}
 
-	response, err := c.client.ContainerCreate(
-		c.context,
-		&container.Config{
-			User:         c.config.User,
-			AttachStdin:  true,
-			AttachStdout: true,
-			AttachStderr: true,
-			Tty:          tty,
-			OpenStdin:    true,
-			StdinOnce:    true,
-			Env:          c.config.Environment.Strings(),
-			Cmd:          command,
-			Image:        image,
-			WorkingDir:   c.config.WorkingDir,
-			Entrypoint:   entrypoint,
-			ExposedPorts: c.config.Ports.PortSet(),
-		},
-		&container.HostConfig{
-			AutoRemove: func() bool {
-				if c.config.Remove == nil {
-					return true
-				}
-				return *c.config.Remove
-			}(),
-			Binds:        c.config.Volumes.Strings(),
-			VolumesFrom:  c.config.VolumesFrom,
-			PortBindings: c.config.Ports.PortMap(),
-		},
-		&network.NetworkingConfig{},
-		c.config.ContainerName,
-	)
-	if err != nil {
-		return "", err
+	return entrypoint, command
+}
+
+func (c *Container) dockerEnvironment(opts *stage.DockerOptions) []string {
+	env := c.config.Environment
+	if c.config.ForwardStage {
+		yes := "1"
+		env = append(env, types.KeyValue{"DOCKER_HOST", &opts.Host})
+		env = append(env, types.KeyValue{"DOCKER_API_VERSION", &opts.Version})
+		env = append(env, types.KeyValue{"DOCKER_CERT_PATH", &c.tmpPath})
+		env = append(env, types.KeyValue{"DOCKER_TLS_VERIFY", &yes})
 	}
-	return response.ID, nil
+	return env.Strings()
+}
+
+func (c *Container) dockerRestartPolicy() container.RestartPolicy {
+	if c.daemon {
+		return container.RestartPolicy{Name: "always"}
+	} else {
+		return container.RestartPolicy{Name: "no"}
+	}
 }
