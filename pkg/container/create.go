@@ -47,6 +47,9 @@ func (c *Container) create(image string) (string, error) {
 			VolumesFrom:   c.config.VolumesFrom,
 			PortBindings:  c.config.Ports.PortMap(),
 			RestartPolicy: c.dockerRestartPolicy(),
+			Resources: container.Resources{
+				Devices: c.dockerDevices(),
+			},
 		},
 		&network.NetworkingConfig{},
 		c.name,
@@ -103,4 +106,16 @@ func (c *Container) dockerRestartPolicy() container.RestartPolicy {
 	} else {
 		return container.RestartPolicy{Name: "no"}
 	}
+}
+
+func (c *Container) dockerDevices() []container.DeviceMapping {
+	result := make([]container.DeviceMapping, len(c.config.Devices))
+	for i, device := range c.config.Devices {
+		result[i] = container.DeviceMapping{
+			PathOnHost:        device.Source,
+			PathInContainer:   device.Target,
+			CgroupPermissions: "mrw",
+		}
+	}
+	return result
 }

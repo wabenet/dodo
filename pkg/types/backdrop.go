@@ -20,6 +20,7 @@ type Backdrop struct {
 	User          string
 	Volumes       Volumes
 	VolumesFrom   []string
+	Devices       Volumes // FIXME: this is a very lazy solution
 	Ports         Ports
 	WorkingDir    string
 	Interpreter   []string
@@ -61,6 +62,7 @@ func (target *Backdrop) Merge(source *Backdrop) {
 	}
 	target.Volumes = append(target.Volumes, source.Volumes...)
 	target.VolumesFrom = append(target.VolumesFrom, source.VolumesFrom...)
+	target.Devices = append(target.Devices, source.Devices...)
 	target.Ports = append(target.Ports, source.Ports...)
 	if len(source.WorkingDir) > 0 {
 		target.WorkingDir = source.WorkingDir
@@ -169,6 +171,12 @@ func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, err
 					return result, err
 				}
 				result.VolumesFrom = decoded
+			case "device", "devices":
+				decoded, err := d.DecodeVolumes(key, v)
+				if err != nil {
+					return result, err
+				}
+				result.Devices = decoded
 			case "ports":
 				decoded, err := d.DecodePorts(key, v)
 				if err != nil {
