@@ -30,8 +30,8 @@ func (client *GRPCClient) Create() error {
 	return err
 }
 
-func (client *GRPCClient) Remove(force bool) error {
-	_, err := client.client.Remove(context.Background(), &proto.RemoveRequest{Force: force})
+func (client *GRPCClient) Remove(force bool, volumes bool) error {
+	_, err := client.client.Remove(context.Background(), &proto.RemoveRequest{Force: force, Volumes: volumes})
 	return err
 }
 

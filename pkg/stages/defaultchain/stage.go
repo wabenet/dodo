@@ -63,8 +63,8 @@ func (s *Stage) Stop() error {
 	return s.current.Stop()
 }
 
-func (s *Stage) Remove(force bool) error {
-	return s.current.Remove(force)
+func (s *Stage) Remove(force bool, volumes bool) error {
+	return s.current.Remove(force, volumes)
 }
 
 func (s *Stage) Exist() (bool, error) {

@@ -130,7 +130,7 @@ func (s *Stage) Stop() error {
 	return nil
 }
 
-func (s *Stage) Remove(force bool) error {
+func (s *Stage) Remove(force bool, _ bool) error {
 	if exist, err := s.Exist(); err == nil && !exist && !force {
 		log.WithFields(log.Fields{"name": s.name}).Info("stage is not up")
 		return nil

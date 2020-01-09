@@ -87,8 +87,8 @@ func (s *Stage) Stop() error {
 	return s.wrapped.Stop()
 }
 
-func (s *Stage) Remove(force bool) error {
-	return s.wrapped.Remove(force)
+func (s *Stage) Remove(force bool, volumes bool) error {
+	return s.wrapped.Remove(force, volumes)
 }
 
 func (s *Stage) Exist() (bool, error) {

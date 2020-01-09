@@ -16,7 +16,7 @@ type Stage interface {
 	Create() error
 	Start() error
 	Stop() error
-	Remove(bool) error
+	Remove(bool, bool) error
 	Exist() (bool, error)
 	Available() (bool, error)
 	GetSSHOptions() (*SSHOptions, error)

@@ -27,7 +27,7 @@ func (server *GRPCServer) Create(ctx context.Context, _ *proto.Empty) (*proto.Em
 }
 
 func (server *GRPCServer) Remove(ctx context.Context, request *proto.RemoveRequest) (*proto.Empty, error) {
-	return &proto.Empty{}, server.Impl.Remove(request.Force)
+	return &proto.Empty{}, server.Impl.Remove(request.Force, request.Volumes)
 }
 
 func (server *GRPCServer) Start(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {

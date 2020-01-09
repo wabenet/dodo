@@ -32,7 +32,7 @@ func (s *Stage) Stop() error {
 	return nil
 }
 
-func (s *Stage) Remove(_ bool) error {
+func (s *Stage) Remove(_ bool, _ bool) error {
 	return nil
 }
 

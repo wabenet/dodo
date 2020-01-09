@@ -37,6 +37,10 @@ func GetStagesDir() string {
 	return getDir("stages")
 }
 
+func GetPersistDir() string {
+	return getDir("persist")
+}
+
 func GetBoxesDir() string {
 	return getDir("boxes")
 }

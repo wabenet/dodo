@@ -10,6 +10,7 @@ message InitRequest {
 
 message RemoveRequest {
   bool force = 1;
+  bool volumes = 2;
 }
 
 message ExistResponse {

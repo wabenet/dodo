@@ -34,6 +34,7 @@ type Stage struct {
 	Box         *types.Box
 	State       *State
 	StoragePath string
+	PersistPath string
 }
 
 type Options struct {
@@ -59,6 +60,7 @@ func (vbox *Stage) Initialize(name string, conf *types.Stage) error {
 	}
 
 	vbox.StoragePath = filepath.Join(config.GetStagesDir(), name)
+	vbox.PersistPath = filepath.Join(config.GetPersistDir(), name)
 
 	if err := vbox.loadState(); err != nil {
 		return err
@@ -168,9 +170,8 @@ func (vbox *Stage) Create() error {
 
 	numDisks := len(sataController.Disks)
 	for index, volume := range vbox.Config.Volumes {
-		// TODO: persist disks
 		disk := virtualbox.Disk{
-			Path: filepath.Join(vbox.StoragePath, fmt.Sprintf("disk-%d.vmdk", index)),
+			Path: filepath.Join(vbox.PersistPath, fmt.Sprintf("disk-%d.vmdk", index)),
 			Size: volume.Size,
 		}
 		if err := disk.Create(); err != nil {
@@ -318,7 +319,7 @@ func (vbox *Stage) Stop() error {
 	return errors.New("VM did not stop successfully")
 }
 
-func (vbox *Stage) Remove(force bool) error {
+func (vbox *Stage) Remove(force bool, volumes bool) error {
 	exist, err := vbox.Exist()
 	if err != nil {
 		if force {
@@ -367,6 +368,16 @@ func (vbox *Stage) Remove(force bool) error {
 			log.Error(err)
 		} else {
 			return err
+		}
+	}
+
+	if volumes {
+		if err := os.RemoveAll(vbox.PersistPath); err != nil {
+			if force {
+				log.Error(err)
+			} else {
+				return err
+			}
 		}
 	}
 

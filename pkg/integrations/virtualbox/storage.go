@@ -2,6 +2,7 @@ package virtualbox
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 )
 
@@ -34,8 +35,16 @@ type StorageController struct {
 }
 
 func (disk *Disk) Create() error {
+	_, err := os.Stat(disk.Path)
+	if err == nil {
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return err
+	}
+
 	sizeInMB := disk.Size / 1000 / 1000
-	_, err := vbm(
+	_, err = vbm(
 		"createhd",
 		"--filename", disk.Path,
 		"--size", strconv.FormatInt(sizeInMB, 10),

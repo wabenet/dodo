@@ -44,8 +44,9 @@ func NewUpCommand() *cobra.Command {
 }
 
 type downOptions struct {
-	remove bool
-	force  bool
+	remove  bool
+	volumes bool
+	force   bool
 }
 
 func NewDownCommand() *cobra.Command {
@@ -58,7 +59,7 @@ func NewDownCommand() *cobra.Command {
 			configureLogging()
 			return withStage(args[0], func(s stage.Stage) error {
 				if opts.remove {
-					return s.Remove(opts.force)
+					return s.Remove(opts.force, opts.volumes)
 				}
 				return s.Stop()
 			})
@@ -66,6 +67,7 @@ func NewDownCommand() *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.remove, "rm", "", false, "remove the stage instead of pausing")
+	flags.BoolVarP(&opts.volumes, "volumes", "", false, "when used with '--rm', also delete persistent volumes")
 	flags.BoolVarP(&opts.force, "force", "f", false, "when used with '--rm', don't stop on errors")
 	return cmd
 }
