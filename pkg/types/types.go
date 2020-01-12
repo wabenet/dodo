@@ -35,6 +35,17 @@ func (d *decoder) DecodeBool(name string, config interface{}) (bool, error) {
 	return result, nil
 }
 
+func (d *decoder) DecodeInt(name string, config interface{}) (int64, error) {
+	var result int64
+	switch t := reflect.ValueOf(config); t.Kind() {
+	case reflect.Int:
+		result = t.Int()
+	default:
+		return result, &ConfigError{Name: name, UnsupportedType: t.Kind()}
+	}
+	return result, nil
+}
+
 func (d *decoder) DecodeString(name string, config interface{}) (string, error) {
 	var result string
 	switch t := reflect.ValueOf(config); t.Kind() {

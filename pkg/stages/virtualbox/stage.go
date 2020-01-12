@@ -39,8 +39,6 @@ type Stage struct {
 
 type Options struct {
 	Name      string
-	CPU       int
-	Memory    int
 	Modify    []string
 	Provision []string
 }
@@ -112,12 +110,12 @@ func (vbox *Stage) Create() error {
 	for _, item := range ovf.VirtualSystem.VirtualHardware.Items {
 		switch item.ResourceType {
 		case ova.TypeCPU:
-			if vbox.Options.CPU > 0 {
-				importArgs = append(importArgs, "--vsys", "0", "--cpus", fmt.Sprintf("%d", vbox.Options.CPU))
+			if cpu := vbox.Config.Resources.CPU; cpu > 0 {
+				importArgs = append(importArgs, "--vsys", "0", "--cpus", fmt.Sprintf("%d", cpu))
 			}
 		case ova.TypeMemory:
-			if vbox.Options.Memory > 0 {
-				importArgs = append(importArgs, "--vsys", "0", "--memory", fmt.Sprintf("%d", vbox.Options.Memory))
+			if memory := vbox.Config.Resources.Memory; memory > 0 {
+				importArgs = append(importArgs, "--vsys", "0", "--memory", fmt.Sprintf("%d", memory))
 			}
 		}
 	}
@@ -169,7 +167,7 @@ func (vbox *Stage) Create() error {
 	}
 
 	numDisks := len(sataController.Disks)
-	for index, volume := range vbox.Config.Volumes {
+	for index, volume := range vbox.Config.Resources.Volumes {
 		disk := virtualbox.Disk{
 			Path: filepath.Join(vbox.PersistPath, fmt.Sprintf("disk-%d.vmdk", index)),
 			Size: volume.Size,
@@ -178,6 +176,19 @@ func (vbox *Stage) Create() error {
 			return err
 		}
 		if err := sataController.AttachDisk(numDisks+index, &disk); err != nil {
+			return err
+		}
+	}
+
+	for index, usb := range vbox.Config.Resources.USB {
+		filter := virtualbox.USBFilter{
+			VMName:    vbox.VM.Name,
+			Index:     index,
+			Name:      usb.Name,
+			VendorID:  usb.VendorID,
+			ProductID: usb.ProductID,
+		}
+		if err := filter.Create(); err != nil {
 			return err
 		}
 	}
