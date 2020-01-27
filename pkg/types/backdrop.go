@@ -20,7 +20,7 @@ type Backdrop struct {
 	User          string
 	Volumes       Volumes
 	VolumesFrom   []string
-	Devices       Volumes // FIXME: this is a very lazy solution
+	Devices       Devices
 	Ports         Ports
 	WorkingDir    string
 	Interpreter   []string
@@ -172,7 +172,7 @@ func (d *decoder) DecodeBackdrop(name string, config interface{}) (Backdrop, err
 				}
 				result.VolumesFrom = decoded
 			case "device", "devices":
-				decoded, err := d.DecodeVolumes(key, v)
+				decoded, err := d.DecodeDevices(key, v)
 				if err != nil {
 					return result, err
 				}

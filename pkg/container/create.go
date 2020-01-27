@@ -48,7 +48,8 @@ func (c *Container) create(image string) (string, error) {
 			PortBindings:  c.config.Ports.PortMap(),
 			RestartPolicy: c.dockerRestartPolicy(),
 			Resources: container.Resources{
-				Devices: c.dockerDevices(),
+				Devices:           c.dockerDevices(),
+				DeviceCgroupRules: c.dockerDeviceCgroupRules(),
 			},
 		},
 		&network.NetworkingConfig{},
@@ -109,12 +110,25 @@ func (c *Container) dockerRestartPolicy() container.RestartPolicy {
 }
 
 func (c *Container) dockerDevices() []container.DeviceMapping {
-	result := make([]container.DeviceMapping, len(c.config.Devices))
-	for i, device := range c.config.Devices {
-		result[i] = container.DeviceMapping{
+	result := []container.DeviceMapping{}
+	for _, device := range c.config.Devices {
+		if len(device.CgroupRule) > 0 {
+			continue
+		}
+		result = append(result, container.DeviceMapping{
 			PathOnHost:        device.Source,
 			PathInContainer:   device.Target,
-			CgroupPermissions: "mrw",
+			CgroupPermissions: device.Permissions,
+		})
+	}
+	return result
+}
+
+func (c *Container) dockerDeviceCgroupRules() []string {
+	result := []string{}
+	for _, device := range c.config.Devices {
+		if len(device.CgroupRule) > 0 {
+			result = append(result, device.CgroupRule)
 		}
 	}
 	return result
