@@ -3,11 +3,11 @@ backdrops:
     image:
       steps: |
         FROM golang:1.12-alpine
+        ENV CGO_ENABLED=0
         RUN apk add -U git bash curl tree make protobuf
         RUN go get -u github.com/mitchellh/gox
         RUN go get -u github.com/golang/protobuf/protoc-gen-go
         RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-    environment: CGO_ENABLED=0
     volumes:
       - "{{ projectRoot }}:/build"
       - "{{ projectRoot }}/.cache:/go/pkg/mod"

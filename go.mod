@@ -62,12 +62,14 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/arch v0.0.0-20190312162104-788fe5ffcd8c // indirect
 	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+	golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3 // indirect
 	golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4 // indirect
 	golang.org/x/tools v0.0.0-20190823093517-aa644d2adf2a // indirect
-	google.golang.org/grpc v1.20.1
+	google.golang.org/grpc v1.27.1
 	gopkg.in/yaml.v2 v2.2.4
+	honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc // indirect
 	k8s.io/api v0.17.0 // indirect
 	k8s.io/client-go v11.0.0+incompatible // indirect
 	k8s.io/utils v0.0.0-20191114200735-6ca3b61696b6 // indirect
