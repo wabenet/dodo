@@ -1,0 +1,5 @@
+---
+plugins:
+  - import: github.com/dodo-cli/dodo-build/plugin
+  - import: github.com/dodo-cli/dodo-config/plugin
+  - import: github.com/dodo-cli/dodo-docker/plugin

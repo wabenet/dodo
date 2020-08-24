@@ -54,34 +54,15 @@ can be used to overwrite the backdrop configuration.
 
 Usage:
   dodo [flags] [name] [cmd...]
-  dodo [command]
-
-Available Commands:
-  build       Build all required images for backdrop without running it
-  help        Help about any command
-  list        List available all backdrop configurations
-  run         Same as running 'dodo [name]', can be used when a backdrop name collides with a top-level command
-  stage       Manage stages
-  validate    Validate configuration files for syntax errors
 
 Flags:
-      --build                      always build an image, even if already exists
-      --forward-stage              forward stage information into container, so dodo can be used inside the container
-  -e, --env stringArray            Set environment variables
-  -h, --help                       help for dodo
-  -i, --interactive                run an interactive session
-      --no-cache                   do not use cache when building the image
-      --no-rm                      keep the container after it exits
-  -p, --publish stringArray        Publish a container's port(s) to the host
-      --pull                       always attempt to pull a newer version of the image
-      --rm                         automatically remove the container when it exits
-  -s, --stage string               stage to user for docker daemon
-  -u, --user string                Username or UID (format: <name|uid>[:<group|gid>])
-  -v, --volume stringArray         Bind mount a volume
-      --volumes-from stringArray   Mount volumes from the specified container(s)
-  -w, --workdir string             working directory inside the container
-
-Use "dodo [command] --help" for more information about a command.
+  -e, --env stringArray       set environment variables
+  -h, --help                  help for dodo
+  -i, --interactive           run an interactive session
+  -p, --publish stringArray   publish a container's port(s) to the host
+  -u, --user string           username or UID (format: <name|uid>[:<group|gid>])
+  -v, --volume stringArray    bind mount a volume
+  -w, --workdir string        working directory inside the container
 ```
 
 ### configuration
@@ -157,29 +138,6 @@ Another example is the `dodo.yaml` in this very repository, which allows you
 to build the tool without any requirements other than dodo itself and of
 course docker.
 
-### stages (experimental)
-
-An experimental support for managing `stages` is implemented. Stages are places
-where backdrops can run, in other words environments with a docker daemon. By
-default, only the `environment` stage is available, which means that dodo will
-pick up the docker host configuration from environment variables, exactly like
-the normal docker client would. In additions, a plugin system exists that allows
-for more stage options. To install a stage plugin, fetch one of the binaries from
-the [releases](/releases) page and drop it into your `~/.dodo/plugins` directory.
-Currently these plugins are available:
-
-* `docker-machine`: Simply delegates all actions to a docker-machine instance
-  with the same name as the stage. Requires docker-machine and the respective
-  drivers to be installed on the system.
-
-* `virtualbox`: Manages a VirtualBox VM based on a Vagrant box as a stage. This
-  is basically a weird cross between a custom docker-machine and vagrant
-  implementation, to allow for a bit more customization for your local setup.
-
-The whole stage API is very likely to change quite a bit in the future. For now,
-it is just a simple proof of concept. In future releases, it is planned to run
-dodo backdrops on remote systems by using stages based on EC2 or Kubernetes pods.
-
 ## config reference
 
 ### backdrops
@@ -223,22 +181,6 @@ with the following options:
   overwritten by any command line arguments.
 * `interactive`: try to start an interactive session by setting the docker
   entrypoint to the interpreter only, skipping the script and command
-
-### stages
-
-Stages are places to put backdrops, in other words an environment running a docker
-daemon. Stages are still experimental, so the configuration is not defined too
-well yet. The top-level configuration object is `stages`, which is a map of
-stage names to objects with the following options:
-
-* `type`: the type of stage, usually the name of a plugin to invoke to manage it
-* `box`: configuration that defines a Vagrant that should be used for the stage,
-  provided the stage plugin supports Vagrant. The following options are allowed:
-  * `user`: the Vagrant cloud user that provides the box
-  * `name`: name of the Vagrant box
-  * `version`: version of the Vagrant box
-  * `access_token`: Vagrant cloud access token to access private boxes
-* `options`: additional options, that are passed directly to the plugin
 
 ### includes
 
@@ -301,7 +243,7 @@ builds locally and in CI, while dodo has evolved in a generic application wrappe
 ## license & authors
 
 ```text
-Copyright 2019 Ole Claussen
+Copyright 2020 Ole Claussen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
