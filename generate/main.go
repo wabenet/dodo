@@ -43,21 +43,12 @@ func main() {
 
 	f.Func().Id("execute").Params().Int().Block(
 		jen.Id("includePlugins").Call(),
-		// FIXME: list of plugin types are hardcoded here for now
-		jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "LoadPlugins").Call(
-			jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin/command", "Type"),
-			jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin/configuration", "Type"),
-			jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin/runtime", "Type"),
-		),
+                jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "LoadPlugins").Call(),
 		jen.Defer().Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "UnloadPlugins").Call(),
 		jen.Return(jen.Qual("github.com/dodo-cli/dodo-core/pkg/proxycmd", "Execute").Call(jen.Lit("run"))),
 	)
 
 	f.Func().Id("includePlugins").Params().BlockFunc(func(g *jen.Group) {
-		// FIXME: core plugin is hardcoded here for now
-		g.Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "IncludePlugins").Call(
-			jen.Add(jen.Op("&")).Qual("github.com/dodo-cli/dodo-core/pkg/run", "Command").Values(),
-		)
 		for _, p := range cfg.Plugins {
 			g.Qual(p.Import, "IncludeMe").Call()
 		}
