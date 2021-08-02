@@ -43,7 +43,7 @@ func main() {
 
 	f.Func().Id("execute").Params().Int().Block(
 		jen.Id("includePlugins").Call(),
-                jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "LoadPlugins").Call(),
+		jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "LoadPlugins").Call(),
 		jen.Defer().Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "UnloadPlugins").Call(),
 		jen.Return(jen.Qual("github.com/dodo-cli/dodo-core/pkg/proxycmd", "Execute").Call(jen.Lit("run"))),
 	)
