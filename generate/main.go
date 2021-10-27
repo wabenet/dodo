@@ -30,27 +30,21 @@ func main() {
 	f := jen.NewFile("main")
 
 	f.Func().Id("main").Params().Block(
-		// Configure Logging
-		jen.Qual("github.com/hashicorp/go-hclog", "SetDefault").Call(
-			jen.Qual("github.com/hashicorp/go-hclog", "New").Call(
-				jen.Qual("github.com/dodo-cli/dodo-core/pkg/appconfig", "GetLoggerOptions").Call(),
-			),
-		),
-
 		// "Actual main" to keep os.Exit from interfering with defers
 		jen.Qual("os", "Exit").Call(jen.Id("execute").Call()),
 	)
 
 	f.Func().Id("execute").Params().Int().Block(
-		jen.Id("includePlugins").Call(),
-		jen.Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "LoadPlugins").Call(),
-		jen.Defer().Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "UnloadPlugins").Call(),
-		jen.Return(jen.Qual("github.com/dodo-cli/dodo-core/pkg/proxycmd", "Execute").Call(jen.Lit("run"))),
+		jen.Id("m").Op(":=").Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "Init").Call(),
+		jen.Id("includePlugins").Call(jen.Id("m")),
+		jen.Id("m").Dot("LoadPlugins").Call(),
+		jen.Defer().Id("m").Dot("UnloadPlugins").Call(),
+                jen.Return(jen.Qual("github.com/dodo-cli/dodo-core/pkg/core", "ExecuteDodoMain").Call(jen.Id("m"))),
 	)
 
-	f.Func().Id("includePlugins").Params().BlockFunc(func(g *jen.Group) {
+	f.Func().Id("includePlugins").Params(jen.Id("m").Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "Manager")).BlockFunc(func(g *jen.Group) {
 		for _, p := range cfg.Plugins {
-			g.Qual(p.Import, "IncludeMe").Call()
+			g.Qual(p.Import, "IncludeMe").Call(jen.Id("m"))
 		}
 	})
 
