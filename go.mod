@@ -11,10 +11,11 @@ replace (
 
 require (
 	github.com/dave/jennifer v1.4.1
-	github.com/dodo-cli/dodo-buildkit v0.1.1-0.20211025161657-4e4656afac54
-	github.com/dodo-cli/dodo-config v0.1.1-0.20211025161717-2bdef0af0c4c
-	github.com/dodo-cli/dodo-core v0.2.0
-	github.com/dodo-cli/dodo-docker v0.1.1-0.20211025161757-08f2ee8fc673
-	github.com/hashicorp/go-hclog v0.16.2 // indirect
+	github.com/dodo-cli/dodo-buildkit v0.1.1-0.20211104120639-386b829ef813
+	github.com/dodo-cli/dodo-config v0.1.1-0.20211108131503-2ad84f84c00a
+	github.com/dodo-cli/dodo-core v0.2.1-0.20211111091733-23d0e72df642
+	github.com/dodo-cli/dodo-docker v0.1.1-0.20211104120605-cea72844a81b
+	github.com/hashicorp/go-hclog v0.16.2
+	github.com/spf13/cobra v1.1.3
 	gopkg.in/yaml.v2 v2.4.0
 )
