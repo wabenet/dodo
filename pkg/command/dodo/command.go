@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	api "github.com/dodo-cli/dodo-core/api/v1alpha2"
 	"github.com/dodo-cli/dodo-core/pkg/plugin"
 	"github.com/dodo-cli/dodo-core/pkg/plugin/command"
 	"github.com/spf13/cobra"
@@ -22,7 +23,9 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 					return runProxy(cmd, self, []string{defaultCmd})
 				}
 
-				return fmt.Errorf("could not run plugin '%s': %w", defaultCmd, plugin.ErrPluginNotFound)
+				return plugin.ErrPluginNotFound{
+					Plugin: &api.PluginName{Type: command.Type.String(), Name: defaultCmd},
+				}
 			}
 
 			if path, err := exec.LookPath(fmt.Sprintf("dodo-%s", args[0])); err == nil {
@@ -38,7 +41,9 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 				return runProxy(cmd, self, append([]string{defaultCmd}, args...))
 			}
 
-			return fmt.Errorf("could not run plugin '%s': %w", defaultCmd, plugin.ErrPluginNotFound)
+			return plugin.ErrPluginNotFound{
+				Plugin: &api.PluginName{Type: command.Type.String(), Name: defaultCmd},
+			}
 		},
 	}
 
