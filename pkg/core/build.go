@@ -35,6 +35,15 @@ func BuildImage(m plugin.Manager, config *api.BuildInfo) (string, error) {
 		return "", fmt.Errorf("could not find build plugin for %s: %w", config.Builder, err)
 	}
 
+	if !ui.IsTTY() {
+		imageID, err := b.CreateImage(config, nil)
+		if err != nil {
+			return "", fmt.Errorf("error during image build: %w", err)
+		}
+
+		return imageID, nil
+	}
+
 	imageID := ""
 
 	err = ui.NewTerminal().RunInRaw(
@@ -54,6 +63,9 @@ func BuildImage(m plugin.Manager, config *api.BuildInfo) (string, error) {
 			return nil
 		},
 	)
+	if err != nil {
+		return "", err
+	}
 
-	return imageID, err
+	return imageID, nil
 }

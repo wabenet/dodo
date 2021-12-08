@@ -423,6 +423,8 @@ github.com/dodo-cli/dodo-docker v0.1.1-0.20211104120605-cea72844a81b h1:8xZN+22s
 github.com/dodo-cli/dodo-docker v0.1.1-0.20211104120605-cea72844a81b/go.mod h1:aoGTxMWgIHGaYgHG4qxKp8y84uX7YqIelTBWukBY5E8=
 github.com/dodo-cli/dodo-docker v0.2.0 h1:FkV/aoirm0WnwPB+UZ9oG1KmSqvncWqEqZK22F3IM5s=
 github.com/dodo-cli/dodo-docker v0.2.0/go.mod h1:piCI7n0o/1/UO+YzJs8HMuNm+SI7fhb7jLCfa0067oI=
+github.com/dodo-cli/dodo-docker v0.2.1 h1:S95Chdz+21huyaF1fyhEZb5pdgWL0W/KkLx1QiH8384=
+github.com/dodo-cli/dodo-docker v0.2.1/go.mod h1:piCI7n0o/1/UO+YzJs8HMuNm+SI7fhb7jLCfa0067oI=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/eapache/go-resiliency v1.1.0/go.mod h1:kFI+JgMyC7bLPUVY133qvEBtVayf5mFgVsvEsIPBvNs=

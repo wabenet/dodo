@@ -15,7 +15,7 @@ require (
 	github.com/dodo-cli/dodo-buildkit v0.2.0
 	github.com/dodo-cli/dodo-config v0.2.0
 	github.com/dodo-cli/dodo-core v0.3.0
-	github.com/dodo-cli/dodo-docker v0.2.0
+	github.com/dodo-cli/dodo-docker v0.2.1
 	github.com/hashicorp/go-hclog v0.16.2
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
