@@ -67,27 +67,11 @@ Flags:
 
 ### configuration
 
-The configuration for dodo is written in YAML. Dodo generally requires a backdrop
-name to run. All configuration files are then searched for a backdrop configuration
-with the matching name. Configuration files are searched in the current directory
-any parent directory up to the filesystem root, as well as all the usual
-places for config files (`$HOME`, `$XDG_CONFIG_HOME/dodo`, `%APPDATA%`, etc).
-The configuration file name is some variation of `dodo.yml`. Either with a `.yml`
-or `.yaml` or even `.json` extension, and an optional leading dot.
+By default, dodo is bundled with the config plugin, which searches the working
+directory and user home directory for YAML config files.
 
-The configuration format is very similar to docker-compose. The top level item
-is usually `backdrops`, which is a mapping from backdrop names to configurations,
-similar to compose services. The biggest difference is how the entrypoint (and
-command) works. Instead of `entrypoint`, there is usually a `script` block,
-that will be copied over to the container. The docker entrypoint will then
-be set to `["${interpreter}","/path/to/script"]`, where the interpreter defaults
-to `/bin/sh`.
-
-Configuration files allow some templating. See the [templating](#templating)
-section for details.
-
-For details on the backdrop configuration, check the following [examples](#examples)
-or the full [reference](#config-reference).
+Take a look at the [plugin repository](github.com/dodo-cli/dodo-config) for a
+defailed description of the configuration format.
 
 ### examples
 
@@ -99,16 +83,15 @@ build everything:
 backdrops:
   rake:
     image:
-      context: .
+      context: "{{ projectRoot }}"
       steps:
-        - FROM ruby:2.4-alpine
+        - FROM ruby:latest
         - COPY *.gemspec Gemfile* ./
         - RUN bundle install
     volumes:
       - '{{ projectRoot }}:/build'
     working_dir: '/build'
     script: exec bundle exec rake "$@"
-    command: all
 ```
 
 In my home directory, I have a dodo configuration with the following config for
@@ -131,92 +114,11 @@ backdrops:
       test -f terraform.log && rm -f terraform.log
       terraform init
       exec terraform "$@"
-    command: apply
 ```
 
 Another example is the `dodo.yaml` in this very repository, which allows you
 to build the tool without any requirements other than dodo itself and of
 course docker.
-
-## config reference
-
-### backdrops
-
-Backdrops are the main components of dodo. Each backdrop is a template for a
-docker container that acts as runtime environment for a script. The top-level
-configuration object is `backdrops`, which is a map of backdrop names to objects
-with the following options:
-
-* `aliases`: a list of aliases that can be used instead of the backdrop name to run it
-* `image`, `build`: defines configuration for building the docker image. Can be either
-  a string containing an existing docker image, or an object with:
-  * `name`: a name for the resulting image, will be used for dependency resolution
-  * `context`: path to the build context
-  * `dockerfile`: path to the dockerfile (relative to the build context)
-  * `steps`, `inline`: list of additional steps to perform on the docker image. Can be
-    used as an inline dockerfile.
-  * `args`, `arguments`: build arguments for the image
-  * `secrets`: secrets used for building
-  * `ssh`: ssh agent connfiguration used for building
-  * `no_cache`: set to true to disable the docker cache during build
-  * `force_rebuild`: always rebuild the image, even if an image with the
-    specified name already exists
-  * `force_pull`: always pull the base image, even if it already exists
-  * `requires`, `dependencies`: list of image names that are required to build
-    this image. Backdrop configurations are searched for image declarations with
-    this name and build before this image.
-* `container_name`: set the container name
-* `remove`, `rm`: always remove the container after running (defaults to `true`)
-* `environment`, `env`: set environment variables
-* `volumes`: list of additional volumes to mount. Only bind-mount volumes are
-  currently supported.
-* `volumes_from`: mount volumes from an existing container
-* `ports`: expose ports from the container
-* `user`: set the uid inside the container
-* `workdir`, `working_dir`: set the working directory inside the container
-* `script`: the script that should be executed
-* `interpreter`: set the interpreter that should execute the script (defaults to
-  `/bin/sh`)
-* `command`: arguments that will be passed to the script by default. Will be
-  overwritten by any command line arguments.
-* `interactive`: try to start an interactive session by setting the docker
-  entrypoint to the interpreter only, skipping the script and command
-
-### includes
-
-Includes allow merging additional files or output of commands into the current
-configuration. This is often useful with templating to generate configuration
-from other tools. The top-level configuration object is `include`, which is a
-list of objects with the following options:
-
-* `file`: Absolute path to a valid dodo configuration file. The file will be
-  parsed and merged into the current file.
-* `text`: A YAML document that is a valid dodo configuration file. The document
-  will be parsed and merged into the current file.
-
-### templating
-
-All strings in the YAML configuration are processed by the [golang templating
-engine](https://golang.org/pkg/text/template/). The following additional methods
-are available:
-
- * Everything from the [sprig library](http://masterminds.github.io/sprig/)
- * `{{ cwd }}` evaluates to the current working directory
- * `{{ currentFile }}` is the path to the current YAML file that is evaluated
- * `{{ currentDir }}` is the path to the directory where the current file is located
- * `{{ projectRoot }}` is the path to the current Git project (determined by the
-   first `.git` directory found by walking the current working directory upwards).
-   Useful in combination with `{{ projectPath }]` if you don't only want to
-   bind-mount the current directory but the whole project.
- * `{{ projectPath }}` the path of the current working directory relative to `{{
-   projectRoot }}`
- * `{{ env <variable> }}` evaluates to the contents of environment variable
-   `<variable>`
- * `{{ user }}` evaluates to the current user, in form of a
-   [golang user](https://golang.org/pkg/os/user/). From this, you can access
-   fields like `{{ user.HomeDir }}` or `{{ user.Uid }}`.
- * `{{ sh <command> }}` executes `<command>` via `/bin/sh` and evaluates
-   to its stdout
 
 ## dodo compared to other software
 
@@ -243,7 +145,7 @@ builds locally and in CI, while dodo has evolved in a generic application wrappe
 ## license & authors
 
 ```text
-Copyright 2020 Ole Claussen
+Copyright 2021 Ole Claussen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
