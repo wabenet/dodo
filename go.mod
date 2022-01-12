@@ -14,8 +14,8 @@ require (
 	github.com/dave/jennifer v1.4.1
 	github.com/dodo-cli/dodo-buildkit v0.2.1
 	github.com/dodo-cli/dodo-config v0.2.1
-	github.com/dodo-cli/dodo-core v0.3.1
-	github.com/dodo-cli/dodo-docker v0.2.2
+	github.com/dodo-cli/dodo-core v0.4.0
+	github.com/dodo-cli/dodo-docker v0.2.3
 	github.com/hashicorp/go-hclog v0.16.2
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/spf13/cobra v1.1.3

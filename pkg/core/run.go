@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"syscall"
 
 	api "github.com/dodo-cli/dodo-core/api/v1alpha2"
 	"github.com/dodo-cli/dodo-core/pkg/plugin"
@@ -72,9 +74,18 @@ func RunBackdrop(m plugin.Manager, b *api.Backdrop) (int, error) {
 	exitCode := 0
 
 	t := ui.NewTerminal()
-	t = t.WithResizeHook(func(t *ui.Terminal) {
-		if err := rt.ResizeContainer(containerID, t.Height, t.Width); err != nil {
-			log.L().Warn("could not resize terminal", "error", err)
+	t = t.OnSignal(func(s os.Signal, t *ui.Terminal) {
+		log.L().Debug("handling signal", "s", s)
+
+		switch s {
+		case syscall.SIGWINCH:
+			if err := rt.ResizeContainer(containerID, t.Height, t.Width); err != nil {
+				log.L().Warn("could not resize terminal", "error", err)
+			}
+		default:
+			if err := rt.KillContainer(containerID, s); err != nil {
+				log.L().Warn("could not kill container", "error", err)
+			}
 		}
 	})
 
