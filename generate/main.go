@@ -35,14 +35,14 @@ func main() {
 	)
 
 	f.Func().Id("execute").Params().Int().Block(
-		jen.Id("m").Op(":=").Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "Init").Call(),
+		jen.Id("m").Op(":=").Qual("github.com/wabenet/dodo-core/pkg/plugin", "Init").Call(),
 		jen.Id("includePlugins").Call(jen.Id("m")),
 		jen.Id("m").Dot("LoadPlugins").Call(),
 		jen.Defer().Id("m").Dot("UnloadPlugins").Call(),
-                jen.Return(jen.Qual("github.com/dodo-cli/dodo/pkg/command/dodo", "ExecuteDodoMain").Call(jen.Id("m"))),
+		jen.Return(jen.Qual("github.com/wabenet/dodo/pkg/command/dodo", "ExecuteDodoMain").Call(jen.Id("m"))),
 	)
 
-	f.Func().Id("includePlugins").Params(jen.Id("m").Qual("github.com/dodo-cli/dodo-core/pkg/plugin", "Manager")).BlockFunc(func(g *jen.Group) {
+	f.Func().Id("includePlugins").Params(jen.Id("m").Qual("github.com/wabenet/dodo-core/pkg/plugin", "Manager")).BlockFunc(func(g *jen.Group) {
 		for _, p := range cfg.Plugins {
 			g.Qual(p.Import, "IncludeMe").Call(jen.Id("m"))
 		}

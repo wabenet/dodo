@@ -1,9 +1,9 @@
 package plugin
 
 import (
-	"github.com/dodo-cli/dodo-core/pkg/plugin"
-	"github.com/dodo-cli/dodo/pkg/command/build"
-	"github.com/dodo-cli/dodo/pkg/command/run"
+	"github.com/wabenet/dodo-core/pkg/plugin"
+	"github.com/wabenet/dodo/pkg/command/build"
+	"github.com/wabenet/dodo/pkg/command/run"
 )
 
 func IncludeMe(m plugin.Manager) {

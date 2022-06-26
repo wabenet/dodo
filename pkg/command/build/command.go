@@ -3,10 +3,10 @@ package build
 import (
 	"fmt"
 
-	api "github.com/dodo-cli/dodo-core/api/v1alpha2"
-	"github.com/dodo-cli/dodo-core/pkg/plugin"
-	"github.com/dodo-cli/dodo/pkg/core"
 	"github.com/spf13/cobra"
+	api "github.com/wabenet/dodo-core/api/v1alpha3"
+	"github.com/wabenet/dodo-core/pkg/plugin"
+	"github.com/wabenet/dodo/pkg/core"
 )
 
 type options struct {

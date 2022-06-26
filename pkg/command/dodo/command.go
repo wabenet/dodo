@@ -5,10 +5,10 @@ import (
 	"os"
 	"os/exec"
 
-	api "github.com/dodo-cli/dodo-core/api/v1alpha2"
-	"github.com/dodo-cli/dodo-core/pkg/plugin"
-	"github.com/dodo-cli/dodo-core/pkg/plugin/command"
 	"github.com/spf13/cobra"
+	api "github.com/wabenet/dodo-core/api/v1alpha3"
+	"github.com/wabenet/dodo-core/pkg/plugin"
+	"github.com/wabenet/dodo-core/pkg/plugin/command"
 )
 
 func New(m plugin.Manager, defaultCmd string) *Command {
@@ -23,7 +23,7 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 					return runProxy(cmd, self, []string{defaultCmd})
 				}
 
-				return plugin.ErrPluginNotFound{
+				return plugin.NotFoundError{
 					Plugin: &api.PluginName{Type: command.Type.String(), Name: defaultCmd},
 				}
 			}
@@ -41,7 +41,7 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 				return runProxy(cmd, self, append([]string{defaultCmd}, args...))
 			}
 
-			return plugin.ErrPluginNotFound{
+			return plugin.NotFoundError{
 				Plugin: &api.PluginName{Type: command.Type.String(), Name: defaultCmd},
 			}
 		},

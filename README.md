@@ -70,7 +70,7 @@ Flags:
 By default, dodo is bundled with the config plugin, which searches the working
 directory and user home directory for YAML config files.
 
-Take a look at the [plugin repository](github.com/dodo-cli/dodo-config) for a
+Take a look at the [plugin repository](github.com/wabenet/dodo-config) for a
 defailed description of the configuration format.
 
 ### examples

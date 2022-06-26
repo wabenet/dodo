@@ -7,12 +7,12 @@ import (
 	"os"
 	"syscall"
 
-	api "github.com/dodo-cli/dodo-core/api/v1alpha2"
-	"github.com/dodo-cli/dodo-core/pkg/plugin"
-	"github.com/dodo-cli/dodo-core/pkg/plugin/configuration"
-	"github.com/dodo-cli/dodo-core/pkg/plugin/runtime"
-	"github.com/dodo-cli/dodo-core/pkg/ui"
 	log "github.com/hashicorp/go-hclog"
+	api "github.com/wabenet/dodo-core/api/v1alpha3"
+	"github.com/wabenet/dodo-core/pkg/plugin"
+	"github.com/wabenet/dodo-core/pkg/plugin/configuration"
+	"github.com/wabenet/dodo-core/pkg/plugin/runtime"
+	"github.com/wabenet/dodo-core/pkg/ui"
 )
 
 const (
