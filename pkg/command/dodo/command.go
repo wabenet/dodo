@@ -6,9 +6,10 @@ import (
 	"os/exec"
 
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/v1alpha3"
+	api "github.com/wabenet/dodo-core/api/v1alpha4"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
+	"go.szostok.io/version/extension"
 )
 
 func New(m plugin.Manager, defaultCmd string) *Command {
@@ -46,6 +47,8 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 			}
 		},
 	}
+
+	cmd.AddCommand(extension.NewVersionCobraCmd())
 
 	for _, p := range m.GetPlugins(command.Type.String()) {
 		cmd.AddCommand(p.(command.Command).GetCobraCommand())

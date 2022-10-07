@@ -9,6 +9,10 @@ builds:
     goos:
       - linux
       - darwin
+    ldflags:
+      - -s -w
+      - -X go.szostok.io/version.version={{.Version}}
+      - -X go.szostok.io/version.buildDate={{.Date}}
 archives:
   - replacements:
       darwin: Darwin
