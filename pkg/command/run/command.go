@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/v1alpha4"
+	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
 	"github.com/wabenet/dodo-core/pkg/config"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
@@ -91,6 +91,9 @@ func (opts *options) createConfig(name string, command []string) (*api.Backdrop,
 	c := &api.Backdrop{
 		Name:    name,
 		Runtime: opts.runtime,
+		BuildInfo: &api.BuildInfo{
+			Builder: opts.runtime,
+		},
 		Entrypoint: &api.Entrypoint{
 			Interactive: opts.interactive,
 			Arguments:   command,

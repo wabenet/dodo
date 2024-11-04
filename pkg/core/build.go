@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	api "github.com/wabenet/dodo-core/api/v1alpha4"
+	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/builder"
 	"github.com/wabenet/dodo-core/pkg/plugin/configuration"

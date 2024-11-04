@@ -2,7 +2,7 @@ package build
 
 import (
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/v1alpha4"
+	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
 )
@@ -25,7 +25,7 @@ func (p *Command) PluginInfo() *api.PluginInfo {
 	}
 }
 
-func (*Command) Init() (plugin.PluginConfig, error) {
+func (*Command) Init() (plugin.Config, error) {
 	return map[string]string{}, nil
 }
 

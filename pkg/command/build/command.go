@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/v1alpha4"
+	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo/pkg/core"
 )
@@ -13,6 +13,7 @@ type options struct {
 	noCache      bool
 	forceRebuild bool
 	forcePull    bool
+	runtime      string
 }
 
 func New(m plugin.Manager) *Command {
@@ -27,6 +28,7 @@ func New(m plugin.Manager) *Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config := &api.BuildInfo{
 				ImageName:    args[0],
+				Builder:      opts.runtime,
 				NoCache:      opts.noCache,
 				ForceRebuild: opts.forceRebuild,
 				ForcePull:    opts.forcePull,
@@ -52,6 +54,9 @@ func New(m plugin.Manager) *Command {
 	flags.BoolVar(
 		&opts.forcePull, "pull", false,
 		"always attempt to pull base images")
+	flags.StringVarP(
+		&opts.runtime, "runtime", "r", "",
+		"select runtime plugin")
 
 	return &Command{cmd: cmd}
 }
