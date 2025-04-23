@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
+	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
+	runtimeapi "github.com/wabenet/dodo-core/api/runtime/v1alpha2"
 	"github.com/wabenet/dodo-core/pkg/config"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
@@ -48,7 +49,7 @@ func New(m plugin.Manager) *Command {
 				return fmt.Errorf("error running backdrop: %w", err)
 			}
 
-			exitCode, err := core.RunByName(m, backdrop)
+			exitCode, err := core.RunByName(m, args[0], backdrop)
 			command.SetExitCode(cmd, exitCode)
 
 			if err != nil {
@@ -87,28 +88,31 @@ func New(m plugin.Manager) *Command {
 	return &Command{cmd: cmd}
 }
 
-func (opts *options) createConfig(name string, command []string) (*api.Backdrop, error) {
-	c := &api.Backdrop{
+func (opts *options) createConfig(name string, command []string) (*configapi.Backdrop, error) {
+	c := &configapi.Backdrop{
 		Name:    name,
 		Runtime: opts.runtime,
-		BuildInfo: &api.BuildInfo{
-			Builder: opts.runtime,
+		Builder: opts.runtime,
+		ContainerConfig: &runtimeapi.ContainerConfig{
+			Process: &runtimeapi.Process{
+				User:       opts.user,
+				WorkingDir: opts.workdir,
+				Command:    command,
+			},
 		},
-		Entrypoint: &api.Entrypoint{
-			Interactive: opts.interactive,
-			Arguments:   command,
-		},
-		User:       opts.user,
-		WorkingDir: opts.workdir,
+	}
+
+	if opts.interactive {
+		c.ContainerConfig.Process.Entrypoint = []string{"/bin/sh"}
 	}
 
 	for _, spec := range opts.volumes {
-		vol, err := config.ParseVolumeMount(spec)
+		vol, err := config.ParseBindMount(spec)
 		if err != nil {
 			return nil, fmt.Errorf("could not parse volume config: %w", err)
 		}
 
-		c.Volumes = append(c.Volumes, vol)
+		c.ContainerConfig.Mounts = append(c.ContainerConfig.Mounts, vol)
 	}
 
 	for _, spec := range opts.environment {
@@ -117,7 +121,7 @@ func (opts *options) createConfig(name string, command []string) (*api.Backdrop,
 			return nil, fmt.Errorf("could not parse environment config: %w", err)
 		}
 
-		c.Environment = append(c.Environment, env)
+		c.ContainerConfig.Environment = append(c.ContainerConfig.Environment, env)
 	}
 
 	for _, spec := range opts.publish {
@@ -126,7 +130,7 @@ func (opts *options) createConfig(name string, command []string) (*api.Backdrop,
 			return nil, fmt.Errorf("could not parse port config: %w", err)
 		}
 
-		c.Ports = append(c.Ports, port)
+		c.ContainerConfig.Ports = append(c.ContainerConfig.Ports, port)
 	}
 
 	return c, nil

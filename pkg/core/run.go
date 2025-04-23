@@ -8,9 +8,9 @@ import (
 	"syscall"
 
 	log "github.com/hashicorp/go-hclog"
-	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
+	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
+	runtimeapi "github.com/wabenet/dodo-core/api/runtime/v1alpha2"
 	"github.com/wabenet/dodo-core/pkg/plugin"
-	"github.com/wabenet/dodo-core/pkg/plugin/configuration"
 	"github.com/wabenet/dodo-core/pkg/plugin/runtime"
 	"github.com/wabenet/dodo-core/pkg/ui"
 )
@@ -20,55 +20,65 @@ const (
 	DefaultCommand        = "run"
 )
 
-func RunByName(m plugin.Manager, overrides *api.Backdrop) (int, error) {
-	b, err := configuration.AssembleBackdropConfig(m, overrides.Name, overrides)
+func RunByName(m plugin.Manager, name string, overrides ...*configapi.Backdrop) (int, error) {
+	b, err := AssembleBackdropConfig(m, name, overrides...)
 	if err != nil {
 		return ExitCodeInternalError, err
 	}
 
-	if len(b.ContainerName) == 0 {
+	if len(b.GetContainerConfig().GetName()) == 0 {
 		id := make([]byte, 8)
 		if _, err := rand.Read(id); err != nil {
 			panic(err)
 		}
 
-		b.ContainerName = fmt.Sprintf("%s-%s", b.Name, hex.EncodeToString(id))
+		b.GetContainerConfig().Name = fmt.Sprintf("%s-%s", b.Name, hex.EncodeToString(id))
 	}
 
-	if len(b.ImageId) == 0 {
-		for _, dep := range b.BuildInfo.Dependencies {
-			if _, err := BuildByName(m, &api.BuildInfo{ImageName: dep}); err != nil {
+	if len(b.GetContainerConfig().GetImage()) == 0 {
+		for _, dep := range b.GetBuildConfig().GetDependencies() {
+			if _, err := BuildByName(m, dep); err != nil {
 				return ExitCodeInternalError, err
 			}
 		}
 
-		imageID, err := BuildImage(m, b.BuildInfo)
+		imageID, err := BuildImage(m, b)
 		if err != nil {
 			return ExitCodeInternalError, err
 		}
 
-		b.ImageId = imageID
+		b.GetContainerConfig().Image = imageID
 	}
 
 	return RunBackdrop(m, b)
 }
 
-func RunBackdrop(m plugin.Manager, b *api.Backdrop) (int, error) {
-	rt, err := runtime.GetByName(m, b.Runtime)
+func RunBackdrop(m plugin.Manager, b *configapi.Backdrop) (int, error) {
+	rt, err := runtime.GetByName(m, b.GetRuntime())
 	if err != nil {
-		return ExitCodeInternalError, fmt.Errorf("could not find runtime plugin for %s: %w", b.Runtime, err)
+		return ExitCodeInternalError, fmt.Errorf("could not find runtime plugin for %s: %w", b.GetRuntime(), err)
 	}
 
-	imageID, err := rt.ResolveImage(b.ImageId)
+	imageID, err := rt.ResolveImage(b.GetContainerConfig().GetImage())
 	if err != nil {
-		return ExitCodeInternalError, fmt.Errorf("could not find %s: %w", b.ImageId, err)
+		return ExitCodeInternalError, fmt.Errorf("could not find %s: %w", b.GetContainerConfig().GetImage(), err)
 	}
 
-	b.ImageId = imageID
+	b.GetContainerConfig().Image = imageID
+	b.GetContainerConfig().Terminal = &runtimeapi.TerminalConfig{
+		Stdio: true,
+		Tty:   ui.IsTTY(),
+	}
 
-	containerID, err := rt.CreateContainer(b, ui.IsTTY(), true)
+	containerID, err := rt.CreateContainer(b.GetContainerConfig())
 	if err != nil {
 		return ExitCodeInternalError, fmt.Errorf("could not create container: %w", err)
+	}
+
+	for _, upload := range b.GetRequiredFiles() {
+		if err := rt.WriteFile(containerID, upload.FilePath, ([]byte)(upload.Contents)); err != nil {
+			return ExitCodeInternalError, fmt.Errorf("could not upload file: %w", err)
+		}
 	}
 
 	exitCode := 0

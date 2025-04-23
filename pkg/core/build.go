@@ -3,25 +3,26 @@ package core
 import (
 	"fmt"
 
-	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
+	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/builder"
-	"github.com/wabenet/dodo-core/pkg/plugin/configuration"
 	"github.com/wabenet/dodo-core/pkg/ui"
 )
 
-func BuildByName(m plugin.Manager, overrides *api.BuildInfo) (string, error) {
-	config, err := configuration.FindBuildConfig(m, overrides.ImageName, overrides)
+func BuildByName(m plugin.Manager, name string, overrides ...*configapi.Backdrop) (string, error) {
+	config, err := FindBuildConfig(m, name, overrides...)
 	if err != nil {
-		return "", fmt.Errorf("error finding build config for %s: %w", overrides.ImageName, err)
+		return "", fmt.Errorf("error finding build config for %s: %w", name, err)
 	}
 
-	for _, dep := range config.Dependencies {
-		conf := &api.BuildInfo{}
-		configuration.MergeBuildInfo(conf, overrides)
-		conf.ImageName = dep
+	for _, dep := range config.GetBuildConfig().GetDependencies() {
+		conf := &configapi.Backdrop{}
+		for _, override := range overrides {
+			MergeBackdrop(conf, override)
+		}
+		conf.BuildConfig.ImageName = dep
 
-		if _, err := BuildByName(m, conf); err != nil {
+		if _, err := BuildByName(m, dep, conf); err != nil {
 			return "", err
 		}
 	}
@@ -29,14 +30,14 @@ func BuildByName(m plugin.Manager, overrides *api.BuildInfo) (string, error) {
 	return BuildImage(m, config)
 }
 
-func BuildImage(m plugin.Manager, config *api.BuildInfo) (string, error) {
-	b, err := builder.GetByName(m, config.Builder)
+func BuildImage(m plugin.Manager, config *configapi.Backdrop) (string, error) {
+	b, err := builder.GetByName(m, config.GetBuilder())
 	if err != nil {
-		return "", fmt.Errorf("could not find build plugin for %s: %w", config.Builder, err)
+		return "", fmt.Errorf("could not find build plugin for %s: %w", config.GetBuilder(), err)
 	}
 
 	if !ui.IsTTY() {
-		imageID, err := b.CreateImage(config, nil)
+		imageID, err := b.CreateImage(config.GetBuildConfig(), nil)
 		if err != nil {
 			return "", fmt.Errorf("error during image build: %w", err)
 		}
@@ -48,7 +49,7 @@ func BuildImage(m plugin.Manager, config *api.BuildInfo) (string, error) {
 
 	err = ui.NewTerminal().RunInRaw(
 		func(t *ui.Terminal) error {
-			if id, err := b.CreateImage(config, &plugin.StreamConfig{
+			if id, err := b.CreateImage(config.GetBuildConfig(), &plugin.StreamConfig{
 				Stdin:          t.Stdin,
 				Stdout:         t.Stdout,
 				Stderr:         t.Stderr,

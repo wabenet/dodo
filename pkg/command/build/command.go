@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
+	buildapi "github.com/wabenet/dodo-core/api/build/v1alpha2"
+	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo/pkg/core"
 )
@@ -26,15 +27,12 @@ func New(m plugin.Manager) *Command {
 		SilenceUsage:          true,
 		Args:                  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config := &api.BuildInfo{
-				ImageName:    args[0],
-				Builder:      opts.runtime,
-				NoCache:      opts.noCache,
-				ForceRebuild: opts.forceRebuild,
-				ForcePull:    opts.forcePull,
+			backdrop, err := opts.createConfig(args[0])
+			if err != nil {
+				return fmt.Errorf("could not build backdrop image: %w", err)
 			}
 
-			if _, err := core.BuildByName(m, config); err != nil {
+			if _, err := core.BuildByName(m, args[0], backdrop); err != nil {
 				return fmt.Errorf("could not build backdrop image: %w", err)
 			}
 
@@ -59,4 +57,18 @@ func New(m plugin.Manager) *Command {
 		"select runtime plugin")
 
 	return &Command{cmd: cmd}
+}
+
+func (opts *options) createConfig(name string) (*configapi.Backdrop, error) {
+	c := &configapi.Backdrop{
+		Builder: opts.runtime,
+		BuildConfig: &buildapi.BuildConfig{
+			ImageName:    name,
+			NoCache:      opts.noCache,
+			ForceRebuild: opts.forceRebuild,
+			ForcePull:    opts.forcePull,
+		},
+	}
+
+	return c, nil
 }

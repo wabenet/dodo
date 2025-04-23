@@ -2,7 +2,7 @@ package run
 
 import (
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/core/v1alpha5"
+	api "github.com/wabenet/dodo-core/api/plugin/v1alpha1"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
 )
