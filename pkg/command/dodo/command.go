@@ -6,7 +6,6 @@ import (
 	"os/exec"
 
 	"github.com/spf13/cobra"
-	api "github.com/wabenet/dodo-core/api/plugin/v1alpha1"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
 	"go.szostok.io/version/extension"
@@ -24,9 +23,7 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 					return runProxy(cmd, self, []string{defaultCmd})
 				}
 
-				return plugin.NotFoundError{
-					Plugin: &api.PluginName{Type: command.Type.String(), Name: defaultCmd},
-				}
+				return plugin.NewNotFoundError(command.Type, defaultCmd)
 			}
 
 			if path, err := exec.LookPath(fmt.Sprintf("dodo-%s", args[0])); err == nil {
@@ -42,9 +39,7 @@ func New(m plugin.Manager, defaultCmd string) *Command {
 				return runProxy(cmd, self, append([]string{defaultCmd}, args...))
 			}
 
-			return plugin.NotFoundError{
-				Plugin: &api.PluginName{Type: command.Type.String(), Name: defaultCmd},
-			}
+			return plugin.NewNotFoundError(command.Type, defaultCmd)
 		},
 	}
 

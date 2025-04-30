@@ -4,11 +4,10 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
-	runtimeapi "github.com/wabenet/dodo-core/api/runtime/v1alpha2"
-	"github.com/wabenet/dodo-core/pkg/config"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/command"
+	"github.com/wabenet/dodo-core/pkg/plugin/configuration"
+	"github.com/wabenet/dodo-core/pkg/plugin/runtime"
 	"github.com/wabenet/dodo/pkg/core"
 )
 
@@ -88,13 +87,13 @@ func New(m plugin.Manager) *Command {
 	return &Command{cmd: cmd}
 }
 
-func (opts *options) createConfig(name string, command []string) (*configapi.Backdrop, error) {
-	c := &configapi.Backdrop{
+func (opts *options) createConfig(name string, command []string) (configuration.Backdrop, error) {
+	c := configuration.Backdrop{
 		Name:    name,
 		Runtime: opts.runtime,
 		Builder: opts.runtime,
-		ContainerConfig: &runtimeapi.ContainerConfig{
-			Process: &runtimeapi.Process{
+		ContainerConfig: runtime.ContainerConfig{
+			Process: runtime.Process{
 				User:       opts.user,
 				WorkingDir: opts.workdir,
 				Command:    command,
@@ -107,27 +106,27 @@ func (opts *options) createConfig(name string, command []string) (*configapi.Bac
 	}
 
 	for _, spec := range opts.volumes {
-		vol, err := config.ParseBindMount(spec)
+		vol, err := runtime.BindMountFromSpec(spec)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse volume config: %w", err)
+			return c, fmt.Errorf("could not parse volume config: %w", err)
 		}
 
 		c.ContainerConfig.Mounts = append(c.ContainerConfig.Mounts, vol)
 	}
 
 	for _, spec := range opts.environment {
-		env, err := config.ParseEnvironmentVariable(spec)
+		env, err := runtime.EnvironmentVariableFromSpec(spec)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse environment config: %w", err)
+			return c, fmt.Errorf("could not parse environment config: %w", err)
 		}
 
 		c.ContainerConfig.Environment = append(c.ContainerConfig.Environment, env)
 	}
 
 	for _, spec := range opts.publish {
-		port, err := config.ParsePortBinding(spec)
+		port, err := runtime.PortBindingFromSpec(spec)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse port config: %w", err)
+			return c, fmt.Errorf("could not parse port config: %w", err)
 		}
 
 		c.ContainerConfig.Ports = append(c.ContainerConfig.Ports, port)

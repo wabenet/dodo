@@ -3,22 +3,22 @@ package core
 import (
 	"fmt"
 
-	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
 	"github.com/wabenet/dodo-core/pkg/plugin"
 	"github.com/wabenet/dodo-core/pkg/plugin/builder"
+	"github.com/wabenet/dodo-core/pkg/plugin/configuration"
 	"github.com/wabenet/dodo-core/pkg/ui"
 )
 
-func BuildByName(m plugin.Manager, name string, overrides ...*configapi.Backdrop) (string, error) {
+func BuildByName(m plugin.Manager, name string, overrides ...configuration.Backdrop) (string, error) {
 	config, err := FindBuildConfig(m, name, overrides...)
 	if err != nil {
 		return "", fmt.Errorf("error finding build config for %s: %w", name, err)
 	}
 
-	for _, dep := range config.GetBuildConfig().GetDependencies() {
-		conf := &configapi.Backdrop{}
+	for _, dep := range config.BuildConfig.Dependencies {
+		conf := configuration.Backdrop{}
 		for _, override := range overrides {
-			MergeBackdrop(conf, override)
+			conf = configuration.MergeBackdrops(conf, override)
 		}
 		conf.BuildConfig.ImageName = dep
 
@@ -30,14 +30,14 @@ func BuildByName(m plugin.Manager, name string, overrides ...*configapi.Backdrop
 	return BuildImage(m, config)
 }
 
-func BuildImage(m plugin.Manager, config *configapi.Backdrop) (string, error) {
-	b, err := builder.GetByName(m, config.GetBuilder())
+func BuildImage(m plugin.Manager, config configuration.Backdrop) (string, error) {
+	b, err := builder.GetByName(m, config.Builder)
 	if err != nil {
-		return "", fmt.Errorf("could not find build plugin for %s: %w", config.GetBuilder(), err)
+		return "", fmt.Errorf("could not find build plugin for %s: %w", config.Builder, err)
 	}
 
 	if !ui.IsTTY() {
-		imageID, err := b.CreateImage(config.GetBuildConfig(), nil)
+		imageID, err := b.CreateImage(config.BuildConfig, nil)
 		if err != nil {
 			return "", fmt.Errorf("error during image build: %w", err)
 		}
@@ -49,7 +49,7 @@ func BuildImage(m plugin.Manager, config *configapi.Backdrop) (string, error) {
 
 	err = ui.NewTerminal().RunInRaw(
 		func(t *ui.Terminal) error {
-			if id, err := b.CreateImage(config.GetBuildConfig(), &plugin.StreamConfig{
+			if id, err := b.CreateImage(config.BuildConfig, &plugin.StreamConfig{
 				Stdin:          t.Stdin,
 				Stdout:         t.Stdout,
 				Stderr:         t.Stderr,

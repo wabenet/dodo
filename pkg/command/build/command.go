@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	buildapi "github.com/wabenet/dodo-core/api/build/v1alpha2"
-	configapi "github.com/wabenet/dodo-core/api/configuration/v1alpha2"
 	"github.com/wabenet/dodo-core/pkg/plugin"
+	"github.com/wabenet/dodo-core/pkg/plugin/builder"
+	"github.com/wabenet/dodo-core/pkg/plugin/configuration"
 	"github.com/wabenet/dodo/pkg/core"
 )
 
@@ -59,10 +59,10 @@ func New(m plugin.Manager) *Command {
 	return &Command{cmd: cmd}
 }
 
-func (opts *options) createConfig(name string) (*configapi.Backdrop, error) {
-	c := &configapi.Backdrop{
+func (opts *options) createConfig(name string) (configuration.Backdrop, error) {
+	c := configuration.Backdrop{
 		Builder: opts.runtime,
-		BuildConfig: &buildapi.BuildConfig{
+		BuildConfig: builder.BuildConfig{
 			ImageName:    name,
 			NoCache:      opts.noCache,
 			ForceRebuild: opts.forceRebuild,
