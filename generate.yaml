@@ -1,7 +1,7 @@
 ---
 plugins:
   - import: github.com/wabenet/dodo/plugin
-  - import: github.com/wabenet/dodo-core/plugin
-  - import: github.com/wabenet/dodo-config/pkg/plugin
-  - import: github.com/wabenet/dodo-buildkit/pkg/plugin
-  - import: github.com/wabenet/dodo-docker/pkg/plugin
+  - import: github.com/wabenet/dodo-core
+  - import: github.com/wabenet/dodo-config
+  - import: github.com/wabenet/dodo-buildkit
+  - import: github.com/wabenet/dodo-docker
