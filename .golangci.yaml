@@ -1,0 +1,82 @@
+---
+version: "2"
+
+issues:
+  new-from-rev: HEAD
+  new: true
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+
+  settings:
+    gofumpt:
+      extra-rules: true
+
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+linters:
+  default: all
+  disable:
+    - exhaustruct
+    - godox
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - gochecknoglobals
+          - unused
+        path: _test.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+  settings:
+    mnd:
+      ignored-numbers: ['1', '2', '3']
+
+    varnamelen:
+      ignore-names: [err, ok, id]
+
+    wrapcheck:
+      ignore-package-globs:
+        - github.com/hashicorp/go-multierror
+
+    depguard:
+      rules:
+        main:
+          files:
+            - $all
+            - '!$test'
+          allow:
+            - $gostd
+            - github.com/wabenet
+            - github.com/hashicorp
+            - github.com/spf13/cobra
+            - github.com/spf13/viper
+          deny:
+            - pkg: reflect
+              desc: Please don't use reflect package
+        test:
+          files:
+            - $test
+          allow:
+            - $gostd
+            - github.com/wabenet
+            - github.com/stretchr/testify

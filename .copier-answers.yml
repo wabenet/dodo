@@ -1,0 +1,9 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.3.11
+_src_path: https://github.com/wabenet/project-template
+archetype: tool
+components: []
+description: like sudo, but for docker
+lifecycle: production
+name: dodo
+

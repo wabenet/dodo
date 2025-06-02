@@ -1,15 +1,8 @@
 backdrops:
   make:
-    image:
-      steps: |
-        FROM golang:1.18
-        ENV CGO_ENABLED=0
-        RUN apt-get update && apt-get install -y git bash curl tree make
-        RUN go install github.com/goreleaser/goreleaser@latest
-        RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.27.0
+    image: wabenet/wabe-project-build:v0.3.11
     volumes:
       - "{{ projectRoot }}:/build"
       - "{{ projectRoot }}/.cache:/go/pkg/mod"
-    working_dir: /build
-    script: make $@
-    command: all
+    working_dir: "/build/{{ projectPath }}"
+    script: exec make "$@"

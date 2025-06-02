@@ -1,31 +1,37 @@
 ---
+project_name: dodo
+
 before:
   hooks:
     - go mod download
     - go generate ./...
+
 builds:
-  - env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - darwin
+  - id: main
+    main: ./cmd/dodo
+    env: ["CGO_ENABLED=0"]
+    goos: [linux, darwin]
     ldflags:
       - -s -w
       - -X go.szostok.io/version.version={{.Version}}
       - -X go.szostok.io/version.buildDate={{.Date}}
+
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      386: i386
-      amd64: x86_64
+  - id: main
+    builds: [main]
+    format: "tar.gz"
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
 checksum:
   name_template: 'checksums.txt'
+
 snapshot:
   name_template: "{{ .Tag }}-next"
+
 changelog:
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
+      - '^chore:'

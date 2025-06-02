@@ -1,3 +1,9 @@
+![release](https://img.shields.io/github/v/release/wabenet/dodo?sort=semver)
+![build](https://img.shields.io/github/actions/workflow/status/wabenet/dodo/ci.yaml?branch=main&logo=github)
+![codecov](https://img.shields.io/codecov/c/github/wabenet/dodo?logo=codecov)
+![codeclimate](https://img.shields.io/codeclimate/maintainability/wabenet/dodo?logo=codeclimate)
+![license](https://img.shields.io/github/license/wabenet/dodo)
+
 # dodo - like sudo, but for docker
 
 ```bash
@@ -145,7 +151,7 @@ builds locally and in CI, while dodo has evolved in a generic application wrappe
 ## license & authors
 
 ```text
-Copyright 2021 Ole Claussen
+Copyright 2025 Ole Claussen
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
