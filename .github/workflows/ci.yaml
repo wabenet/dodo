@@ -13,7 +13,7 @@ jobs:
       image: "wabenet/wabe-project-build:v0.3.11"
       options: --user runner
     steps:
-      - uses: wabenet/project-template/actions/build@v0.3.11
+      - uses: wabenet/project-template/actions/build@v0.3.12
 
   coverage:
     runs-on: ubuntu-latest
@@ -21,6 +21,6 @@ jobs:
       image: "wabenet/wabe-project-build:v0.3.11"
       options: --user runner
     steps:
-      - uses: wabenet/project-template/actions/coverage@v0.3.11
+      - uses: wabenet/project-template/actions/coverage@v0.3.12
         with:
           cc-reporter-id: ${{ secrets.CC_TEST_REPORTER_ID }}
