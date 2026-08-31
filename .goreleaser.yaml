@@ -1,4 +1,5 @@
 ---
+version: 2
 project_name: dodo
 
 before:
@@ -17,16 +18,15 @@ builds:
       - -X go.szostok.io/version.buildDate={{.Date}}
 
 archives:
-  - id: main
-    builds: [main]
-    format: "tar.gz"
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - ids: [main]
+    formats: [binary]
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ .Tag }}-next"
 
 changelog:
   sort: asc

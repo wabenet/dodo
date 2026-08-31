@@ -18,13 +18,17 @@ update:
 	go list -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' -m all | xargs --no-run-if-empty go get
 	go mod tidy
 
-.PHONY: lint
-lint:
-	golangci-lint run
+.PHONY: build
+build: build-go
+
+.PHONY: release
+release: release-go
 
 .PHONY: test
-test:
-	go test -race -cover ./...
+test: test-go
+
+.PHONY: lint
+lint: lint-go
 
 .PHONY: coverage-report
 coverage-report:
@@ -33,10 +37,18 @@ coverage-report:
 	cp coverage.txt c.out
 	cc-test-reporter after-build -t gocov -p $$(go list -m)
 
-.PHONY: build
-build:
+.PHONY: test-go
+test-go:
+	go test -race -cover ./...
+
+.PHONY: lint-go
+lint-go:
+	golangci-lint run
+
+.PHONY: build-go
+build-go:
 	goreleaser build --snapshot --clean
 
-.PHONY: release
-release:
+.PHONY: release-go
+release-go:
 	goreleaser release --clean

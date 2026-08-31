@@ -10,10 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: "wabenet/wabe-project-build:v0.3.11"
+      image: "wabenet/wabe-project-build:v0.3.14"
       options: --user runner
     steps:
-      - uses: wabenet/project-template/actions/build@v0.3.11
+      - uses: wabenet/project-template/actions/build@v0.3.14
         with:
           release: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
